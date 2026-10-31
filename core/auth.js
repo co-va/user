@@ -1,6 +1,6 @@
 import { API_BASE } from './environment.js';
 
-const TOKEN_KEY = 'book.auth.token';
+const TOKEN_KEY = 'user.auth.token';
 
 function migrateSessionToken() {
   const persistent = localStorage.getItem(TOKEN_KEY) || '';
@@ -95,5 +95,5 @@ export async function changePassword(currentPassword, newPassword) {
 
 export function logout() {
   clearAuthToken();
-  window.dispatchEvent(new CustomEvent('book:auth-logout'));
+  window.dispatchEvent(new CustomEvent('user:auth-logout'));
 }
