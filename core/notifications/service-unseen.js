@@ -1,3 +1,4 @@
+// User runtime asset. Keep this file deployable independently from the application shell.
 import { API_BASE } from '../environment.js';
 import { getAccountToken } from '../account/index.js';
 import { escapeHtml, modal, mountModal } from '../../ui/user-ui.js';
