@@ -1,59 +1,23 @@
-name: Bootstrap User
+name: Check User
 
 on:
   push:
-    branches: [staging]
-    paths:
-      - '.github/workflows/bootstrap-user.yml'
-      - 'scripts/extract-user.mjs'
-      - 'scripts/fix-and-extract-user.mjs'
-      - 'scripts/isolate-user-shell.mjs'
-      - 'scripts/templates/**'
-      - 'scripts/trace-forbidden-imports.mjs'
-      - 'scripts/check-boundary.mjs'
-      - 'scripts/check-syntax.mjs'
-  workflow_dispatch:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  extract:
+  check-user:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout User
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: staging
-          fetch-depth: 0
-
-      - name: Fetch source core
-        run: git clone --depth 1 --branch staging https://github.com/co-va/core.git /tmp/co-va-core
-
-      - name: Isolate User shell
-        run: node scripts/isolate-user-shell.mjs /tmp/co-va-core
-
-      - name: Extract User contour
-        continue-on-error: true
-        run: node scripts/fix-and-extract-user.mjs /tmp/co-va-core
-
-      - name: Trace forbidden dependency chains
-        run: node scripts/trace-forbidden-imports.mjs
 
       - name: Check User boundary
         run: node scripts/check-boundary.mjs
 
       - name: Check User syntax and dependencies
         run: node scripts/check-syntax.mjs
-
-      - name: Commit extracted runtime
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No runtime changes"
-            exit 0
-          fi
-          git commit -m "Extract User runtime from core staging"
-          git push origin staging
