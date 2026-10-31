@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --rm --name co-va-user-smoke -p 3000:3000 co-va-user-check
+          docker run -d --rm --name co-va-user-smoke --add-host run-book-api:127.0.0.1 -p 3000:3000 co-va-user-check
           trap 'docker logs co-va-user-smoke || true; docker stop co-va-user-smoke >/dev/null 2>&1 || true' EXIT
           for i in {1..30}; do
             if curl -fsS http://127.0.0.1:3000/ >/dev/null; then break; fi
