@@ -27,12 +27,6 @@ function escapeRecordText(value = '') {
   }[char]));
 }
 
-function normalizedChatKeys(values = []) {
-  return [...new Set((Array.isArray(values) ? values : [])
-    .map((value) => String(value || '').trim())
-    .filter(Boolean))];
-}
-
 function isRecordEditClass(className = '') {
   return String(className || '').split(/\s+/).includes('record-edit-z');
 }
@@ -49,47 +43,24 @@ function recordHeaderContext({
   title = 'Запись',
   settings = false,
   showA = true,
-  chatPersonKey = '',
-  chatPersonKeys = [],
   aImage = '',
   aImagePosition = '',
   aInitials = '',
 } = {}) {
-  const groupPersonKeys = normalizedChatKeys(chatPersonKeys);
-  return {
-    groupPersonKeys,
-    html: workspaceHeaderContext({
-      title,
-      hideD: false,
-      a: showA ? {
-        kind: 'avatar',
-        label: 'Запись',
-        image: aImage,
-        imagePosition: aImagePosition,
-        initials: aInitials,
-      } : null,
-      v: showA && settings ? {
-        data: 'data-record-owner-settings',
-        aria: 'Настройки записи',
-      } : null,
-      d: {
-        kind: 'chat',
-        data: 'data-record-owner-chat',
-        aria: groupPersonKeys.length > 1 ? 'Чат группы' : 'Чат',
-      },
-    }),
-    chatPersonKey: String(chatPersonKey || ''),
-  };
-}
-
-function bindRecordChat(layer, { chatPersonKey = '', groupPersonKeys = [] } = {}) {
-  layer?.querySelector('[data-record-owner-chat]')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('book:record-chat-request', {
-      detail: {
-        personKey: String(chatPersonKey || ''),
-        personKeys: normalizedChatKeys(groupPersonKeys),
-      },
-    }));
+  return workspaceHeaderContext({
+    title,
+    hideD: true,
+    a: showA ? {
+      kind: 'avatar',
+      label: 'Запись',
+      image: aImage,
+      imagePosition: aImagePosition,
+      initials: aInitials,
+    } : null,
+    v: showA && settings ? {
+      data: 'data-record-owner-settings',
+      aria: 'Настройки записи',
+    } : null,
   });
 }
 
@@ -271,8 +242,6 @@ export function mountRecordZ({
   className = '',
   stack = true,
   onClose = null,
-  chatPersonKey = '',
-  chatPersonKeys = [],
   aImage = '',
   aImagePosition = '',
   aInitials = '',
@@ -284,8 +253,6 @@ export function mountRecordZ({
       showA,
       className,
       onClose,
-      chatPersonKey,
-      chatPersonKeys,
       aImage,
       aImagePosition,
       aInitials,
@@ -293,23 +260,19 @@ export function mountRecordZ({
   }
   if (isRecordEditClass(className)) closeRecordEditQ();
 
-  const context = recordHeaderContext({
+  const header = recordHeaderContext({
     title,
     settings,
     showA,
-    chatPersonKey,
-    chatPersonKeys,
     aImage,
     aImagePosition,
     aInitials,
   });
   const classes = ['record-shared-z', className].filter(Boolean).join(' ');
-  const layer = mountV2ZLayer(recordSurface(), v2ZLayer(
-    `${context.html}<div data-record-owner-host></div>`,
+  return mountV2ZLayer(recordSurface(), v2ZLayer(
+    `${header}<div data-record-owner-host></div>`,
     { className: classes },
   ), { stack, onClose });
-  bindRecordChat(layer, context);
-  return layer;
 }
 
 export function mountRecordQ({
@@ -318,29 +281,24 @@ export function mountRecordQ({
   showA = true,
   className = '',
   onClose = null,
-  chatPersonKey = '',
-  chatPersonKeys = [],
   aImage = '',
   aImagePosition = '',
   aInitials = '',
 } = {}) {
-  const context = recordHeaderContext({
+  const header = recordHeaderContext({
     title,
     settings,
     showA,
-    chatPersonKey,
-    chatPersonKeys,
     aImage,
     aImagePosition,
     aInitials,
   });
   const classes = ['record-shared-q', className].filter(Boolean).join(' ');
   const layer = mountModal(document.body, modal(
-    `${context.html}<div data-record-owner-host></div>`,
+    `${header}<div data-record-owner-host></div>`,
     { variant: 'q', surface: 'app', title, className: classes },
   ));
   if (!layer) return null;
-  bindRecordChat(layer, context);
 
   const disposeCalendarHeaderHost = title === 'Выбор даты'
     ? bindCalendarHeaderHost(recordZHost(layer), recordQHeaderHost(layer))
@@ -352,11 +310,11 @@ export function mountRecordQ({
     disposeCalendarHeaderHost();
     originalClose?.();
     queueMicrotask(() => {
-      window.dispatchEvent(new CustomEvent('book:v2-context-changed'));
+      window.dispatchEvent(new CustomEvent('user:v2-context-changed'));
       onClose?.();
     });
   };
-  window.dispatchEvent(new CustomEvent('book:v2-context-changed'));
+  window.dispatchEvent(new CustomEvent('user:v2-context-changed'));
   return layer;
 }
 
