@@ -58,7 +58,11 @@ jobs:
             <div id="root"></div>
             <pre id="error"></pre>
             <script type="module">
-              import { renderGlobalAccount } from '/online-booking/account-shell.js';
+              globalThis.fetch = async () => new Response('[]', {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              });
+              const { renderGlobalAccount } = await import('/online-booking/account-shell.js');
               const root = document.querySelector('#root');
               const state = {
                 account: { id: 'smoke-account', name: 'Smoke', surname: 'User', profileData: {} },
