@@ -1,9 +1,8 @@
-// User runtime asset. Keep this file deployable independently from the application shell.
 import { API_BASE } from '../environment.js';
 import { getAccountToken } from '../account/index.js';
 import { escapeHtml, modal, mountModal } from '../../ui/user-ui.js';
-import { getServiceUnseenState, publishServiceUnseen, syncApplicationBadge } from './app-badge.js';
 
+const SERVICE_UNSEEN_KEY = '__VA_TOOLS_SERVICE_UNSEEN__';
 const SERVICE_UNSEEN_ROLLOUT_AT = Date.parse('2026-10-29T17:20:31.000Z');
 const REFRESH_INTERVAL_MS = 15_000;
 let refreshBusy = false;
@@ -16,14 +15,45 @@ function text(value) {
   return String(value ?? '').trim();
 }
 
-function afterRollout(value) {
-  const stamp = Date.parse(String(value || ''));
-  return Number.isFinite(stamp) && stamp >= SERVICE_UNSEEN_ROLLOUT_AT;
+function count(value) {
+  return Math.max(0, Math.trunc(Number(value) || 0));
 }
 
 function recordIds(value) {
   const source = Array.isArray(value) ? value : [];
   return [...new Set(source.map((item) => text(item)).filter(Boolean))];
+}
+
+function afterRollout(value) {
+  const stamp = Date.parse(String(value || ''));
+  return Number.isFinite(stamp) && stamp >= SERVICE_UNSEEN_ROLLOUT_AT;
+}
+
+function getServiceUnseenState() {
+  if (typeof globalThis === 'undefined') return { total: 0, items: [] };
+  const state = globalThis[SERVICE_UNSEEN_KEY];
+  return state && typeof state === 'object'
+    ? { total: count(state.total), items: Array.isArray(state.items) ? state.items : [] }
+    : { total: 0, items: [] };
+}
+
+function syncApplicationBadge() {
+  const total = getServiceUnseenState().total;
+  if (typeof navigator === 'undefined') return total;
+  if (total > 0 && typeof navigator.setAppBadge === 'function') {
+    void navigator.setAppBadge(total).catch(() => {});
+  } else if (total === 0 && typeof navigator.clearAppBadge === 'function') {
+    void navigator.clearAppBadge().catch(() => {});
+  }
+  return total;
+}
+
+function publishServiceUnseen(items = []) {
+  const values = Array.isArray(items) ? items : [];
+  const state = { total: values.length, items: values };
+  if (typeof globalThis !== 'undefined') globalThis[SERVICE_UNSEEN_KEY] = state;
+  syncApplicationBadge();
+  return state;
 }
 
 function normalizeAccountItems(payload) {
@@ -146,10 +176,10 @@ function scheduleVisibleSeen() {
 }
 
 function summaryText(total) {
-  const count = Math.max(0, Math.trunc(Number(total) || 0));
-  if (count === 1) return '1 новое изменение в записях.';
-  if (count > 1 && count < 5) return `${count} новых изменения в записях.`;
-  return `${count} новых изменений в записях.`;
+  const value = count(total);
+  if (value === 1) return '1 новое изменение в записях.';
+  if (value > 1 && value < 5) return `${value} новых изменения в записях.`;
+  return `${value} новых изменений в записях.`;
 }
 
 function maybeShowSummary() {
@@ -178,6 +208,7 @@ function publish(items) {
 }
 
 export async function refreshServiceUnseen() {
+  if (!getAccountToken()) return;
   if (refreshBusy) {
     refreshQueued = true;
     return;
@@ -185,9 +216,9 @@ export async function refreshServiceUnseen() {
   refreshBusy = true;
   try {
     const payload = await accountRequest('/online-booking/account/service-unseen');
-    publish(normalizeAccountItems(payload || {}));
+    if (payload) publish(normalizeAccountItems(payload));
   } catch {
-    // Auth/network readiness is owned by the User runtime.
+    // Notifications must never block the User application.
   } finally {
     refreshBusy = false;
     if (refreshQueued) {
@@ -210,7 +241,6 @@ export function startServiceUnseenRuntime() {
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   const onRefresh = () => void refreshServiceUnseen();
-  const onAccountUnread = () => syncApplicationBadge();
   const onFocus = () => {
     if (!document.hidden) void refreshServiceUnseen();
   };
@@ -219,8 +249,8 @@ export function startServiceUnseenRuntime() {
     const id = text(row?.dataset?.journalListRecord);
     if (id && unseenRecordIds().has(id)) void markRecordsSeen([id]);
   };
+
   window.addEventListener('va-tools:service-unseen-refresh', onRefresh);
-  window.addEventListener('va-tools:account-unread', onAccountUnread);
   window.addEventListener('focus', onFocus);
   document.addEventListener('visibilitychange', onFocus);
   document.addEventListener('click', onClick, true);
@@ -238,7 +268,6 @@ export function startServiceUnseenRuntime() {
     if (summaryTimer) window.clearTimeout(summaryTimer);
     window.clearInterval(interval);
     window.removeEventListener('va-tools:service-unseen-refresh', onRefresh);
-    window.removeEventListener('va-tools:account-unread', onAccountUnread);
     window.removeEventListener('focus', onFocus);
     document.removeEventListener('visibilitychange', onFocus);
     document.removeEventListener('click', onClick, true);
