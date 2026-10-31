@@ -18,15 +18,6 @@ export {
 } from './grid.js';
 export { buildNaturalBookingTimeRows } from './booking-candidates.js';
 export {
-  configureSoftTimeUsageReleaseSource,
-  configureTimeUsageSource,
-  getTimeUsagesForScope,
-  getWorkingTimeUsageConflicts,
-  normalizeTimeUsage,
-  notifyTimeUsageChanged,
-  releaseWorkingTimeSoftUsages,
-} from './usage.js';
-export {
   normalizeWorkplaceTimeZone,
   zonedDateTimeParts,
   zonedDateTimeToDate,
