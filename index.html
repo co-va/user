@@ -13,7 +13,10 @@
   <style>
     html,body,#app{margin:0;min-height:100%;background:#2F3338}
     body,#app{min-height:100dvh}
-    .app-bootstrap{min-height:100dvh;display:grid;place-items:center;color:#fff;font:500 16px system-ui,-apple-system,sans-serif}
+    .app-bootstrap{min-height:100dvh;display:grid;place-items:center;color:#fff;font:500 16px system-ui,-apple-system,sans-serif;padding:24px;box-sizing:border-box;text-align:center}
+    .app-bootstrap__error{max-width:720px;display:grid;gap:12px}
+    .app-bootstrap__error small{opacity:.72;overflow-wrap:anywhere}
+    .app-bootstrap__error button{justify-self:center;border:0;border-radius:12px;padding:12px 18px;font:600 15px system-ui,-apple-system,sans-serif;cursor:pointer}
   </style>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/app-icon.svg">
@@ -61,9 +64,29 @@
 </head>
 <body>
   <div id="app" class="app-shell"><div class="app-bootstrap" role="status">Загрузка…</div></div>
-  <script type="module" src="ui/inputs/keyboard-runtime.js"></script>
-  <script type="module" src="online-booking/account-runtime.js"></script>
-  <script type="module" src="online-booking/user-entry.js"></script>
-  <script type="module" src="core/password-reset-request.js"></script>
+  <script type="module">
+    const app = document.querySelector('#app');
+    const showBootFailure = (message) => {
+      if (!app || app.querySelector('[data-user-runtime]')) return;
+      app.innerHTML = `<div class="app-bootstrap" role="alert"><div class="app-bootstrap__error"><strong>Не удалось запустить приложение</strong><small>${String(message || 'Неизвестная ошибка')}</small><button type="button" data-user-reload>Повторить</button></div></div>`;
+      app.querySelector('[data-user-reload]')?.addEventListener('click', () => location.reload());
+    };
+
+    const watchdog = window.setTimeout(() => {
+      if (app?.querySelector('.app-bootstrap')) showBootFailure('Запуск приложения не завершён.');
+    }, 8000);
+
+    try {
+      await import('./online-booking/user-entry.js');
+      window.clearTimeout(watchdog);
+      void import('./ui/inputs/keyboard-runtime.js');
+      void import('./online-booking/account-runtime.js');
+      void import('./core/password-reset-request.js');
+    } catch (error) {
+      window.clearTimeout(watchdog);
+      console.error('User boot failed', error);
+      showBootFailure(error instanceof Error ? error.message : String(error));
+    }
+  </script>
 </body>
 </html>
