@@ -1,5 +1,4 @@
-// Public Time Core contract.
-// Manifestations import this facade; internal atoms remain grouped under Time.
+// User Time contract: pure time calculations only.
 export {
   containsRange,
   createTimeRange,
@@ -27,14 +26,6 @@ export {
   notifyTimeUsageChanged,
   releaseWorkingTimeSoftUsages,
 } from './usage.js';
-export {
-  checkTimeAvailability,
-  getAvailabilityGrid,
-  getTimeAvailabilityAt,
-  listAvailableEndTimes,
-  listAvailableStartTimes,
-} from './availability.js';
-
 export {
   normalizeWorkplaceTimeZone,
   zonedDateTimeParts,
