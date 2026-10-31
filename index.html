@@ -102,10 +102,10 @@
     }, 8000);
 
     try {
-      await import('./app/main.js');
+      await import('./user/main.js');
       window.clearTimeout(watchdog);
       void import('./ui/inputs/keyboard-runtime.js');
-      void import('./app/account-runtime.js');
+      void import('./user/account-runtime.js');
       void import('./core/password-reset-request.js');
     } catch (error) {
       window.clearTimeout(watchdog);

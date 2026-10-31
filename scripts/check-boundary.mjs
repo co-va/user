@@ -24,7 +24,7 @@ const forbiddenPaths = [
   'booking.html',
   'ui/ui.js',
 ];
-const forbiddenTopLevel = new Set(['journal', 'settings', 'timetable', 'chat']);
+const forbiddenTopLevel = new Set(['app', 'journal', 'settings', 'timetable', 'chat']);
 const legacyToken = String.fromCharCode(98, 111, 111, 107);
 const legacyTokenPattern = new RegExp(`(^|[^a-z0-9])${legacyToken}([^a-z0-9]|$)`, 'i');
 const textFilePattern = /(?:\.(?:js|mjs|html|css|json|md|ya?ml|conf|sh|webmanifest|txt)|Dockerfile)$/i;
