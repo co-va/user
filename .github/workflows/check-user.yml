@@ -24,3 +24,27 @@ jobs:
 
       - name: Build User container
         run: docker build -t co-va-user-check .
+
+      - name: Browser runtime smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --rm --name co-va-user-smoke -p 3000:3000 co-va-user-check
+          trap 'docker logs co-va-user-smoke || true; docker stop co-va-user-smoke >/dev/null 2>&1 || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then break; fi
+            sleep 1
+          done
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME"
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=5000 --dump-dom http://127.0.0.1:3000/ >/tmp/user-dom.html 2>/tmp/user-chrome.log || true
+          cat /tmp/user-chrome.log
+          if grep -Eqi 'does not provide an export|Uncaught SyntaxError|Uncaught ReferenceError|Failed to fetch dynamically imported module' /tmp/user-chrome.log; then
+            echo 'Browser module/runtime error detected'
+            exit 1
+          fi
+          if ! grep -Eq 'booking-content|account-shell|auth-' /tmp/user-dom.html; then
+            echo 'User app did not render into #app'
+            cat /tmp/user-dom.html
+            exit 1
+          fi
