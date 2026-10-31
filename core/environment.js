@@ -15,6 +15,7 @@ const PRODUCTION_HOSTS = new Set([
   new URL(PRODUCTION_API_BASE).hostname,
 ]);
 const CODESPACES_SUFFIX = '.app.github.dev';
+const AMVERA_SUFFIX = '.amvera.tech';
 
 function normalizedBase(value) {
   return String(value || '').trim().replace(/\/$/, '');
@@ -27,7 +28,7 @@ export function resolveApiBase({ hostname = '', override = '' } = {}) {
   const host = String(hostname || '').trim().toLowerCase();
   if (LOCAL_HOSTS.has(host)) return LOCAL_STAGING_API_BASE;
   if (host.endsWith(CODESPACES_SUFFIX)) return CODESPACES_STAGING_API_BASE;
-  if (PRODUCTION_HOSTS.has(host)) return PRODUCTION_API_BASE;
+  if (PRODUCTION_HOSTS.has(host) || host.endsWith(AMVERA_SUFFIX)) return PRODUCTION_API_BASE;
 
   return '';
 }
