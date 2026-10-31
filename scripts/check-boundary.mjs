@@ -2,7 +2,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-const forbiddenPaths = ['server', 'admin', 'landing', 'core/finance', 'booking.html', 'ui/ui.js'];
+const forbiddenPaths = [
+  'server',
+  'admin',
+  'landing',
+  'core/finance',
+  'core/business-persistence.js',
+  'core/day',
+  'core/people',
+  'core/record/index.js',
+  'core/event/index.js',
+  'core/note/index.js',
+  'booking.html',
+  'ui/ui.js',
+];
 const forbiddenTopLevel = new Set(['journal', 'settings', 'timetable', 'chat']);
 
 for (const rel of forbiddenPaths) {
