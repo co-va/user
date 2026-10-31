@@ -1,4 +1,5 @@
 import './unread-runtime.js';
+import { getGlobalAccountRelationships } from '../account/index.js';
 import {
   deleteEndUserMessengerMessage,
   editEndUserMessengerMessage,
@@ -54,7 +55,6 @@ export async function sendEndUserChatMessage(tenantId, body, attachments = [], {
   const conversation = conversationId ? { id: conversationId } : await getEndUserChatConversation(tenantId);
   return sendEndUserMessengerMessage(tenantId, conversation.id, { body, attachments, replyToId });
 }
-
 
 export function endUserChatActions(tenantId) {
   return {
