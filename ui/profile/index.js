@@ -183,12 +183,11 @@ export function openSharedPasswordAction({
   return layer;
 }
 
-
 export function setSharedProfilePrimary(source, { visible = false, label = 'Сохранить', disabled = false } = {}) {
   if (!source) return;
   source.dataset.v2PrimaryVisible = visible ? 'true' : 'false';
   source.dataset.v2PrimaryLabel = String(label || 'Сохранить');
   source.setAttribute('aria-label', String(label || 'Сохранить'));
   source.disabled = Boolean(disabled);
-  window.dispatchEvent(new CustomEvent('book:v2-context-changed'));
+  window.dispatchEvent(new CustomEvent('user:v2-context-changed'));
 }
