@@ -4,6 +4,7 @@ import {
   isAccountSystemError,
   clearAccount,
   getAccountTerms,
+  getAccountToken,
   getGlobalAccount,
   getGlobalAccountPlatformState,
   getGlobalAccountRecords,
@@ -123,15 +124,15 @@ function accountCallbacks(root, state) {
       state.relationships = [];
       state.accountRecords = [];
       state.error = '';
-      renderGlobalClientEntry(root, state);
+      renderGlobalUserEntry(root, state);
     },
   };
 }
 
-async function renderGlobalClientHome(root, state) {
+async function renderGlobalUserHome(root, state) {
   const account = state.account || await getGlobalAccount();
   if (!account) {
-    renderGlobalClientEntry(root, state);
+    renderGlobalUserEntry(root, state);
     return;
   }
   state.account = account;
@@ -166,13 +167,13 @@ async function continueGlobalIdentity(root, state) {
   state.accountTerms = platformState?.document || state.accountTerms;
   state.accountTermsAccepted = Boolean(platformState?.accepted);
   if (!platformState?.accepted) {
-    renderGlobalClientLegal(root, state);
+    renderGlobalUserLegal(root, state);
     return;
   }
-  await renderGlobalClientHome(root, state);
+  await renderGlobalUserHome(root, state);
 }
 
-function renderGlobalClientEntry(root, state) {
+function renderGlobalUserEntry(root, state) {
   const rememberedIdentifier = state.accountDraft?.identifier
     || state.accountDraft?.email
     || getRememberedAccountEmail()
@@ -212,10 +213,10 @@ function renderGlobalClientEntry(root, state) {
     try {
       state.accountTerms = await getAccountTerms();
       state.accountTermsAccepted = false;
-      renderGlobalClientDetails(root, state);
+      renderGlobalUserDetails(root, state);
     } catch (error) {
       state.error = accountFlowError(error, 'Не удалось открыть регистрацию');
-      renderGlobalClientEntry(root, state);
+      renderGlobalUserEntry(root, state);
     }
   });
 
@@ -224,7 +225,7 @@ function renderGlobalClientEntry(root, state) {
     const validationError = formValidationMessage(authForm);
     if (validationError) {
       state.error = validationError;
-      renderGlobalClientEntry(root, state);
+      renderGlobalUserEntry(root, state);
       return;
     }
 
@@ -244,23 +245,22 @@ function renderGlobalClientEntry(root, state) {
           ...(prepared.identifierType === 'PHONE' ? { phone: identifier } : {}),
         };
         state.error = 'Аккаунт не найден. Выберите «Зарегистрироваться».';
-        renderGlobalClientEntry(root, state);
+        renderGlobalUserEntry(root, state);
         return;
       }
 
       const payload = await loginGlobalAccount(identifier, password);
       state.account = payload.account;
       state.error = '';
-      renderLoading(root);
       await continueGlobalIdentity(root, state);
     } catch (error) {
       state.error = accountFlowError(error, 'Не удалось войти');
-      renderGlobalClientEntry(root, state);
+      renderGlobalUserEntry(root, state);
     }
   });
 }
 
-function renderGlobalClientDetails(root, state) {
+function renderGlobalUserDetails(root, state) {
   const draft = state.accountDraft || {};
   const contactErrors = state.contactErrors || {};
 
@@ -287,7 +287,7 @@ function renderGlobalClientDetails(root, state) {
   initPasswordFields(root);
   root.querySelector('[data-global-registration-u-close]')?.addEventListener('click', () => {
     state.error = '';
-    renderGlobalClientEntry(root, state);
+    renderGlobalUserEntry(root, state);
   });
 
   const registrationForm = root.querySelector('[data-global-account-form]');
@@ -296,7 +296,7 @@ function renderGlobalClientDetails(root, state) {
     const validationError = formValidationMessage(registrationForm);
     if (validationError) {
       state.error = validationError;
-      renderGlobalClientDetails(root, state);
+      renderGlobalUserDetails(root, state);
       return;
     }
 
@@ -308,7 +308,7 @@ function renderGlobalClientDetails(root, state) {
 
     if (password !== repeatPassword) {
       state.error = 'Пароли не совпадают.';
-      renderGlobalClientDetails(root, state);
+      renderGlobalUserDetails(root, state);
       return;
     }
 
@@ -330,31 +330,31 @@ function renderGlobalClientDetails(root, state) {
       };
       if (state.contactErrors.email || state.contactErrors.phone) {
         state.error = '';
-        renderGlobalClientDetails(root, state);
+        renderGlobalUserDetails(root, state);
         return;
       }
       if (!state.accountTerms) state.accountTerms = await getAccountTerms();
       state.accountTermsAccepted = false;
-      renderGlobalClientLegal(root, state);
+      renderGlobalUserLegal(root, state);
     } catch (error) {
       state.error = accountFlowError(error, 'Не удалось проверить контакты');
-      renderGlobalClientDetails(root, state);
+      renderGlobalUserDetails(root, state);
     }
   });
 }
 
-function renderGlobalClientLegal(root, state) {
+function renderGlobalUserLegal(root, state) {
   const document = state.accountTerms;
   if (!document) {
     renderLoading(root);
     void getAccountTerms()
       .then((terms) => {
         state.accountTerms = terms;
-        renderGlobalClientLegal(root, state);
+        renderGlobalUserLegal(root, state);
       })
       .catch((error) => {
         state.error = accountFlowError(error, 'Не удалось загрузить Условия использования');
-        renderGlobalClientEntry(root, state);
+        renderGlobalUserEntry(root, state);
       });
     return;
   }
@@ -383,17 +383,17 @@ function renderGlobalClientLegal(root, state) {
     if (state.account) {
       clearAccount();
       state.account = null;
-      renderGlobalClientEntry(root, state);
+      renderGlobalUserEntry(root, state);
       return;
     }
-    renderGlobalClientDetails(root, state);
+    renderGlobalUserDetails(root, state);
   });
   root.querySelector('[data-global-platform-document]')?.addEventListener('click', () => {
     openConsentDocument(document);
   });
   root.querySelector('[data-global-platform-toggle]')?.addEventListener('click', () => {
     state.accountTermsAccepted = !state.accountTermsAccepted;
-    renderGlobalClientLegal(root, state);
+    renderGlobalUserLegal(root, state);
   });
   root.querySelector('[data-global-platform-continue]')?.addEventListener('click', async (event) => {
     if (!state.accountTermsAccepted) return;
@@ -410,28 +410,39 @@ function renderGlobalClientLegal(root, state) {
         await acceptGlobalAccountTerms(globalTermsFact(state));
       }
       state.error = '';
-      renderLoading(root);
-      await renderGlobalClientHome(root, state);
+      await renderGlobalUserHome(root, state);
     } catch (error) {
       state.error = accountFlowError(error, 'Не удалось сохранить документ');
-      renderGlobalClientLegal(root, state);
+      renderGlobalUserLegal(root, state);
     }
   });
 }
 
-export async function renderGlobalClient(root, initial = {}) {
+export async function renderGlobalUser(root, initial = {}) {
   const state = globalAccountState(initial);
-  renderLoading(root);
+  renderGlobalUserEntry(root, state);
+  if (!getAccountToken()) return;
+
   try {
-    const account = await getGlobalAccount();
-    if (!account) {
-      renderGlobalClientEntry(root, state);
+    const [account, platformState] = await Promise.all([
+      getGlobalAccount(),
+      getGlobalAccountPlatformState(),
+    ]);
+    if (!root.isConnected || !account) return;
+
+    state.account = account;
+    state.accountTerms = platformState?.document || state.accountTerms;
+    state.accountTermsAccepted = Boolean(platformState?.accepted);
+    if (!platformState?.accepted) {
+      renderGlobalUserLegal(root, state);
       return;
     }
-    state.account = account;
-    await continueGlobalIdentity(root, state);
+    await renderGlobalUserHome(root, state);
   } catch (error) {
+    if (!root.isConnected) return;
     state.error = accountFlowError(error, 'Не удалось открыть профиль');
-    renderGlobalClientEntry(root, state);
+    renderGlobalUserEntry(root, state);
   }
 }
+
+export const renderGlobalClient = renderGlobalUser;
