@@ -44,7 +44,7 @@ jobs:
             echo 'Browser module/runtime error detected'
             exit 1
           fi
-          if ! grep -Eq 'booking-content|account-shell|auth-' /tmp/user-dom.html; then
+          if ! grep -Eq 'data-user-runtime|booking-account|auth-' /tmp/user-dom.html; then
             echo 'User app did not render into #app'
             cat /tmp/user-dom.html
             exit 1
@@ -62,7 +62,7 @@ jobs:
                 status: 200,
                 headers: { 'Content-Type': 'application/json' },
               });
-              const { renderGlobalAccount } = await import('/online-booking/account-shell.js');
+              const { renderGlobalAccount } = await import('/user/account-shell.js');
               const root = document.querySelector('#root');
               const state = {
                 account: { id: 'smoke-account', name: 'Smoke', surname: 'User', profileData: {} },
