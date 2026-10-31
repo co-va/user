@@ -9,19 +9,42 @@ import {
   journalDayTimeline,
   modal,
   mountModal,
+  openRecordCreationOwner,
   shortDate,
   v2ListEntries,
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
+import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { readOnlyReceipt } from '../ui/receipt/index.js';
+import { initNoteReels, noteReels } from '../ui/note/index.js';
 import {
   isRecordCompletedSide,
   recordActivityTime,
   recordAppointmentTime,
   recordVisualState,
 } from '../core/record/state.js';
+import {
+  accountEventActions,
+  accountEventsLoaded,
+  getAccountEvent,
+  getAccountEvents,
+  loadAccountEvents,
+} from '../core/event/account-owner.js';
+import {
+  accountNoteActions,
+  accountNotesLoaded,
+  getAccountNote,
+  getAccountNotesForDay,
+  loadAccountNotes,
+} from '../core/note/account-owner.js';
+import { syncAccountCalendars } from '../core/calendar-sync/account.js';
+import { createUserEventFlow } from './user-event-create.js';
+import { openUserEventView } from './user-event-view.js';
+import { createUserNoteFlow } from './user-note-create.js';
+import { openUserNoteView } from './user-note-view.js';
+import { noteTargetLabel } from './user-note-target.js';
 
 const VIEWS = [
   { id: 'day', label: 'День' },
@@ -39,6 +62,12 @@ const NO_SHOW_COLOR = '#F1DADA';
 function dateKey(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function currentTimeForDay(day) {
+  const now = new Date();
+  if (dateKey(now) !== String(day || '').slice(0, 10)) return '';
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 function money(value) {
@@ -150,16 +179,91 @@ function recordUsage(record, resolveRecordContext) {
   };
 }
 
-function openDayAction() {
-  const layer = mountModal(document.body, modal(`<div class="modal-actions">${button('Записаться', { data: 'data-user-journal-booking' })}</div>`, {
+function eventUsage(event = {}) {
+  return {
+    ...event,
+    type: 'event',
+    sourceId: String(event?.id || ''),
+    rigidity: 'soft',
+  };
+}
+
+function usageMinutes(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function withOverlaps(values = []) {
+  const usages = values.map((usage) => ({ ...usage, overlap: false }));
+  const intervals = usages.map((usage, index) => {
+    const from = usageMinutes(usage?.from);
+    const rawTo = usageMinutes(usage?.to);
+    if (from == null || rawTo == null || rawTo === from) return null;
+    return { index, from, to: rawTo > from ? rawTo : rawTo + 24 * 60 };
+  }).filter(Boolean);
+  for (let left = 0; left < intervals.length; left += 1) {
+    for (let right = left + 1; right < intervals.length; right += 1) {
+      const a = intervals[left], b = intervals[right];
+      if (a.from < b.to && b.from < a.to) {
+        usages[a.index].overlap = true;
+        usages[b.index].overlap = true;
+      }
+    }
+  }
+  return usages;
+}
+
+function targetSourceFor(records, resolveRecordContext) {
+  const allRecords = readRecords(records);
+  return {
+    readRecord: (id) => {
+      const record = allRecords.find((item) => recordId(item) === String(id || '')) || null;
+      return record ? recordUsage(record, resolveRecordContext) : null;
+    },
+    recordsForDay: (date) => allRecords
+      .filter((record) => String(record?.date || '').slice(0, 10) === String(date || '').slice(0, 10))
+      .map((record) => recordUsage(record, resolveRecordContext)),
+    readEvent: (id) => getAccountEvent(id),
+    eventsForDay: (date) => getAccountEvents()
+      .filter((event) => String(event?.date || '').slice(0, 10) === String(date || '').slice(0, 10))
+      .map(eventUsage),
+  };
+}
+
+function openDayAction({ root, day, from, targetSource, rerender }) {
+  const layer = mountModal(document.body, modal(`<div class="modal-actions">
+    ${button('Событие', { variant: 'secondary', data: 'data-user-day-event' })}
+    ${button('Заметка', { variant: 'secondary', data: 'data-user-day-note' })}
+    ${button('Записаться', { data: 'data-user-day-booking' })}
+  </div>`, {
     variant: 'x',
     xRole: 'action',
     surface: 'app',
     title: 'Действие',
   }));
-  layer?.querySelector('[data-user-journal-booking]')?.addEventListener('click', () => {
+  layer?.querySelector('[data-user-day-booking]')?.addEventListener('click', () => {
     layer.v2Close?.();
     window.dispatchEvent(new CustomEvent('cova:account-journal-open-contacts'));
+  });
+  layer?.querySelector('[data-user-day-event]')?.addEventListener('click', () => {
+    layer.v2Close?.();
+    const owner = openRecordCreationOwner({
+      surfaceRoot: root.closest('[data-v2-z],[data-v2-z-layer]'),
+      bodyRoot: root,
+    });
+    if (!owner) return;
+    owner.setShellHeader?.('<div class="record-creation-step-title">Событие</div>');
+    createUserEventFlow({ owner, date: day, timeHint: from, eventActions: accountEventActions, onCreated: rerender });
+  });
+  layer?.querySelector('[data-user-day-note]')?.addEventListener('click', () => {
+    layer.v2Close?.();
+    const owner = openRecordCreationOwner({
+      surfaceRoot: root.closest('[data-v2-z],[data-v2-z-layer]'),
+      bodyRoot: root,
+    });
+    if (!owner) return;
+    owner.setShellHeader?.('<div class="record-creation-step-title">Заметка</div>');
+    createUserNoteFlow({ owner, date: day, noteActions: accountNoteActions, targetSource, onCreated: rerender });
   });
 }
 
@@ -167,32 +271,88 @@ function renderDay(root, { date, records, resolveRecordContext, navigationRoot, 
   root.innerHTML = '<div data-user-journal-day-content><div data-user-journal-timeline></div></div>';
   if (navigationRoot) initDateNavigator(navigationRoot, { date, onChange });
   const day = dateKey(date);
+  let disposed = false;
+  let clockTimer = null;
+  const rerender = () => {
+    if (disposed || !root.isConnected) return;
+    dispose();
+    renderDay(root, { date, records, resolveRecordContext, navigationRoot, onChange });
+  };
+  const dispose = () => {
+    disposed = true;
+    if (clockTimer) clearTimeout(clockTimer);
+    clockTimer = null;
+    clearV2Y(root);
+  };
+
+  if (!accountEventsLoaded()) void loadAccountEvents().then(rerender).catch(() => {});
+  if (!accountNotesLoaded()) void loadAccountNotes().then(rerender).catch(() => {});
+  void syncAccountCalendars().then(async (result) => {
+    if (disposed || Number(result?.synced || 0) <= 0) return;
+    await loadAccountEvents({ force: true });
+    rerender();
+  }).catch(() => {});
+
   const visible = readRecords(records)
     .filter((record) => String(record?.date || '').slice(0, 10) === day)
     .filter((record) => String(record?.status || '').toLowerCase() !== 'cancelled');
-  const usages = visible.map((record) => recordUsage(record, resolveRecordContext));
-  const byId = new Map(visible.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
+  const events = getAccountEvents().filter((event) => String(event?.date || '').slice(0, 10) === day);
+  const targetSource = targetSourceFor(records, resolveRecordContext);
+  const activeTime = currentTimeForDay(day);
+  const notes = getAccountNotesForDay(day);
+  const yRoot = setV2Y(root, noteReels(notes, {
+    activeTime,
+    targetLabel: (note) => noteTargetLabel(note, { source: targetSource }),
+  }));
+  if (yRoot && !yRoot.hidden) {
+    initNoteReels(yRoot, {
+      onOpen: ({ noteId }) => {
+        const note = getAccountNote(noteId);
+        if (!note) return;
+        openUserNoteView(note, {
+          noteActions: accountNoteActions,
+          targetSource,
+          onSaved: rerender,
+          onDeleted: rerender,
+        });
+      },
+    });
+  }
+
+  const usages = withOverlaps([
+    ...visible.map((record) => recordUsage(record, resolveRecordContext)),
+    ...events.map(eventUsage),
+  ]);
+  const recordById = new Map(visible.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
+  const eventById = new Map(events.map((event) => [String(event?.id || ''), event]).filter(([id]) => Boolean(id)));
   const timeline = root.querySelector('[data-user-journal-timeline]');
-  if (!timeline) return () => {};
+  if (!timeline) return dispose;
   timeline.innerHTML = journalDayTimeline({ from: '09:00', to: '23:00', usages, day });
   initJournalDayTimeline(timeline, {
     onUsageClick: ({ usageId }) => {
-      const record = byId.get(String(usageId || ''));
+      const id = String(usageId || '');
+      const event = eventById.get(id);
+      if (event) {
+        openUserEventView(event, { eventActions: accountEventActions, onClose: rerender });
+        return;
+      }
+      const record = recordById.get(id);
       if (record) openUserRecord(record, resolveRecordContext);
     },
-    onSlotClick: () => openDayAction(),
+    onSlotClick: ({ from }) => openDayAction({ root, day, from, targetSource, rerender }),
   });
-  return () => {};
+
+  if (activeTime) {
+    const now = new Date();
+    const delay = Math.max(1000, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50);
+    clockTimer = setTimeout(rerender, delay);
+  }
+  return dispose;
 }
 
 function minutesBetween(from = '', to = '') {
-  const parse = (value) => {
-    const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
-    if (!match) return null;
-    return Number(match[1]) * 60 + Number(match[2]);
-  };
-  const start = parse(from);
-  const end = parse(to);
+  const start = usageMinutes(from);
+  const end = usageMinutes(to);
   return start == null || end == null || end <= start ? 0 : end - start;
 }
 
@@ -393,5 +553,6 @@ export function renderJournal(root, options = {}) {
   return () => {
     disposeView();
     clearV2ZHeaderRows(root);
+    clearV2Y(root);
   };
 }
