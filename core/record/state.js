@@ -1,4 +1,14 @@
-import { RECORD_EVENT_TYPES } from './events.js';
+const RECORD_EVENT_TYPES = Object.freeze({
+  CREATED: 'created',
+  RESCHEDULED: 'rescheduled',
+  CONFIRMED: 'confirmed',
+  UNCONFIRMED: 'unconfirmed',
+  ARRIVED: 'arrived',
+  NO_SHOW: 'no-show',
+  ATTENDANCE_CLEARED: 'attendance-cleared',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+});
 
 function orderedEvents(events = []) {
   return (Array.isArray(events) ? events : [])
@@ -17,50 +27,21 @@ export function projectRecordLifecycle(record = {}, events = []) {
   let completedAt = '';
   let cancelledAt = '';
   let lifecycleUpdatedAt = record?.createdAt || record?.updatedAt || '';
-
   for (const event of orderedEvents(events)) {
     const at = String(event?.at || '');
-    if (event.type === RECORD_EVENT_TYPES.CONFIRMED) {
-      confirmed = true;
-      confirmedAt = at;
-    } else if (event.type === RECORD_EVENT_TYPES.UNCONFIRMED) {
-      confirmed = false;
-      confirmedAt = at;
-    } else if (event.type === RECORD_EVENT_TYPES.ARRIVED) {
-      attendance = 'arrived';
-      attendanceAt = at;
-    } else if (event.type === RECORD_EVENT_TYPES.NO_SHOW) {
-      attendance = 'no-show';
-      attendanceAt = at;
-    } else if (event.type === RECORD_EVENT_TYPES.ATTENDANCE_CLEARED) {
-      attendance = '';
-      attendanceAt = at;
-    } else if (event.type === RECORD_EVENT_TYPES.COMPLETED) {
+    if (event.type === RECORD_EVENT_TYPES.CONFIRMED) { confirmed = true; confirmedAt = at; }
+    else if (event.type === RECORD_EVENT_TYPES.UNCONFIRMED) { confirmed = false; confirmedAt = at; }
+    else if (event.type === RECORD_EVENT_TYPES.ARRIVED) { attendance = 'arrived'; attendanceAt = at; }
+    else if (event.type === RECORD_EVENT_TYPES.NO_SHOW) { attendance = 'no-show'; attendanceAt = at; }
+    else if (event.type === RECORD_EVENT_TYPES.ATTENDANCE_CLEARED) { attendance = ''; attendanceAt = at; }
+    else if (event.type === RECORD_EVENT_TYPES.COMPLETED) {
       completed = true;
       completedAt = at;
-      if (!attendance) {
-        attendance = 'arrived';
-        attendanceAt = at;
-      }
-    } else if (event.type === RECORD_EVENT_TYPES.CANCELLED) {
-      status = 'cancelled';
-      cancelledAt = at;
-    }
+      if (!attendance) { attendance = 'arrived'; attendanceAt = at; }
+    } else if (event.type === RECORD_EVENT_TYPES.CANCELLED) { status = 'cancelled'; cancelledAt = at; }
     if (at) lifecycleUpdatedAt = at;
   }
-
-  return {
-    ...record,
-    status,
-    confirmed,
-    attendance,
-    completed,
-    confirmedAt,
-    attendanceAt,
-    completedAt,
-    cancelledAt,
-    lifecycleUpdatedAt,
-  };
+  return { ...record, status, confirmed, attendance, completed, confirmedAt, attendanceAt, completedAt, cancelledAt, lifecycleUpdatedAt };
 }
 
 export function recordActionState(record = {}, events = []) {
@@ -84,8 +65,7 @@ export function recordVisitState(record = {}, events = []) {
 export function recordPaymentStatus(record = {}, events = [], payment = {}) {
   const visit = recordVisitState(record, events);
   if (!visit || visit === 'no-show') return '';
-  const dueValue = payment?.due ?? payment?.remaining ?? 0;
-  const due = Math.max(0, Number(dueValue) || 0);
+  const due = Math.max(0, Number(payment?.due ?? payment?.remaining ?? 0) || 0);
   if (due <= 0.009) return 'paid';
   return visit === 'arrived' ? 'debt' : 'due';
 }
