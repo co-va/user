@@ -21,3 +21,6 @@ jobs:
 
       - name: Check User syntax and dependencies
         run: node scripts/check-syntax.mjs
+
+      - name: Build User container
+        run: docker build -t co-va-user-check .
