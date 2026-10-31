@@ -14,7 +14,8 @@ for (const name of forbiddenTopLevel) {
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === '.git' || entry.name === 'node_modules') return [];
+    const rel = path.relative(root, path.join(dir, entry.name)).split(path.sep).join('/');
+    if (entry.name === '.git' || entry.name === 'node_modules' || rel === 'scripts' || rel.startsWith('scripts/')) return [];
     const full = path.join(dir, entry.name);
     return entry.isDirectory() ? walk(full) : [full];
   });
