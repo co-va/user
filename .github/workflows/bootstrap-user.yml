@@ -9,7 +9,7 @@ on:
       - 'scripts/fix-and-extract-user.mjs'
       - 'scripts/isolate-user-shell.mjs'
       - 'scripts/templates/**'
-      - 'scripts/debug-finance.mjs'
+      - 'scripts/trace-forbidden-imports.mjs'
       - 'scripts/check-boundary.mjs'
       - 'scripts/check-syntax.mjs'
   workflow_dispatch:
@@ -37,8 +37,8 @@ jobs:
         continue-on-error: true
         run: node scripts/fix-and-extract-user.mjs /tmp/co-va-core
 
-      - name: Trace Finance references
-        run: node scripts/debug-finance.mjs
+      - name: Trace forbidden dependency chains
+        run: node scripts/trace-forbidden-imports.mjs
 
       - name: Check User boundary
         run: node scripts/check-boundary.mjs
