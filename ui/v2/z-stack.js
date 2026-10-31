@@ -72,7 +72,7 @@ export function mountV2ZLayer(root, html, { onClose = null, stack = false, dismi
   host.appendChild(node);
   app?.classList.add('has-z-layer');
   syncV2ZStackInteraction(app, host);
-  const notify = () => window.dispatchEvent(new CustomEvent('book:v2-context-changed'));
+  const notify = () => window.dispatchEvent(new CustomEvent('user:v2-context-changed'));
   const contextObserver = new MutationObserver((mutations) => {
     if (mutations.some((mutation) => mutation.type === 'childList'
       || (mutation.type === 'attributes' && [
