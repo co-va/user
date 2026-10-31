@@ -10,6 +10,8 @@ const forbiddenPaths = [
   'core/business-persistence.js',
   'core/day',
   'core/people',
+  'core/workplace-time.js',
+  'core/time/availability.js',
   'core/record/index.js',
   'core/event/index.js',
   'core/note/index.js',
