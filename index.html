@@ -66,14 +66,39 @@
   <div id="app" class="app-shell"><div class="app-bootstrap" role="status">Загрузка…</div></div>
   <script type="module">
     const app = document.querySelector('#app');
-    const showBootFailure = (message) => {
+
+    async function diagnoseModuleFailure() {
+      const urls = [...new Set(
+        performance.getEntriesByType('resource')
+          .map((entry) => entry?.name)
+          .filter((value) => typeof value === 'string' && /\.m?js(?:$|[?#])/.test(value))
+      )];
+      for (const url of urls.reverse()) {
+        try {
+          const response = await fetch(url, { cache: 'no-store' });
+          const type = String(response.headers.get('content-type') || '').toLowerCase();
+          if (!response.ok || type.includes('text/html')) {
+            const parsed = new URL(url, location.href);
+            return `${parsed.pathname} → HTTP ${response.status}, ${type || 'без Content-Type'}`;
+          }
+        } catch (error) {
+          const parsed = new URL(url, location.href);
+          return `${parsed.pathname} → ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      return '';
+    }
+
+    const showBootFailure = async (message) => {
       if (!app || app.querySelector('[data-user-runtime]')) return;
-      app.innerHTML = `<div class="app-bootstrap" role="alert"><div class="app-bootstrap__error"><strong>Не удалось запустить приложение</strong><small>${String(message || 'Неизвестная ошибка')}</small><button type="button" data-user-reload>Повторить</button></div></div>`;
+      const diagnostic = await diagnoseModuleFailure();
+      const detail = diagnostic ? `${String(message || 'Неизвестная ошибка')}\n${diagnostic}` : String(message || 'Неизвестная ошибка');
+      app.innerHTML = `<div class="app-bootstrap" role="alert"><div class="app-bootstrap__error"><strong>Не удалось запустить приложение</strong><small>${detail.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\n','<br>')}</small><button type="button" data-user-reload>Повторить</button></div></div>`;
       app.querySelector('[data-user-reload]')?.addEventListener('click', () => location.reload());
     };
 
     const watchdog = window.setTimeout(() => {
-      if (app?.querySelector('.app-bootstrap')) showBootFailure('Запуск приложения не завершён.');
+      if (app?.querySelector('.app-bootstrap')) void showBootFailure('Запуск приложения не завершён.');
     }, 8000);
 
     try {
@@ -85,7 +110,7 @@
     } catch (error) {
       window.clearTimeout(watchdog);
       console.error('User boot failed', error);
-      showBootFailure(error instanceof Error ? error.message : String(error));
+      void showBootFailure(error instanceof Error ? error.message : String(error));
     }
   </script>
 </body>
