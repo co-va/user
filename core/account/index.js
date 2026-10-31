@@ -1,7 +1,7 @@
 import { API_BASE } from '../environment.js';
 
-const ACCOUNT_TOKEN_KEY = 'book.account.token';
-const ACCOUNT_EMAIL_KEY = 'book.account.email';
+const ACCOUNT_TOKEN_KEY = 'user.account.token';
+const ACCOUNT_EMAIL_KEY = 'user.account.email';
 const ACCOUNT_UNREAD_KEY = '__VA_TOOLS_ACCOUNT_UNREAD__';
 let globalAccountCacheToken = '';
 let globalAccountCache = null;
@@ -88,7 +88,7 @@ async function request(path, { tenantId = '', auth = false, ...options } = {}) {
   return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 
-const TECHNICAL_ACCOUNT_MESSAGE = /(?:\b(?:Account|tenant|Prisma|Exception|Error|stack|SQL|token|undefined|null|Book)\b|\bid\b|\.js\b|\.ts\b|\/api\/|\{.*\}|\[.*\])/i;
+const TECHNICAL_ACCOUNT_MESSAGE = /(?:\b(?:Account|tenant|Prisma|Exception|Error|stack|SQL|token|undefined|null)\b|\bid\b|\.js\b|\.ts\b|\/api\/|\{.*\}|\[.*\])/i;
 
 function safeAccountApiMessage(value, fallbackMessage) {
   const raw = Array.isArray(value) ? value[0] : value;
