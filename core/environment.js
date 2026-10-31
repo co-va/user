@@ -2,7 +2,7 @@ export const PRODUCTION_API_BASE = 'https://api.va-tools.ru';
 export const ADMIN_APP_ORIGIN = 'https://admin.va-tools.ru';
 export const APP_ORIGIN = 'https://app.va-tools.ru';
 export const USER_ORIGIN = 'https://user.va-tools.ru';
-export const BOOK_APP_ORIGIN = APP_ORIGIN;
+export const PLATFORM_APP_ORIGIN = APP_ORIGIN;
 export const ACCOUNT_APP_ORIGIN = USER_ORIGIN;
 export const LOCAL_STAGING_API_BASE = 'http://localhost:3000';
 export const CODESPACES_STAGING_API_BASE = '/api';
@@ -43,7 +43,7 @@ export function resolveRuntimeEnvironment({ hostname = '', override = '' } = {})
 }
 
 const runtimeHostname = typeof globalThis.location?.hostname === 'string' ? globalThis.location.hostname : '';
-const runtimeOverride = typeof globalThis.__BOOK_API_BASE__ === 'string' ? globalThis.__BOOK_API_BASE__ : '';
+const runtimeOverride = typeof globalThis.__USER_API_BASE__ === 'string' ? globalThis.__USER_API_BASE__ : '';
 
 export const API_BASE = resolveApiBase({ hostname: runtimeHostname, override: runtimeOverride });
 export const RUNTIME_ENVIRONMENT = resolveRuntimeEnvironment({ hostname: runtimeHostname, override: runtimeOverride });
