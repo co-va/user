@@ -1,7 +1,3 @@
-import { installAppModeSwitch } from './header/mode-switch.js';
-
-installAppModeSwitch();
-
 export { button, copyTextToClipboard } from './buttons/index.js';
 export { datePicker, initCalendar, initDateNavigator, initDatePickers } from './calendar/index.js';
 export { entityVisualCard, normalizeEntityCardAppearance } from './cards/entity-card-constructor.js';
