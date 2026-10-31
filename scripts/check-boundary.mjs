@@ -15,6 +15,12 @@ const forbiddenPaths = [
   'core/record/index.js',
   'core/event/index.js',
   'core/note/index.js',
+  'core/chat/internal-chat.js',
+  'core/chat/message-actions.js',
+  'core/chat/messenger-api.js',
+  'core/chat/messenger-mode.js',
+  'core/chat/unread-runtime.js',
+  'ui/chat',
   'booking.html',
   'ui/ui.js',
 ];
