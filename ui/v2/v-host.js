@@ -164,14 +164,14 @@ export function bindV2VContext(root) {
     attributes: true,
     attributeFilter: ['hidden', 'disabled', 'aria-label'],
   });
-  window.addEventListener('book:v2-context-changed', schedule);
+  window.addEventListener('user:v2-context-changed', schedule);
   sync();
   return () => {
     observer.disconnect();
     externalObserver?.disconnect();
     externalObserver = null;
     externalSurface = null;
-    window.removeEventListener('book:v2-context-changed', schedule);
+    window.removeEventListener('user:v2-context-changed', schedule);
     if (!restoreManualV() && control?.isConnected && hostControl() === control) clearV2V(app);
     source = null;
     control = null;
