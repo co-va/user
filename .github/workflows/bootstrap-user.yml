@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/bootstrap-user.yml'
       - 'scripts/extract-user.mjs'
+      - 'scripts/fix-and-extract-user.mjs'
       - 'scripts/check-boundary.mjs'
       - 'scripts/check-syntax.mjs'
   workflow_dispatch:
@@ -27,7 +28,7 @@ jobs:
         run: git clone --depth 1 --branch staging https://github.com/co-va/core.git /tmp/co-va-core
 
       - name: Extract User contour
-        run: node scripts/extract-user.mjs /tmp/co-va-core
+        run: node scripts/fix-and-extract-user.mjs /tmp/co-va-core
 
       - name: Check User boundary
         run: node scripts/check-boundary.mjs
