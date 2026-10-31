@@ -155,8 +155,10 @@ while (queued.length) {
   copiedJs.add(rel);
 
   for (const specifier of dependencySpecifiers(code)) {
+    const virtual = posix(path.posix.normalize(path.posix.join(path.posix.dirname(rel), specifier)));
+    if (virtual === 'ui/user-ui.js') continue;
     const resolved = resolveLocal(rel, specifier);
-    if (!resolved || resolved === 'ui/user-ui.js') continue;
+    if (!resolved) continue;
     if (resolved === 'ui/ui.js') throw new Error(`Unrewritten ui/ui.js import in ${rel}`);
     queueModule(resolved);
   }
@@ -194,8 +196,10 @@ while (queued.length) {
   writeTarget(rel, code);
   copiedJs.add(rel);
   for (const specifier of dependencySpecifiers(code)) {
+    const virtual = posix(path.posix.normalize(path.posix.join(path.posix.dirname(rel), specifier)));
+    if (virtual === 'ui/user-ui.js') continue;
     const resolved = resolveLocal(rel, specifier);
-    if (!resolved || resolved === 'ui/user-ui.js') continue;
+    if (!resolved) continue;
     if (resolved === 'ui/ui.js') throw new Error(`Unrewritten ui/ui.js import in ${rel}`);
     queueModule(resolved);
   }
