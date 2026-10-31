@@ -53,12 +53,12 @@ import {
   calculateInvestmentState,
   investmentRoleLabel,
   normalizeInvestmentTerms,
-} from './user-investment-calculator.js';
+} from './investment-calculator.js';
 import {
   cashEntityCardAppearance,
   cashEntityCardFields,
-} from './user-investment-card.js';
-import { personalAccountVisualCard } from './user-personal-account-card.js';
+} from './investment-card.js';
+import { personalAccountVisualCard } from './personal-account-card.js';
 import {
   depositCardAppearance,
   depositCardFields,
@@ -67,7 +67,7 @@ import {
 } from '../core/loyalty/deposit/card-presentation.js';
 import { getGlobalPersonalAccounts } from './personal-account-data.js';
 import { getGlobalDeposits } from './deposit-data.js';
-import { renderJournal } from './user-journal.js';
+import { renderJournal } from './journal.js';
 import { renderAccountCalendarIntegrations } from './calendar-integrations.js';
 
 function money(value) {
