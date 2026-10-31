@@ -37,6 +37,7 @@ jobs:
           done
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME"
+
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=5000 --dump-dom http://127.0.0.1:3000/ >/tmp/user-dom.html 2>/tmp/user-chrome.log || true
           cat /tmp/user-chrome.log
           if grep -Eqi 'does not provide an export|Uncaught SyntaxError|Uncaught ReferenceError|Failed to fetch dynamically imported module' /tmp/user-chrome.log; then
@@ -46,5 +47,46 @@ jobs:
           if ! grep -Eq 'booking-content|account-shell|auth-' /tmp/user-dom.html; then
             echo 'User app did not render into #app'
             cat /tmp/user-dom.html
+            exit 1
+          fi
+
+          cat >/tmp/post-login-smoke.html <<'HTML'
+          <!doctype html>
+          <html lang="ru">
+          <head><meta charset="utf-8"><title>Post-login smoke</title></head>
+          <body data-post-login-smoke="pending">
+            <div id="root"></div>
+            <pre id="error"></pre>
+            <script type="module">
+              import { renderGlobalAccount } from '/online-booking/account-shell.js';
+              const root = document.querySelector('#root');
+              const state = {
+                account: { id: 'smoke-account', name: 'Smoke', surname: 'User', profileData: {} },
+                accountTab: 'journal',
+                accountDeckActive: 'journal',
+                accountDeckOpen: false,
+                accountZEnter: false,
+                accountRecords: [],
+                relationships: [],
+              };
+              try {
+                await renderGlobalAccount(root, state, {});
+                const ok = Boolean(root.querySelector('[data-account-journal-root]'));
+                document.body.dataset.postLoginSmoke = ok ? 'pass' : 'fail';
+                if (!ok) document.querySelector('#error').textContent = 'Journal root was not rendered';
+              } catch (error) {
+                document.body.dataset.postLoginSmoke = 'fail';
+                document.querySelector('#error').textContent = `${error?.stack || error}`;
+              }
+            </script>
+          </body>
+          </html>
+          HTML
+          docker cp /tmp/post-login-smoke.html co-va-user-smoke:/usr/share/nginx/html/post-login-smoke.html
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=5000 --dump-dom http://127.0.0.1:3000/post-login-smoke.html >/tmp/post-login-dom.html 2>/tmp/post-login-chrome.log || true
+          cat /tmp/post-login-chrome.log
+          if ! grep -q 'data-post-login-smoke="pass"' /tmp/post-login-dom.html; then
+            echo 'Post-login Journal runtime failed'
+            cat /tmp/post-login-dom.html
             exit 1
           fi
