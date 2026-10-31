@@ -2,6 +2,7 @@ import { API_BASE } from '../environment.js';
 
 const ACCOUNT_TOKEN_KEY = 'user.account.token';
 const ACCOUNT_EMAIL_KEY = 'user.account.email';
+const REQUEST_TIMEOUT_MS = 12000;
 let globalAccountCacheToken = '';
 let globalAccountCache = null;
 
@@ -26,7 +27,13 @@ async function request(path, { tenantId = '', auth = false, ...options } = {}) {
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
   if (options.body != null && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  return fetch(`${API_BASE}${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 const TECHNICAL_ACCOUNT_MESSAGE = /(?:\b(?:Account|tenant|Prisma|Exception|Error|stack|SQL|token|undefined|null)\b|\bid\b|\.js\b|\.ts\b|\/api\/|\{.*\}|\[.*\])/i;
