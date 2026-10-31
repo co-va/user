@@ -204,5 +204,5 @@ export async function renderAccountCalendarIntegrations(root) {
   } catch (error) {
     root.innerHTML = `${workspaceHeaderContext({ title: 'Интеграции' })}${emptyState('Связь недоступна', error instanceof Error ? error.message : 'Не удалось проверить интеграции.')}`;
   }
-  window.dispatchEvent(new CustomEvent('book:v2-context-changed'));
+  window.dispatchEvent(new CustomEvent('user:v2-context-changed'));
 }
