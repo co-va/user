@@ -1,4 +1,4 @@
-import { accountErrorMessage, updateAccount, updateGlobalAccount } from '../core/account/index.js';
+import { accountErrorMessage, updateGlobalAccount } from '../core/account/index.js';
 import { changeAccountEmail, getAccountEmailVerification, requestAccountEmailVerification } from '../core/account/email.js';
 import {
   actionBlock,
@@ -150,9 +150,7 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
           links: collectLinks(form, 'accountProfileLinks').slice(0, 8),
         },
       };
-      const account = state.globalAccount
-        ? await updateGlobalAccount(payload)
-        : await updateAccount(state.tenantId, payload);
+      const account = await updateGlobalAccount(payload);
       state.account = account;
 
       if (requestedEmail && requestedEmail !== currentEmail) {

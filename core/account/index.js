@@ -20,19 +20,20 @@ export function clearAccount() {
   globalAccountCache = null;
 }
 
-async function request(path, { tenantId = '', auth = false, ...options } = {}) {
+async function request(path, { auth = false, ...options } = {}) {
   const headers = new Headers(options.headers || {});
   if (auth) {
-    const token = getAccountToken(tenantId);
+    const token = getAccountToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
   if (options.body != null && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     return await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal });
   } finally {
-    clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
 
@@ -77,7 +78,7 @@ async function jsonResponse(response, fallbackMessage) {
   return payload;
 }
 
-function storeSession(_tenantId, payload) {
+function storeSession(payload) {
   if (payload?.accessToken) localStorage.setItem(ACCOUNT_TOKEN_KEY, payload.accessToken);
   if (payload?.account?.email) localStorage.setItem(ACCOUNT_EMAIL_KEY, payload.account.email);
   if (payload?.account && payload?.accessToken) {
@@ -133,7 +134,7 @@ export async function registerGlobalAccount(data) {
     }),
     'Не удалось создать аккаунт',
   );
-  return storeSession('', payload);
+  return storeSession(payload);
 }
 
 export async function loginGlobalAccount(identifier, password) {
@@ -144,18 +145,20 @@ export async function loginGlobalAccount(identifier, password) {
     }),
     'Не удалось войти',
   );
-  return storeSession('', payload);
+  return storeSession(payload);
 }
 
 export async function getGlobalAccount() {
-  const token = getAccountToken('');
+  const token = getAccountToken();
   if (!token) return null;
   if (globalAccountCache && globalAccountCacheToken === token) return globalAccountCache;
+
   const response = await request('/online-booking/account/me', { auth: true });
   if (response.status === 401) {
-    clearAccount('');
+    clearAccount();
     return null;
   }
+
   const account = await jsonResponse(response, 'Не удалось открыть аккаунт');
   globalAccountCacheToken = token;
   globalAccountCache = account;
@@ -171,7 +174,7 @@ export async function updateGlobalAccount(data) {
     }),
     'Не удалось обновить аккаунт',
   );
-  globalAccountCacheToken = getAccountToken('');
+  globalAccountCacheToken = getAccountToken();
   globalAccountCache = account;
   return account;
 }
@@ -184,7 +187,7 @@ export async function deleteGlobalAccount() {
     }),
     'Не удалось удалить профиль',
   );
-  clearAccount('');
+  clearAccount();
   return result;
 }
 
@@ -234,119 +237,33 @@ export async function getGlobalAccountRecords() {
   );
 }
 
-export async function getAccountPlatformState(tenantId) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/platform-state`, { tenantId, auth: true }),
-    'Не удалось проверить Условия использования учетной записи',
-  );
-}
-
-export async function acceptAccountTerms(tenantId, accountTerms) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/platform-terms`, {
-      tenantId,
-      auth: true,
-      method: 'POST',
-      body: JSON.stringify({ accountTerms }),
-    }),
-    'Не удалось сохранить принятие Условий использования учетной записи',
-  );
-}
-
-export async function resolveBookingPublicRoute(profileSlug, workplaceSlug = '') {
-  const params = new URLSearchParams();
-  if (workplaceSlug) params.set('workplace', workplaceSlug);
-  const suffix = params.toString() ? `?${params}` : '';
-  return jsonResponse(
-    await request(`/online-booking/route/${encodeURIComponent(String(profileSlug || '').trim())}${suffix}`),
-    'Ссылка онлайн-записи недействительна',
-  );
-}
-
 export async function getBookingContext(tenantId, workplaceKey = '') {
   const params = new URLSearchParams();
   if (workplaceKey) params.set('workplace', workplaceKey);
   const suffix = params.toString() ? `?${params}` : '';
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/context${suffix}`),
+    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/context${suffix}`),
     'Не удалось загрузить онлайн-запись',
   );
 }
 
-export async function prepareAccount(tenantId, input) {
-  const body = input && typeof input === 'object' && !Array.isArray(input)
-    ? input
-    : { identifier: String(input || '').trim() };
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/prepare`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-    'Не удалось проверить аккаунт',
-  );
-}
-
-export async function registerAccount(tenantId, data) {
-  const payload = await jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/register`, {
-      method: 'POST',
-      body: JSON.stringify(data || {}),
-    }),
-    'Не удалось создать аккаунт',
-  );
-  return storeSession(tenantId, payload);
-}
-
-export async function loginAccount(tenantId, identifier, password) {
-  const payload = await jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/login`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier, password }),
-    }),
-    'Не удалось войти',
-  );
-  return storeSession(tenantId, payload);
-}
-
 export async function getAccount(tenantId) {
-  const token = getAccountToken(tenantId);
+  const token = getAccountToken();
   if (!token) return null;
-  const response = await request(`/online-booking/${encodeURIComponent(tenantId)}/account/me`, { tenantId, auth: true });
+
+  const response = await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/me`, {
+    auth: true,
+  });
   if (response.status === 401) {
-    clearAccount(tenantId);
+    clearAccount();
     return null;
   }
   return jsonResponse(response, 'Не удалось открыть аккаунт');
 }
 
-export async function updateAccount(tenantId, data) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/me`, {
-      tenantId,
-      auth: true,
-      method: 'PUT',
-      body: JSON.stringify(data || {}),
-    }),
-    'Не удалось обновить аккаунт',
-  );
-}
-
-export async function changeAccountPassword(tenantId, currentPassword, newPassword) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/password`, {
-      tenantId,
-      auth: true,
-      method: 'PUT',
-      body: JSON.stringify({ currentPassword, newPassword }),
-    }),
-    'Не удалось изменить пароль',
-  );
-}
-
 export async function createBookingRequest(tenantId, data) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/requests`, {
-      tenantId,
+    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/requests`, {
       auth: true,
       method: 'POST',
       body: JSON.stringify(data || {}),
@@ -355,24 +272,18 @@ export async function createBookingRequest(tenantId, data) {
   );
 }
 
-export async function getAccountRecords(tenantId) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/records`, { tenantId, auth: true }),
-    'Не удалось загрузить записи аккаунта',
-  );
-}
-
 export async function getAccountConsentState(tenantId) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/consent-state`, { tenantId, auth: true }),
+    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consent-state`, {
+      auth: true,
+    }),
     'Не удалось проверить согласия',
   );
 }
 
 export async function submitAccountConsents(tenantId, consents = []) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/consents`, {
-      tenantId,
+    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consents`, {
       auth: true,
       method: 'POST',
       body: JSON.stringify({ consents }),
@@ -383,8 +294,7 @@ export async function submitAccountConsents(tenantId, consents = []) {
 
 export async function revokeAccountConsent(tenantId, documentId) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(tenantId)}/account/consents/${encodeURIComponent(documentId)}/revoke`, {
-      tenantId,
+    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consents/${encodeURIComponent(String(documentId || ''))}/revoke`, {
       auth: true,
       method: 'POST',
     }),
