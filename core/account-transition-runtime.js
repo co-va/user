@@ -9,6 +9,7 @@ import { renderGlobalAccount } from '../online-booking/account-shell.js';
 import { renderGlobalClient } from '../online-booking/booking.js';
 
 const END_USER_HOST = new URL(USER_ORIGIN).hostname;
+const AMVERA_PREVIEW_SUFFIX = '.amvera.tech';
 const LOGIN_FORM = '[data-global-account-entry]';
 const LOGOUT_ACTION = '[data-shared-profile-action="logout"]';
 const TRANSITION_CLASS = 'account-transition-splash';
@@ -20,7 +21,8 @@ let logoutGuardUntil = 0;
 let logoutRecoveryPending = false;
 
 function isEndUserHost() {
-  return String(location.hostname || '').toLowerCase() === END_USER_HOST;
+  const host = String(location.hostname || '').toLowerCase();
+  return host === END_USER_HOST || host.endsWith(AMVERA_PREVIEW_SUFFIX);
 }
 
 function accountRoot() {
