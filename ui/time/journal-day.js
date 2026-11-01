@@ -119,102 +119,45 @@ function usageLaneLayout(values = [], day = '') {
   return layout;
 }
 
-function renderUsage(usage, options, renderer) {
-  return String((typeof renderer === 'function' ? renderer : usageMarkup)(usage, options) ?? '');
-}
-
-function timelineRange({ workRanges = [], usages = [], day = '', neutralBaseline = null } = {}) {
+function timelineRange({ from, to, usages = [], day = '' } = {}) {
+  const start = timeToMinutes(from);
+  const end = timeToMinutes(to);
+  if (start == null || end == null || end <= start) return null;
   const segments = (Array.isArray(usages) ? usages : []).map((usage) => usageSegment(usage, day)).filter(Boolean);
-  const starts = workRanges.map((range) => timeToMinutes(range?.from)).filter((value) => value != null);
-  const ends = workRanges.map((range) => timeToMinutes(range?.to)).filter((value) => value != null);
-  const baselineStart = timeToMinutes(neutralBaseline?.from);
-  const baselineEnd = timeToMinutes(neutralBaseline?.to);
-  if (baselineStart != null && baselineEnd != null && baselineEnd > baselineStart) {
-    starts.push(baselineStart);
-    ends.push(baselineEnd);
-  }
-  starts.push(...segments.map((segment) => segment.start));
-  ends.push(...segments.map((segment) => segment.end));
-  if (!starts.length || !ends.length) return { start: 0, end: 0, segments };
-  const start = Math.max(0, Math.min(...starts));
-  const end = Math.min(DAY_MINUTES, Math.max(...ends));
-  return { start, end, segments };
+  return {
+    start: Math.max(0, Math.min(start, ...segments.map((segment) => segment.start))),
+    end: Math.min(DAY_MINUTES, Math.max(end, ...segments.map((segment) => segment.end))),
+  };
 }
 
-function slotsMarkup(start, end, { interactive = true, workStart = start, workEnd = end } = {}) {
+function slotsMarkup(start, end, { workStart = start, workEnd = end } = {}) {
   const slots = [];
   for (let minutes = Math.ceil(start / 30) * 30; minutes < end; minutes += 30) {
     const next = Math.min(minutes + 30, end);
     const label = minutesToTime(minutes);
     const nextLabel = minutesToTime(next);
     const inner = `<span class="time-timeline__hour">${label}</span><span class="time-timeline__line"></span>`;
-    const insideWork = interactive && minutes >= workStart && minutes < workEnd;
+    const insideWork = minutes >= workStart && minutes < workEnd;
     slots.push(insideWork
       ? `<button type="button" class="time-timeline__slot" data-time-slot-from="${label}" data-time-slot-to="${nextLabel}" aria-label="${label}–${nextLabel}">${inner}</button>`
-      : `<div class="time-timeline__slot time-timeline__slot--readonly${interactive ? ' time-timeline__slot--outside-work' : ''}" aria-hidden="true">${inner}</div>`);
+      : `<div class="time-timeline__slot time-timeline__slot--readonly time-timeline__slot--outside-work" aria-hidden="true">${inner}</div>`);
   }
   return slots.join('');
-}
-
-function aggregateTimeline(columns = [], { day = '', usageRenderer = usageMarkup, neutralBaseline = null } = {}) {
-  const prepared = (Array.isArray(columns) ? columns : []).map((column) => {
-    const start = timeToMinutes(column?.from);
-    const end = timeToMinutes(column?.to);
-    if (start == null || end == null || end <= start) return null;
-    return { ...column, start, end, usages: Array.isArray(column?.usages) ? column.usages : [] };
-  }).filter(Boolean);
-  if (!prepared.length) return '';
-
-  const { start, end } = timelineRange({
-    workRanges: prepared.map((column) => ({ from: column.from, to: column.to })),
-    usages: [],
-    day,
-    neutralBaseline,
-  });
-  const total = end - start;
-  const minWidth = 56 + prepared.length * 104;
-  const headings = prepared.map((column) => `<strong class="journal-day-columns__heading">${escape(column?.name || 'Рабочее место')}</strong>`).join('');
-
-  const fields = prepared.map((column) => {
-    const top = ((column.start - start) / total) * 100;
-    const height = ((column.end - column.start) / total) * 100;
-    const usages = column.usages.map((usage) => {
-      const segment = usageSegment(usage, day);
-      if (!segment) return '';
-      const visibleStart = Math.max(segment.start, column.start);
-      const visibleEnd = Math.min(segment.end, column.end);
-      if (visibleEnd <= visibleStart) return '';
-      const usageTop = ((visibleStart - start) / total) * 100;
-      const usageHeight = ((visibleEnd - visibleStart) / total) * 100;
-      const markup = usageRenderer === usageMarkup
-        ? usageMarkup(usage, { interactive: false })
-        : renderUsage(usage, { interactive: false }, usageRenderer);
-      return `<div class="journal-work-field__usage" style="top:${usageTop}%;height:${usageHeight}%" data-time-usage="${escape(usage.sourceId || usage.id)}">${markup}</div>`;
-    }).join('');
-    return `<div class="journal-work-column"><div class="journal-work-field${column?.conflict ? ' is-conflict' : ''}" role="button" tabindex="0" aria-label="Изменить рабочее пространство ${escape(column?.name || '')}" style="top:${top}%;height:${height}%" data-journal-work-field="${escape(column?.workplaceId || '')}"></div>${usages}</div>`;
-  }).join('');
-
-  return `<div class="journal-day-columns" data-journal-day-columns><div class="journal-day-columns__inner" style="min-width:${minWidth}px;--journal-column-count:${prepared.length}"><div class="journal-day-columns__headings"><span aria-hidden="true"></span>${headings}</div><section class="time-timeline time-timeline--columns" data-time-timeline data-time-from="${escape(minutesToTime(start))}" data-time-to="${escape(minutesToTime(end))}" style="--time-total-minutes:${total}">${slotsMarkup(start, end, { interactive: false })}<div class="journal-work-columns">${fields}</div></section></div></div>`;
 }
 
 export function journalDayTimeline({
   from = '09:00',
   to = '18:00',
   usages = [],
-  columns = [],
   day = '',
-  renderUsage: usageRenderer = usageMarkup,
-  neutralBaseline = null,
-  clipUsagesToWorkRange = false,
 } = {}) {
-  if (Array.isArray(columns) && columns.length) return aggregateTimeline(columns, { day, usageRenderer, neutralBaseline });
   const workStart = timeToMinutes(from), workEnd = timeToMinutes(to);
   if (workStart == null || workEnd == null || workEnd <= workStart) return '';
 
   const values = Array.isArray(usages) ? usages : [];
-  const naturalRange = timelineRange({ workRanges: [{ from, to }], usages: values, day, neutralBaseline });
-  const start = clipUsagesToWorkRange ? workStart : naturalRange.start;
-  const end = clipUsagesToWorkRange ? workEnd : naturalRange.end;
+  const range = timelineRange({ from, to, usages: values, day });
+  if (!range || range.end <= range.start) return '';
+  const { start, end } = range;
   const total = end - start;
   const laneLayout = usageLaneLayout(values, day);
   const overlays = values.map((usage, index) => {
@@ -230,7 +173,7 @@ export function journalDayTimeline({
       const left = lane.lane * OVERLAP_CARD_OFFSET_PX;
       horizontal = `;left:${left}px;right:0;z-index:${lane.lane + 1}`;
     }
-    return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}" data-time-usage="${escape(usage.sourceId || usage.id)}">${renderUsage(usage, { interactive: true, overlapConflict: Boolean(lane?.overlapConflict) }, usageRenderer)}</div>`;
+    return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}" data-time-usage="${escape(usage.sourceId || usage.id)}">${usageMarkup(usage, { interactive: true, overlapConflict: Boolean(lane?.overlapConflict) })}</div>`;
   }).join('');
 
   return `<section class="time-timeline" data-time-timeline data-time-from="${escape(minutesToTime(start))}" data-time-to="${escape(minutesToTime(end))}" style="--time-total-minutes:${total}">${slotsMarkup(start, end, { workStart, workEnd })}<div class="time-timeline__usages">${overlays}</div></section>`;
@@ -239,21 +182,7 @@ export function journalDayTimeline({
 export function initJournalDayTimeline(root, {
   onSlotClick = () => {},
   onUsageClick = () => {},
-  onWorkFieldClick = () => {},
 } = {}) {
-  root.querySelectorAll('[data-journal-work-field]').forEach((field) => {
-    const open = () => {
-      const workplaceId = String(field.dataset.journalWorkField || '');
-      if (workplaceId) onWorkFieldClick({ workplaceId });
-    };
-    field.addEventListener('click', open);
-    field.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      open();
-    });
-  });
-
   root.querySelectorAll('[data-time-slot-from]').forEach((slot) => slot.addEventListener('click', () => {
     onSlotClick({
       from: slot.dataset.timeSlotFrom || '',
