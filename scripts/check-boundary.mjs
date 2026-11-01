@@ -83,4 +83,14 @@ if (!/addInHeader:\s*true/.test(sharedProfile)) {
   throw new Error('Shared Profile repeatable fields must keep header add controls');
 }
 
+const profileEditorStart = sharedProfile.indexOf('export function openSharedPersonalDataEditor');
+const profileEditorEnd = sharedProfile.indexOf('export function readSharedPersonalDataEditor');
+if (profileEditorStart < 0 || profileEditorEnd <= profileEditorStart) {
+  throw new Error('Shared personal data editor contract is missing');
+}
+const profileEditorCode = sharedProfile.slice(profileEditorStart, profileEditorEnd);
+if (/\btitle\s*:/.test(profileEditorCode) || /['"]Профиль['"]/.test(profileEditorCode)) {
+  throw new Error('Personal data Q must not repeat the Profile heading');
+}
+
 console.log('User boundary: PASS');
