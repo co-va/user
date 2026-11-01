@@ -108,17 +108,17 @@ function timelineRange({ from, to, usages = [] } = {}) {
   };
 }
 
-function slotsMarkup(start, end, { workStart = start, workEnd = end } = {}) {
+function slotsMarkup(start, end, { interactiveStart = start, interactiveEnd = end } = {}) {
   const slots = [];
   for (let minutes = Math.ceil(start / 30) * 30; minutes < end; minutes += 30) {
     const next = Math.min(minutes + 30, end);
     const label = minutesToTime(minutes);
     const nextLabel = minutesToTime(next);
     const inner = `<span class="time-timeline__hour">${label}</span><span class="time-timeline__line"></span>`;
-    const insideWork = minutes >= workStart && minutes < workEnd;
-    slots.push(insideWork
+    const interactive = minutes >= interactiveStart && minutes < interactiveEnd;
+    slots.push(interactive
       ? `<button type="button" class="time-timeline__slot" data-time-slot-from="${label}" data-time-slot-to="${nextLabel}" aria-label="${label}–${nextLabel}">${inner}</button>`
-      : `<div class="time-timeline__slot time-timeline__slot--readonly time-timeline__slot--outside-work" aria-hidden="true">${inner}</div>`);
+      : `<div class="time-timeline__slot" aria-hidden="true">${inner}</div>`);
   }
   return slots.join('');
 }
@@ -128,8 +128,8 @@ export function journalDayTimeline({
   to = '18:00',
   usages = [],
 } = {}) {
-  const workStart = timeToMinutes(from), workEnd = timeToMinutes(to);
-  if (workStart == null || workEnd == null || workEnd <= workStart) return '';
+  const interactiveStart = timeToMinutes(from), interactiveEnd = timeToMinutes(to);
+  if (interactiveStart == null || interactiveEnd == null || interactiveEnd <= interactiveStart) return '';
 
   const values = Array.isArray(usages) ? usages : [];
   const range = timelineRange({ from, to, usages: values });
@@ -153,7 +153,7 @@ export function journalDayTimeline({
     return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}">${usageMarkup(usage, { overlapConflict: Boolean(lane?.overlapConflict) })}</div>`;
   }).join('');
 
-  return `<section class="time-timeline" data-time-timeline data-time-from="${escape(minutesToTime(start))}" data-time-to="${escape(minutesToTime(end))}" style="--time-total-minutes:${total}">${slotsMarkup(start, end, { workStart, workEnd })}<div class="time-timeline__usages">${overlays}</div></section>`;
+  return `<section class="time-timeline">${slotsMarkup(start, end, { interactiveStart, interactiveEnd })}<div class="time-timeline__usages">${overlays}</div></section>`;
 }
 
 export function initJournalDayTimeline(root, {
