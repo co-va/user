@@ -1,0 +1,184 @@
+name: One-time lighten User startup
+
+on:
+  push:
+    branches: [staging]
+    paths: [.github/workflows/light-user-start-once.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  lighten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+      - name: Split identity startup from User runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('user/account.js')
+          text = path.read_text()
+
+          old_ui = """import {
+            button,
+            documentTile,
+            documentTiles,
+            field,
+            formValidationMessage,
+            initPasswordFields,
+            openDocumentViewer,
+            openNotice,
+            passwordField,
+            phoneField,
+            v2Sticker,
+          } from '../ui/user-ui.js';
+          import { formError, formView } from '../ui/forms/index.js';
+          import { renderGlobalAccount } from './account-shell.js';
+          """
+          new_ui = """import { button } from '../ui/buttons/index.js';
+          import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
+          import { field, formValidationMessage, initPasswordFields, passwordField, phoneField } from '../ui/inputs/index.js';
+          import { openNotice } from '../ui/modals/index.js';
+          import { v2Sticker } from '../ui/v2/sticker.js';
+          import { formError, formView } from '../ui/forms/index.js';
+          """
+          if old_ui not in text:
+            raise SystemExit('account.js UI import block changed')
+          text = text.replace(old_ui, new_ui, 1)
+
+          marker = """function flowThemeClasses() {
+            return 'booking-account booking-account--account booking-account--v2';
+          }
+          """
+          lazy = marker + """
+          let accountShellPromise = null;
+
+          function loadAccountShell() {
+            if (!accountShellPromise) accountShellPromise = import('./account-shell.js');
+            return accountShellPromise;
+          }
+
+          async function renderAccountSurface(root, state, callbacks) {
+            const { renderGlobalAccount } = await loadAccountShell();
+            return renderGlobalAccount(root, state, callbacks);
+          }
+          """
+          if marker not in text:
+            raise SystemExit('flowThemeClasses marker missing')
+          text = text.replace(marker, lazy, 1)
+
+          count = text.count('await renderGlobalAccount(root, state, callbacks);')
+          if count != 2:
+            raise SystemExit(f'expected 2 renderGlobalAccount calls, found {count}')
+          text = text.replace('await renderGlobalAccount(root, state, callbacks);', 'await renderAccountSurface(root, state, callbacks);')
+
+          old_start = """export async function renderGlobalUser(root, initial = {}) {
+            const state = globalAccountState(initial);
+            renderGlobalUserEntry(root, state);
+            if (!getAccountToken()) return;
+
+            try {
+          """
+          new_start = """export async function renderGlobalUser(root, initial = {}) {
+            const state = globalAccountState(initial);
+            if (!getAccountToken()) {
+              renderGlobalUserEntry(root, state);
+              return;
+            }
+            renderLoading(root);
+
+            try {
+          """
+          if old_start not in text:
+            raise SystemExit('renderGlobalUser startup block changed')
+          text = text.replace(old_start, new_start, 1)
+          path.write_text(text)
+
+          main = Path('user/main.js')
+          m = main.read_text()
+          old_fallback = "else window.setTimeout(load, 0);"
+          new_fallback = "else window.setTimeout(load, 1200);"
+          if old_fallback not in m:
+            raise SystemExit('booking preload fallback changed')
+          main.write_text(m.replace(old_fallback, new_fallback, 1))
+          PY
+
+          node --check user/account.js
+          node --check user/main.js
+          node scripts/check-boundary.mjs
+          node scripts/check-syntax.mjs
+          git diff --check
+
+          docker build -t co-va-user-start-check .
+          docker run -d --rm --name co-va-user-start-check -p 3000:3000 co-va-user-start-check
+          trap 'docker logs co-va-user-start-check || true; docker stop co-va-user-start-check >/dev/null 2>&1 || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then break; fi
+            sleep 1
+          done
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME"
+
+          cat >/tmp/no-token.html <<'HTML'
+          <!doctype html><html lang="ru"><head><meta charset="utf-8"><title>No token</title></head>
+          <body data-test="pending"><div id="root"></div><script type="module">
+            localStorage.removeItem('user.account.token');
+            const { renderGlobalUser } = await import('/user/account.js');
+            await renderGlobalUser(document.querySelector('#root'));
+            const login = document.querySelector('[data-global-account-entry]');
+            document.body.dataset.test = login ? 'pass' : 'fail';
+          </script></body></html>
+          HTML
+          docker cp /tmp/no-token.html co-va-user-start-check:/usr/share/nginx/html/no-token.html
+          docker exec co-va-user-start-check sh -c ': > /var/log/nginx/access.log' || true
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=2500 --dump-dom http://127.0.0.1:3000/no-token.html >/tmp/no-token-dom.html 2>/tmp/no-token-chrome.log || true
+          grep -q 'data-test="pass"' /tmp/no-token-dom.html || { cat /tmp/no-token-dom.html; exit 1; }
+          LOGS="$(docker logs co-va-user-start-check 2>&1 || true)"
+          if printf '%s' "$LOGS" | grep -Eq 'GET /user/(account-shell|journal|calendar-integrations)\.js'; then
+            echo 'Heavy User runtime loaded before session'; printf '%s\n' "$LOGS"; exit 1
+          fi
+
+          cat >/tmp/session.html <<'HTML'
+          <!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Session</title></head>
+          <body data-test="pending"><div id="root"></div><pre id="error"></pre><script type="module">
+            localStorage.setItem('user.account.token', 'test-token');
+            globalThis.fetch = async (url) => {
+              const path = String(url);
+              if (path.includes('/online-booking/account/platform-state')) return new Response(JSON.stringify({ accepted: true, document: { key: 'terms', version: 1 } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+              if (path.includes('/online-booking/account/records')) return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+              if (path.includes('/online-booking/account/booking-targets')) return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+              if (path.endsWith('/online-booking/account')) return new Response(JSON.stringify({ id: 'u1', name: 'User', surname: 'Test', phone: '+70000000000', profileData: {} }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+              return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+            };
+            try {
+              const { renderGlobalUser } = await import('/user/account.js');
+              const root = document.querySelector('#root');
+              const promise = renderGlobalUser(root);
+              const flashedLogin = Boolean(root.querySelector('[data-global-account-entry]'));
+              const showedLoading = Boolean(root.querySelector('.app-bootstrap'));
+              if (flashedLogin || !showedLoading) throw new Error('stored session rendered login instead of lightweight loading');
+              await promise;
+              if (!root.querySelector('[data-account-journal-root]')) throw new Error('Journal did not render after session');
+              document.body.dataset.test = 'pass';
+            } catch (error) {
+              document.body.dataset.test = 'fail';
+              document.querySelector('#error').textContent = String(error?.stack || error);
+            }
+          </script></body></html>
+          HTML
+          docker cp /tmp/session.html co-va-user-start-check:/usr/share/nginx/html/session.html
+          "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=4000 --dump-dom http://127.0.0.1:3000/session.html >/tmp/session-dom.html 2>/tmp/session-chrome.log || true
+          grep -q 'data-test="pass"' /tmp/session-dom.html || { cat /tmp/session-dom.html; exit 1; }
+
+          rm .github/workflows/light-user-start-once.yml
+          git config user.name co-tools
+          git config user.email a.volokovykh@yandex.ru
+          git add -A
+          git commit -m 'Load User runtime only after identity is resolved'
+          git push origin HEAD:staging
