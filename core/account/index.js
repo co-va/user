@@ -1,4 +1,5 @@
 import { API_BASE } from '../environment.js';
+import { PLATFORM_PRIVACY_POLICY } from './platform-documents.js';
 
 const ACCOUNT_TOKEN_KEY = 'user.account.token';
 const ACCOUNT_EMAIL_KEY = 'user.account.email';
@@ -96,10 +97,11 @@ export async function getAccountTerms() {
 }
 
 export async function getGlobalAccountPlatformState() {
-  return jsonResponse(
+  const state = await jsonResponse(
     await request('/online-booking/account/platform-state', { auth: true }),
     'Не удалось проверить Условия использования учетной записи',
   );
+  return { ...state, privacyPolicy: PLATFORM_PRIVACY_POLICY };
 }
 
 export async function acceptGlobalAccountTerms(accountTerms) {
