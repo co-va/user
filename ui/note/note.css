@@ -44,14 +44,12 @@
   box-shadow:0 4px 7px -5px rgba(17,17,17,.42);
   pointer-events:none;
 }
-.note-sticker__meta,
 .note-sticker__target,
 .note-sticker__date{
   color:rgba(17,17,17,.58);
   font-weight:700;
 }
-.note-sticker__target,
-.note-sticker__meta{
+.note-sticker__target{
   width:100%;
   white-space:nowrap;
   overflow:hidden;
@@ -77,7 +75,6 @@
 .note-sticker:active{
   transform:translateY(1px);
 }
-.note-sticker.is-time-active,
 .note-sticker.is-related{
   box-shadow:0 18px 28px -18px rgba(17,17,17,.58),0 0 0 2px rgba(17,17,17,.16);
 }
@@ -98,7 +95,6 @@
   height:9px;
   width:42%;
 }
-.note-sticker--compact .note-sticker__meta{font-size:8px;line-height:1.05}
 .note-sticker--compact .note-sticker__target{font-size:7px;line-height:1.05}
 .note-sticker--compact .note-sticker__title{font-size:10px;line-height:1.08;white-space:nowrap}
 .note-sticker--compact .note-sticker__text{font-size:9px;line-height:1.12;-webkit-line-clamp:2}
@@ -208,7 +204,6 @@
   top:-4px;
   height:8px;
 }
-.v2-y-host .note-sticker--compact .note-sticker__meta{font-size:7px;line-height:1}
 .v2-y-host .note-sticker--compact .note-sticker__target{font-size:7px;line-height:1}
 .v2-y-host .note-sticker--compact .note-sticker__title{font-size:9px;line-height:1.05}
 .v2-y-host .note-sticker--compact .note-sticker__text{font-size:8px;line-height:1.05;-webkit-line-clamp:2}
