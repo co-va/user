@@ -101,10 +101,10 @@
     }, 8000);
 
     try {
-      const passwordResetRoute = location.pathname === '/reset-password.html';
+      const isolatedAuthRoute = location.pathname === '/reset-password.html' || location.pathname === '/verify-email.html';
       await import('./user/main.js');
       window.clearTimeout(watchdog);
-      if (!passwordResetRoute) {
+      if (!isolatedAuthRoute) {
         void import('./ui/inputs/keyboard-runtime.js');
         void import('./user/account-runtime.js');
       }
