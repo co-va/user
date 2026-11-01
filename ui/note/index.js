@@ -64,21 +64,57 @@ export function orderNoteReels(notes = [], activeTime = '') {
     .map((item) => item.note);
 }
 
-export function noteCard(note = {}, { active = false, related = false, targetLabel = '' } = {}) {
+function noteSticker(note = {}, {
+  variant = 'compact',
+  interactive = false,
+  dataAttribute = '',
+  active = false,
+  related = false,
+  targetLabel = '',
+  showDate = false,
+  showLegacyTime = false,
+} = {}) {
   const id = String(note?.id || '');
   const title = String(note?.title || '').trim();
   const body = String(note?.text || '').trim();
-  const summary = title || body || 'Заметка';
-  const time = timeLabel(note);
+  const date = dateLabel(note?.date);
+  const legacyTime = showLegacyTime ? timeLabel(note) : '';
   const color = validColor(note?.color);
-  const classes = ['note-reel-card', active ? 'is-time-active' : '', related ? 'is-related' : ''].filter(Boolean).join(' ');
-  const target = targetLabel ? `<span class="note-reel-card__target">${escapeHtml(targetLabel)}</span>` : '';
-  return `<button type="button" class="${classes}" data-note-reel="${escapeHtml(id)}" style="--note-color:${escapeHtml(color)}" aria-label="Открыть заметку ${escapeHtml(summary)}">
-    <span class="note-reel-card__meta">${time ? escapeHtml(time) : 'На день'}</span>
+  const summary = title || body || 'Заметка';
+  const classes = [
+    'note-sticker',
+    `note-sticker--${variant}`,
+    active ? 'is-time-active' : '',
+    related ? 'is-related' : '',
+  ].filter(Boolean).join(' ');
+  const target = targetLabel ? `<span class="note-sticker__target">${escapeHtml(targetLabel)}</span>` : '';
+  const meta = legacyTime ? `<span class="note-sticker__meta">${escapeHtml(legacyTime)}</span>` : '';
+  const dateNode = showDate && date ? `<span class="note-sticker__date">${escapeHtml(date)}</span>` : '';
+  const content = `<span class="note-sticker__tape" aria-hidden="true"></span>
+    ${meta}
     ${target}
-    ${title ? `<strong class="note-reel-card__title">${escapeHtml(title)}</strong>` : ''}
-    ${body ? `<span class="note-reel-card__text">${escapeHtml(body)}</span>` : ''}
-  </button>`;
+    ${title ? `<strong class="note-sticker__title">${escapeHtml(title)}</strong>` : ''}
+    ${body ? `<span class="note-sticker__text">${escapeHtml(body)}</span>` : ''}
+    ${dateNode}`;
+  const style = `--note-color:${escapeHtml(color)}`;
+
+  if (interactive) {
+    return `<button type="button" class="${classes}" ${dataAttribute} style="${style}" aria-label="Открыть заметку ${escapeHtml(summary)}">${content}</button>`;
+  }
+  return `<article class="${classes}" style="${style}">${content}</article>`;
+}
+
+export function noteCard(note = {}, { active = false, related = false, targetLabel = '' } = {}) {
+  const id = String(note?.id || '');
+  return noteSticker(note, {
+    variant: 'compact',
+    interactive: true,
+    dataAttribute: `data-note-reel="${escapeHtml(id)}"`,
+    active,
+    related,
+    targetLabel,
+    showLegacyTime: true,
+  });
 }
 
 export function noteReels(notes = [], { activeTime = '', relatedIds = [], targetLabel = () => '' } = {}) {
@@ -116,30 +152,20 @@ export function focusNoteReels(root, noteIds = []) {
 }
 
 export function noteDetail(note = {}) {
-  const color = validColor(note?.color);
-  const title = String(note?.title || '').trim();
-  const body = String(note?.text || '').trim();
-  const date = dateLabel(note?.date);
-  return `<section class="note-detail" style="--note-color:${escapeHtml(color)}">
-    <article class="note-detail__paper">
-      ${title ? `<h2>${escapeHtml(title)}</h2>` : ''}
-      ${body ? `<div class="note-detail__text">${escapeHtml(body)}</div>` : ''}
-      ${date ? `<div class="note-detail__date">${escapeHtml(date)}</div>` : ''}
-    </article>
-  </section>`;
+  return `<section class="note-detail">${noteSticker(note, {
+    variant: 'full',
+    showDate: true,
+  })}</section>`;
 }
 
 export function noteAttachmentSticker(note = {}) {
   const id = String(note?.id || '');
   if (!id) return '';
-  const color = validColor(note?.color);
-  const title = String(note?.title || '').trim();
-  const body = String(note?.text || '').trim();
-  const summary = title || body || 'Заметка';
-  return `<button type="button" class="note-attachment-sticker" data-note-attachment="${escapeHtml(id)}" style="--note-color:${escapeHtml(color)}" aria-label="Открыть прикреплённую заметку ${escapeHtml(summary)}">
-    ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
-    ${body ? `<span>${escapeHtml(body)}</span>` : ''}
-  </button>`;
+  return noteSticker(note, {
+    variant: 'mini',
+    interactive: true,
+    dataAttribute: `data-note-attachment="${escapeHtml(id)}"`,
+  });
 }
 
 export function noteAttachmentStickers(notes = []) {
