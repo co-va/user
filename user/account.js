@@ -152,6 +152,25 @@ function accountCallbacks(root, state) {
   };
 }
 
+function installRelationshipsOnDemand(root, state) {
+  root.userRelationshipState = state;
+  if (root.userRelationshipLoaderBound) return;
+  root.userRelationshipLoaderBound = true;
+  root.addEventListener('click', (event) => {
+    const target = event.target?.closest?.('[data-account-deck-item="contacts"]');
+    if (!target || !root.contains(target)) return;
+    const current = root.userRelationshipState;
+    if (!current || current.relationshipsLoaded) return;
+    void loadRelationships(current)
+      .then(() => {
+        if (!root.isConnected || root.userRelationshipState !== current) return;
+        if (current.accountTab !== 'contacts' && current.accountTab !== 'contact-detail') return;
+        return renderAccountSurface(root, current, accountCallbacks(root, current));
+      })
+      .catch(() => {});
+  }, true);
+}
+
 async function renderGlobalUserHome(root, state) {
   const account = state.account || await getGlobalAccount();
   if (!account) {
@@ -159,6 +178,7 @@ async function renderGlobalUserHome(root, state) {
     return;
   }
   state.account = account;
+  installRelationshipsOnDemand(root, state);
 
   const callbacks = accountCallbacks(root, state);
   const tab = String(state.accountTab || 'journal');
@@ -187,6 +207,7 @@ async function continueGlobalIdentity(root, state) {
 }
 
 function renderGlobalUserEntry(root, state) {
+  root.userRelationshipState = state;
   const rememberedIdentifier = state.accountDraft?.identifier
     || state.accountDraft?.email
     || state.accountDraft?.phone
@@ -434,6 +455,7 @@ function renderGlobalUserLegal(root, state) {
 
 export async function renderGlobalUser(root, initial = {}) {
   const state = globalAccountState(initial);
+  root.userRelationshipState = state;
   if (!getAccountToken()) {
     renderGlobalUserEntry(root, state);
     return;
