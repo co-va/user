@@ -67,12 +67,6 @@ function dateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function currentTimeForDay(day) {
-  const now = new Date();
-  if (dateKey(now) !== String(day || '').slice(0, 10)) return '';
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-}
-
 function money(value) {
   const number = Math.max(0, Number(value) || 0);
   return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(number).replaceAll('\u00a0', ' ')} ₽`;
@@ -305,7 +299,6 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   if (navigationRoot) initDateNavigator(navigationRoot, { date, onChange });
   const day = dateKey(date);
   let disposed = false;
-  let clockTimer = null;
   const rerender = () => {
     if (disposed || !root.isConnected) return;
     if (root.querySelector('[data-record-creation-flow]')) return;
@@ -314,8 +307,6 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   };
   const dispose = () => {
     disposed = true;
-    if (clockTimer) clearTimeout(clockTimer);
-    clockTimer = null;
     clearV2Y(root);
   };
 
@@ -332,10 +323,8 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
     .filter((record) => String(record?.status || '').toLowerCase() !== 'cancelled');
   const events = getAccountEvents().filter((event) => String(event?.date || '').slice(0, 10) === day);
   const targetSource = targetSourceFor(records);
-  const activeTime = currentTimeForDay(day);
   const notes = getAccountNotesForDay(day);
   const yRoot = setV2Y(root, noteReels(notes, {
-    activeTime,
     targetLabel: (note) => noteTargetLabel(note, { source: targetSource }),
   }));
   if (yRoot && !yRoot.hidden) {
@@ -375,12 +364,6 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
     },
     onSlotClick: ({ from }) => openDayAction({ root, day, from, targetSource, rerender }),
   });
-
-  if (activeTime) {
-    const now = new Date();
-    const delay = Math.max(1000, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50);
-    clockTimer = setTimeout(rerender, delay);
-  }
   return dispose;
 }
 
@@ -510,7 +493,7 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
   return () => { disposed = true; };
 }
 
-function listEntry(record, { focus = false } = {}) {
+function listEntry(record) {
   const payment = paymentFor(record);
   const id = recordId(record);
   const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
@@ -526,10 +509,7 @@ function listEntry(record, { focus = false } = {}) {
     interactive: Boolean(id),
     data: id ? `data-user-journal-record="${escapeHtml(id)}"` : '',
     aria: id ? `Открыть запись ${procedureTitle}` : '',
-    className: [
-      `journal-list-record--${recordVisualState(record, { paid: payment.paid })}`,
-      focus ? 'journal-list-focus' : '',
-    ].filter(Boolean).join(' '),
+    className: `journal-list-record--${recordVisualState(record, { paid: payment.paid })}`,
     initial: 'З',
   });
 }
@@ -579,7 +559,7 @@ function eventDurationLabel(event = {}) {
   return parts.join(' ');
 }
 
-function eventListEntry(event, { focus = false } = {}) {
+function eventListEntry(event) {
   const id = eventId(event);
   const title = String(event?.title || '').trim() || 'Событие';
   const from = String(event?.from || '').trim();
@@ -600,7 +580,7 @@ function eventListEntry(event, { focus = false } = {}) {
     interactive: Boolean(id),
     data: id ? `data-user-journal-event="${escapeHtml(id)}"` : '',
     aria: id ? `Открыть событие ${title}` : '',
-    className: ['journal-list-event', focus ? 'journal-list-focus' : ''].filter(Boolean).join(' '),
+    className: 'journal-list-event',
     initial: 'С',
   });
 }
@@ -612,10 +592,10 @@ function listItemAppointmentTime(item, edge = 'from') {
   return Number.isFinite(value) ? value : NaN;
 }
 
-function listItemEntry(item, { focus = false } = {}) {
+function listItemEntry(item) {
   return item?.type === 'event'
-    ? eventListEntry(item.value, { focus })
-    : listEntry(item?.value, { focus });
+    ? eventListEntry(item.value)
+    : listEntry(item?.value);
 }
 
 function bindListItems(root, records, events, rerender) {
@@ -657,12 +637,7 @@ function renderList(root, { records, mode }) {
         if (!Number.isFinite(right)) return -1;
         return left - right;
       });
-      const now = Date.now();
-      const focus = ordered.findIndex((item) => {
-        const end = listItemAppointmentTime(item, 'to');
-        return Number.isFinite(end) && end > now;
-      });
-      root.innerHTML = v2ListEntries(ordered.map((item, index) => listItemEntry(item, { focus: index === focus })));
+      root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
       bindListItems(root, recordRows, eventRows, draw);
       return;
     }
