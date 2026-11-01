@@ -514,23 +514,26 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
 }
 
 function listEntry(record, { focus = false } = {}) {
-  const presentation = presentationFor(record);
   const payment = paymentFor(record);
   const id = recordId(record);
+  const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
+    .map((item) => String(item?.name || '').trim())
+    .filter(Boolean);
+  const procedureTitle = procedures.join(' · ') || 'Запись';
   return v2ListEntry({
-    overline: presentation.workplaceName,
-    title: presentation.name,
-    subtitle: String(presentation.professional?.phone || presentation.professional?.uei || ''),
+    overline: 'Запись',
+    title: procedureTitle,
+    subtitle: '',
     rightTop: [shortDate(record?.date, ''), String(record?.from || '')].filter(Boolean).join(' · '),
     rightBottom: money(amountDue(record)),
     interactive: Boolean(id),
     data: id ? `data-user-journal-record="${escapeHtml(id)}"` : '',
-    aria: id ? `Открыть запись ${presentation.name}` : '',
+    aria: id ? `Открыть запись ${procedureTitle}` : '',
     className: [
       `journal-list-record--${recordVisualState(record, { paid: payment.paid })}`,
       focus ? 'journal-list-focus' : '',
     ].filter(Boolean).join(' '),
-    initial: presentation.name.slice(0, 1).toUpperCase(),
+    initial: 'З',
   });
 }
 
@@ -555,23 +558,52 @@ function eventActivityTime(event = {}) {
   return Number.isFinite(activity) ? activity : eventAppointmentTime(event, 'from');
 }
 
+function russianCount(value, one, few, many) {
+  const number = Math.abs(Number(value) || 0);
+  const mod100 = number % 100;
+  const mod10 = number % 10;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
+function eventDurationLabel(event = {}) {
+  const from = usageMinutes(event?.from);
+  const to = usageMinutes(event?.to);
+  if (from == null || to == null || from === to) return '';
+  let duration = to - from;
+  if (duration < 0) duration += 24 * 60;
+  const hours = Math.floor(duration / 60);
+  const minutes = duration % 60;
+  const parts = [];
+  if (hours) parts.push(`${hours} ${russianCount(hours, 'час', 'часа', 'часов')}`);
+  if (minutes) parts.push(`${minutes} ${russianCount(minutes, 'минута', 'минуты', 'минут')}`);
+  return parts.join(' ');
+}
+
 function eventListEntry(event, { focus = false } = {}) {
   const id = eventId(event);
   const title = String(event?.title || '').trim() || 'Событие';
-  const description = String(event?.description || '').trim();
   const from = String(event?.from || '').trim();
-  const to = String(event?.to || '').trim();
-  const period = from && to ? `${from}–${to}` : from || to;
   return v2ListEntry({
-    overline: 'Событие',
-    title,
-    subtitle: description,
-    rightTop: [shortDate(event?.date, ''), period].filter(Boolean).join(' · '),
+    columns: [
+      [
+        { value: 'Событие', muted: true },
+        { value: title, strong: true },
+      ],
+      [],
+      [
+        { value: shortDate(event?.date, ''), strong: true },
+        { value: from },
+        { value: eventDurationLabel(event), muted: true },
+      ],
+    ],
     leadingSwatch: monthEventColor(event),
     interactive: Boolean(id),
     data: id ? `data-user-journal-event="${escapeHtml(id)}"` : '',
     aria: id ? `Открыть событие ${title}` : '',
-    className: focus ? 'journal-list-focus' : '',
+    className: ['journal-list-event', focus ? 'journal-list-focus' : ''].filter(Boolean).join(' '),
     initial: 'С',
   });
 }
