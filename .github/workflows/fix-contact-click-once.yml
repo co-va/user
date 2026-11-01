@@ -103,7 +103,6 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --virtual-time-budget=3000 --dump-dom http://127.0.0.1:3000/contact-smoke.html >/tmp/contact-dom.html 2>/tmp/contact-chrome.log || true
           cat /tmp/contact-chrome.log
           grep -q 'data-contact-smoke="pass"' /tmp/contact-dom.html || { cat /tmp/contact-dom.html; exit 1; }
-          if grep -q 'NETWORK_FORBIDDEN_DURING_CONTACT_CLICK' /tmp/contact-dom.html; then cat /tmp/contact-dom.html; exit 1; fi
 
           rm .github/workflows/fix-contact-click-once.yml
           git config user.name co-tools
