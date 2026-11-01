@@ -50,7 +50,6 @@ function targetSnapshot(target = null) {
     date: String(entity?.date || '').slice(0, 10),
     from: String(entity?.from || '').slice(0, 5),
     to: String(entity?.to || '').slice(0, 5),
-    workplaceId: '',
     title: String(entity?.title || 'Событие'),
     color: String(entity?.color || ''),
   };
