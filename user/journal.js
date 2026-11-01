@@ -154,12 +154,11 @@ function openUserRecord(record, resolveRecordContext) {
   }));
   layer?.querySelector('[data-user-record-repeat]')?.addEventListener('click', () => {
     layer.v2Close?.();
-    window.dispatchEvent(new CustomEvent('cova:account-booking-start', {
+    window.dispatchEvent(new CustomEvent('cova:user-record-start', {
       detail: {
-        tenantId: String(record?.tenantId || ''),
+        professionalId: String(record?.tenantId || ''),
         workplaceKey: String(record?.workplaceId || record?.workplaceKey || ''),
         repeatRequest: record,
-        entry: 'journal',
       },
     }));
   });
@@ -234,16 +233,16 @@ function openDayAction({ root, day, from, targetSource, rerender }) {
   const layer = mountModal(document.body, modal(`<div class="modal-actions">
     ${button('Событие', { variant: 'secondary', data: 'data-user-day-event' })}
     ${button('Заметка', { variant: 'secondary', data: 'data-user-day-note' })}
-    ${button('Записаться', { data: 'data-user-day-booking' })}
+    ${button('Записаться', { data: 'data-user-day-record' })}
   </div>`, {
     variant: 'x',
     xRole: 'action',
     surface: 'app',
     title: 'Действие',
   }));
-  layer?.querySelector('[data-user-day-booking]')?.addEventListener('click', () => {
+  layer?.querySelector('[data-user-day-record]')?.addEventListener('click', () => {
     layer.v2Close?.();
-    window.dispatchEvent(new CustomEvent('cova:account-journal-open-contacts'));
+    window.dispatchEvent(new CustomEvent('cova:user-record-open-professionals'));
   });
   layer?.querySelector('[data-user-day-event]')?.addEventListener('click', () => {
     layer.v2Close?.();
