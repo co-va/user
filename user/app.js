@@ -14,6 +14,7 @@ import {
   prepareGlobalAccount,
   registerGlobalAccount,
 } from '../core/account/index.js';
+import { ensureAccountEmailVerification } from '../core/account/email.js';
 import { button } from '../ui/buttons/index.js';
 import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
 import { field, formValidationMessage, initPasswordFields, passwordField, phoneField } from '../ui/inputs/index.js';
@@ -268,6 +269,7 @@ function renderEntry(root, state) {
       const payload = await loginGlobalAccount(identifier, password);
       state.account = payload.account;
       state.error = '';
+      void ensureAccountEmailVerification().catch(() => {});
       await continueIdentity(root, state);
     } catch (error) {
       state.error = userError(error, 'Не удалось войти');
@@ -422,6 +424,7 @@ function renderLegal(root, state) {
           accountTerms: termsFact(state),
         });
         state.account = payload.account;
+        void ensureAccountEmailVerification().catch(() => {});
       } else {
         await acceptGlobalAccountTerms(termsFact(state));
       }
