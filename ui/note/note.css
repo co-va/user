@@ -7,7 +7,7 @@
 }
 .note-reels__rail{
   gap:8px;
-  padding-top:4px;
+  padding-top:8px;
   padding-bottom:9px;
 }
 .note-reels .v2-rail>*{
@@ -15,103 +15,160 @@
   width:72px;
   max-width:72px;
 }
-.note-reel-card{
+
+.note-sticker{
   --note-color:#CFC3FF;
   box-sizing:border-box;
   position:relative;
+  border:0;
+  border-radius:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  color:#111;
+  background:color-mix(in srgb,var(--note-color) 82%,#fff 18%);
+  box-shadow:0 16px 26px -20px rgba(17,17,17,.48),0 8px 14px -12px color-mix(in srgb,var(--note-color) 46%,#111 54%);
+  text-align:left;
+  overflow:visible;
+}
+.note-sticker__tape{
+  position:absolute;
+  top:-9px;
+  left:50%;
+  width:38%;
+  height:18px;
+  transform:translateX(-50%) rotate(-1deg);
+  border-radius:2px;
+  background:color-mix(in srgb,var(--note-color) 42%,#55515d 58%);
+  opacity:.68;
+  box-shadow:0 4px 7px -5px rgba(17,17,17,.42);
+  pointer-events:none;
+}
+.note-sticker__meta,
+.note-sticker__target,
+.note-sticker__date{
+  color:rgba(17,17,17,.58);
+  font-weight:700;
+}
+.note-sticker__target,
+.note-sticker__meta{
+  width:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.note-sticker__title{
+  display:block;
+  width:100%;
+  max-width:100%;
+  font-weight:800;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.note-sticker__text{
+  display:-webkit-box;
+  width:100%;
+  max-width:100%;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+  -webkit-box-orient:vertical;
+}
+.note-sticker:active{
+  transform:translateY(1px);
+}
+.note-sticker.is-time-active,
+.note-sticker.is-related{
+  box-shadow:0 18px 28px -18px rgba(17,17,17,.58),0 0 0 2px rgba(17,17,17,.16);
+}
+
+.note-sticker--compact{
   width:72px;
   min-width:72px;
   max-width:72px;
   height:76px;
   min-height:76px;
   max-height:76px;
-  border:1px solid color-mix(in srgb,var(--note-color) 60%,#111 40%);
-  border-radius:11px;
-  padding:7px 6px 8px;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
+  padding:14px 7px 8px;
   gap:2px;
-  background:color-mix(in srgb,var(--note-color) 72%,rgba(255,255,255,.72) 28%);
-  color:#111;
-  text-align:left;
-  box-shadow:0 8px 16px -12px rgba(0,0,0,.42),inset 0 0 0 1px rgba(255,255,255,.22);
-  overflow:visible;
-  transform:translateY(-1px);
-  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+  border-radius:11px;
 }
-.note-reel-card::after{
-  content:"";
-  position:absolute;
-  left:11px;
-  bottom:-6px;
-  width:10px;
-  height:7px;
-  background:var(--note-color);
-  border-left:1px solid color-mix(in srgb,var(--note-color) 60%,#111 40%);
-  border-bottom:1px solid color-mix(in srgb,var(--note-color) 60%,#111 40%);
-  clip-path:polygon(0 0,100% 0,0 100%);
+.note-sticker--compact .note-sticker__tape{
+  top:-5px;
+  height:9px;
+  width:42%;
 }
-.note-reel-card:active{
-  transform:translateY(1px);
+.note-sticker--compact .note-sticker__meta{font-size:8px;line-height:1.05}
+.note-sticker--compact .note-sticker__target{font-size:7px;line-height:1.05}
+.note-sticker--compact .note-sticker__title{font-size:10px;line-height:1.08;white-space:nowrap}
+.note-sticker--compact .note-sticker__text{font-size:9px;line-height:1.12;-webkit-line-clamp:2}
+
+.note-detail{
+  min-height:0;
+  padding:26px 10px 30px;
 }
-.note-reel-card.is-time-active{
-  border-color:#111;
-  box-shadow:0 0 0 2px #111,0 8px 16px -12px rgba(0,0,0,.46);
-}
-.note-reel-card.is-related{
-  box-shadow:0 0 0 2px #111,0 8px 16px -12px rgba(0,0,0,.46);
-}
-.note-reel-card__meta{
+.note-sticker--full{
   width:100%;
-  font-size:9px;
-  line-height:1.05;
-  font-weight:750;
-  opacity:.64;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  min-height:310px;
+  padding:42px 28px 24px;
+  gap:22px;
+  border-radius:20px;
 }
-.note-reel-card__target{
-  display:block;
-  width:100%;
-  max-width:100%;
-  padding:0;
-  border:0;
-  border-radius:0;
-  font-size:8px;
-  line-height:1.05;
-  font-weight:650;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  opacity:.72;
+.note-sticker--full .note-sticker__tape{
+  top:-13px;
+  width:96px;
+  height:30px;
 }
-.note-reel-card__title{
-  display:block;
-  width:100%;
-  max-width:100%;
-  font-size:10px;
-  line-height:1.08;
-  font-weight:800;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.note-reel-card__text{
-  display:-webkit-box;
-  width:100%;
-  max-width:100%;
-  color:rgba(17,17,17,.82);
-  font-size:9px;
+.note-sticker--full .note-sticker__title{
+  margin:8px 0 0;
+  font-size:27px;
   line-height:1.12;
-  overflow:hidden;
-  overflow-wrap:anywhere;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
+}
+.note-sticker--full .note-sticker__text{
+  flex:1 1 auto;
+  min-height:120px;
+  font-size:18px;
+  line-height:1.42;
+  -webkit-line-clamp:unset;
+}
+.note-sticker--full .note-sticker__date{
+  margin-top:auto;
+  font-size:13px;
+  line-height:1.2;
 }
 
-/* Shared Y owns the compact Note footprint. The same geometry applies in every context. */
+.note-attachment-stickers{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:12px;
+  padding:10px 0 8px;
+}
+.note-sticker--mini{
+  width:104px;
+  min-height:92px;
+  padding:20px 12px 14px;
+  gap:5px;
+  border-radius:13px;
+}
+.note-sticker--mini:nth-child(even){transform:rotate(1deg)}
+.note-sticker--mini:nth-child(odd){transform:rotate(-1deg)}
+.note-sticker--mini .note-sticker__tape{
+  top:-6px;
+  width:48px;
+  height:12px;
+}
+.note-sticker--mini .note-sticker__title{
+  font-size:12px;
+  line-height:1.1;
+  white-space:nowrap;
+}
+.note-sticker--mini .note-sticker__text{
+  font-size:10px;
+  line-height:1.18;
+  -webkit-line-clamp:3;
+}
+
 .v2-y-host .note-reels{
   display:block;
   width:100%;
@@ -127,7 +184,7 @@
   height:66px;
   min-height:66px;
   gap:15px;
-  padding:0;
+  padding:5px 0 0;
   align-items:flex-start;
 }
 .v2-y-host .note-reels .v2-rail>*{
@@ -136,7 +193,7 @@
   min-width:60px;
   max-width:60px;
 }
-.v2-y-host .note-reel-card{
+.v2-y-host .note-sticker--compact{
   width:60px;
   min-width:60px;
   max-width:60px;
@@ -144,162 +201,14 @@
   min-height:60px;
   max-height:60px;
   border-radius:9px;
-  padding:5px 4px 7px;
+  padding:11px 5px 6px;
   gap:1px;
-  transform:none;
-  overflow:visible;
 }
-.v2-y-host .note-reel-card::after{
-  left:10px;
-  bottom:-6px;
-  width:10px;
-  height:7px;
-  background:color-mix(in srgb,var(--note-color) 72%,rgba(255,255,255,.72) 28%);
+.v2-y-host .note-sticker--compact .note-sticker__tape{
+  top:-4px;
+  height:8px;
 }
-.v2-y-host .note-reel-card:active{transform:translateY(1px)}
-.v2-y-host .note-reel-card__meta{font-size:8px;line-height:1}
-.v2-y-host .note-reel-card__target{font-size:7px;line-height:1}
-.v2-y-host .note-reel-card__title{font-size:9px;line-height:1.05}
-.v2-y-host .note-reel-card__text{font-size:8px;line-height:1.05;-webkit-line-clamp:2}
-
-.note-detail{
-  --note-color:#CFC3FF;
-  min-height:0;
-  padding:26px 10px 30px;
-}
-.note-detail__paper{
-  position:relative;
-  min-height:310px;
-  padding:42px 28px 24px;
-  display:flex;
-  flex-direction:column;
-  gap:22px;
-  overflow:visible;
-  border:0;
-  border-radius:20px;
-  background:color-mix(in srgb,var(--note-color) 82%,#fff 18%);
-  color:#111;
-  box-shadow:
-    0 22px 34px -24px rgba(17,17,17,.38),
-    0 10px 18px -15px color-mix(in srgb,var(--note-color) 50%,#111 50%);
-}
-.note-detail__paper::before{
-  content:"";
-  position:absolute;
-  top:-13px;
-  left:50%;
-  width:96px;
-  height:30px;
-  transform:translateX(-50%) rotate(-1deg);
-  background:color-mix(in srgb,var(--note-color) 48%,#5d5867 52%);
-  opacity:.72;
-  box-shadow:0 4px 8px -6px rgba(17,17,17,.45);
-  border-radius:2px;
-}
-.note-detail__paper::after{
-  content:none;
-}
-.note-detail h2{
-  position:relative;
-  z-index:1;
-  margin:8px 0 0;
-  font-size:27px;
-  line-height:1.12;
-  font-weight:800;
-  overflow-wrap:anywhere;
-}
-.note-detail__text{
-  position:relative;
-  z-index:1;
-  flex:1 1 auto;
-  min-height:120px;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-  font-size:18px;
-  line-height:1.42;
-}
-.note-detail__date{
-  position:relative;
-  z-index:1;
-  margin-top:auto;
-  color:rgba(17,17,17,.58);
-  font-size:13px;
-  line-height:1.2;
-  font-weight:700;
-}
-
-.note-attachment-stickers{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-start;
-  gap:12px;
-  padding:4px 0 8px;
-}
-.note-attachment-sticker{
-  --note-color:#CFC3FF;
-  position:relative;
-  box-sizing:border-box;
-  width:104px;
-  min-height:92px;
-  padding:20px 12px 14px;
-  border:0;
-  border-radius:13px;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:5px;
-  overflow:hidden;
-  background:color-mix(in srgb,var(--note-color) 80%,#fff 20%);
-  color:#111;
-  text-align:left;
-  box-shadow:0 12px 20px -14px rgba(17,17,17,.60),inset 0 0 0 1px rgba(255,255,255,.30);
-  transform:rotate(-1.2deg);
-}
-.note-attachment-sticker:nth-child(even){transform:rotate(1.1deg)}
-.note-attachment-sticker::before{
-  content:"";
-  position:absolute;
-  top:0;
-  left:50%;
-  width:48px;
-  height:13px;
-  transform:translateX(-50%) rotate(-1deg);
-  background:color-mix(in srgb,var(--note-color) 36%,#fff 64%);
-  opacity:.86;
-  box-shadow:0 2px 5px rgba(17,17,17,.11);
-}
-.note-attachment-sticker::after{
-  content:"";
-  position:absolute;
-  right:-1px;
-  bottom:-1px;
-  width:28px;
-  height:28px;
-  background:linear-gradient(135deg,color-mix(in srgb,var(--note-color) 52%,#fff 48%) 0 49%,rgba(255,255,255,.92) 50% 100%);
-  clip-path:polygon(0 100%,100% 0,100% 100%);
-  box-shadow:-3px -3px 7px rgba(17,17,17,.09);
-}
-.note-attachment-sticker strong{
-  position:relative;
-  z-index:1;
-  max-width:100%;
-  font-size:12px;
-  line-height:1.1;
-  font-weight:800;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.note-attachment-sticker span{
-  position:relative;
-  z-index:1;
-  display:-webkit-box;
-  max-width:100%;
-  font-size:10px;
-  line-height:1.18;
-  overflow:hidden;
-  overflow-wrap:anywhere;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:3;
-}
-.note-attachment-sticker:active{transform:translateY(1px) rotate(0)}
+.v2-y-host .note-sticker--compact .note-sticker__meta{font-size:7px;line-height:1}
+.v2-y-host .note-sticker--compact .note-sticker__target{font-size:7px;line-height:1}
+.v2-y-host .note-sticker--compact .note-sticker__title{font-size:9px;line-height:1.05}
+.v2-y-host .note-sticker--compact .note-sticker__text{font-size:8px;line-height:1.05;-webkit-line-clamp:2}
