@@ -1,13 +1,11 @@
 import { API_BASE } from '../environment.js';
 import { getAccountToken } from '../account/index.js';
-import { escapeHtml, modal, mountModal } from '../../ui/user-ui.js';
 
 const SERVICE_UNSEEN_KEY = '__VA_TOOLS_SERVICE_UNSEEN__';
 const SERVICE_UNSEEN_ROLLOUT_AT = Date.parse('2026-10-29T17:20:31.000Z');
 const REFRESH_INTERVAL_MS = 15_000;
 let refreshBusy = false;
 let refreshQueued = false;
-let summaryShown = false;
 let visibleSeenTimer = null;
 let initialized = false;
 
@@ -175,28 +173,6 @@ function scheduleVisibleSeen() {
   }, 700);
 }
 
-function summaryText(total) {
-  const value = count(total);
-  if (value === 1) return '1 новое изменение в записях.';
-  if (value > 1 && value < 5) return `${value} новых изменения в записях.`;
-  return `${value} новых изменений в записях.`;
-}
-
-function maybeShowSummary() {
-  if (summaryShown || typeof document === 'undefined') return;
-  const state = getServiceUnseenState();
-  if (state.total <= 0 || !document.querySelector('[data-v2-app]')) return;
-  if (document.querySelector('[data-service-summary-modal],[data-account-push-setup-modal]')) return;
-  const layer = mountModal(document.body, modal(`<div class="modal-title"><h2>Уведомления</h2><p>${escapeHtml(summaryText(state.total))}</p></div>`, {
-    title: 'Уведомления',
-    variant: 's',
-    surface: 'app',
-  }));
-  if (!layer) return;
-  summaryShown = true;
-  layer.dataset.serviceSummaryModal = 'true';
-}
-
 function publish(items) {
   const state = publishServiceUnseen(items);
   syncMarkers();
@@ -232,7 +208,6 @@ export function startServiceUnseenRuntime() {
   if (initialized || typeof window === 'undefined' || typeof document === 'undefined') return () => {};
   initialized = true;
   let disposed = false;
-  let summaryTimer = null;
   const observer = new MutationObserver(() => {
     if (disposed) return;
     syncMarkers();
@@ -256,7 +231,6 @@ export function startServiceUnseenRuntime() {
   document.addEventListener('click', onClick, true);
 
   void refreshServiceUnseen();
-  summaryTimer = window.setTimeout(() => maybeShowSummary(), 1200);
   const interval = window.setInterval(() => {
     if (!document.hidden) void refreshServiceUnseen();
   }, REFRESH_INTERVAL_MS);
@@ -265,7 +239,6 @@ export function startServiceUnseenRuntime() {
     disposed = true;
     observer.disconnect();
     if (visibleSeenTimer) window.clearTimeout(visibleSeenTimer);
-    if (summaryTimer) window.clearTimeout(summaryTimer);
     window.clearInterval(interval);
     window.removeEventListener('va-tools:service-unseen-refresh', onRefresh);
     window.removeEventListener('focus', onFocus);
