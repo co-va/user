@@ -57,6 +57,42 @@ function installRecordRuntimeLoader() {
   window.addEventListener('cova:user-record-start', loadAndReplay);
 }
 
+function installRecordRefreshTriggers() {
+  let refreshPromise = null;
+  let lastRefreshAt = 0;
+
+  const refreshRecords = () => {
+    const userRoot = document.querySelector('#user-content[data-user-runtime]');
+    const state = userRoot?.userRelationshipState;
+    if (!userRoot || !state?.account) return Promise.resolve();
+    if (refreshPromise) return refreshPromise;
+    if (Date.now() - lastRefreshAt < 1000) return Promise.resolve();
+    lastRefreshAt = Date.now();
+
+    refreshPromise = import('../core/account/index.js')
+      .then(({ getGlobalAccountRecords }) => getGlobalAccountRecords())
+      .then((records) => {
+        if (!userRoot.isConnected || userRoot.userRelationshipState !== state) return;
+        state.accountRecords = Array.isArray(records) ? records : [];
+        if (state.accountTab !== 'journal') return;
+        userRoot.querySelector('[data-account-journal-root]')?.userJournalRefresh?.();
+      })
+      .catch(() => {})
+      .finally(() => {
+        refreshPromise = null;
+      });
+    return refreshPromise;
+  };
+
+  navigator.serviceWorker?.addEventListener('message', (event) => {
+    if (event?.data?.type === 'va-tools:push-unread') void refreshRecords();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void refreshRecords();
+  });
+  window.addEventListener('focus', () => void refreshRecords());
+}
+
 window.addEventListener('cova:user-record-created', (event) => {
   const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
   void renderUser({
@@ -83,5 +119,6 @@ if (isPasswordResetLocation()) {
 } else {
   installPasswordRecoveryRequest();
   installRecordRuntimeLoader();
+  installRecordRefreshTriggers();
   await renderUser();
 }
