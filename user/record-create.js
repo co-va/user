@@ -315,7 +315,7 @@ export async function openUserRecordProfessionalSelector(existingOwner = null) {
 
 function startFromEvent(event) {
   const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
-  const professionalId = text(detail.tenantId || detail.professionalId);
+  const professionalId = text(detail.professionalId);
   if (!professionalId || opening || activeOwner?.isOpen?.()) return;
   const owner = openRecordCreationOwner();
   if (!owner) return;
@@ -334,10 +334,3 @@ window.addEventListener('cova:user-record-open-professionals', () => {
   void openUserRecordProfessionalSelector();
 });
 window.addEventListener('cova:user-record-start', startFromEvent);
-
-window.addEventListener('cova:account-journal-open-contacts', () => {
-  window.dispatchEvent(new CustomEvent('cova:user-record-open-professionals'));
-});
-window.addEventListener('cova:account-booking-start', (event) => {
-  window.dispatchEvent(new CustomEvent('cova:user-record-start', { detail: event?.detail || {} }));
-});
