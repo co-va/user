@@ -35,6 +35,14 @@ async function ensureBookingRuntime() {
   return bookingRuntimePromise;
 }
 
+
+function preloadBookingRuntime() {
+  if (bookingRuntimePromise || bookingRuntimeReady) return;
+  const load = () => { void ensureBookingRuntime(); };
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(load, { timeout: 1200 });
+  else window.setTimeout(load, 0);
+}
+
 async function activateBookingEvent(type, detail = {}) {
   if (bookingRuntimeReady) return;
   await ensureBookingRuntime();
@@ -66,3 +74,4 @@ window.visualViewport?.addEventListener('scroll', syncViewport, { passive: true 
 
 syncViewport();
 await renderUser();
+preloadBookingRuntime();

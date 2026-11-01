@@ -140,12 +140,10 @@ async function renderGlobalUserHome(root, state) {
   await renderGlobalAccount(root, state, callbacks);
 
   const tab = String(state.accountTab || 'journal');
-  const needsRelationships = tab === 'profile'
-    || tab === 'profile-settings'
-    || tab === 'journal'
+  const needsRelationships = tab === 'journal'
     || tab === 'contacts'
     || tab === 'contact-detail';
-  const needsRecords = tab === 'journal' || tab === 'contact-detail';
+  const needsRecords = tab === 'journal';
 
   const relationshipsPromise = needsRelationships
     ? getGlobalAccountBookingTargets().catch(() => [])

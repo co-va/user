@@ -42,122 +42,12 @@ import {
   openSharedProfileSettingsMenu,
 } from '../ui/user-ui.js';
 import { notificationSettings } from '../ui/settings/index.js';
-import { readOnlyReceipt } from '../ui/receipt/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
 import { openAccountPersonalDataZ } from './personal-data.js';
 import { profileCardAppearance, profileCardFields, workplaceCardAppearance, workplaceCardFields } from '../core/profile/card-presentation.js';
-import { personalAccountVisualCard } from './personal-account-card.js';
-import {
-  depositCardAppearance,
-  depositCardFields,
-  depositCardPhoto,
-  depositCardPhotoPosition,
-} from '../core/loyalty/deposit/card-presentation.js';
-import { getGlobalPersonalAccounts } from './personal-account-data.js';
-import { getGlobalDeposits } from './deposit-data.js';
 import { renderJournal } from './journal.js';
 import { renderAccountCalendarIntegrations } from './calendar-integrations.js';
-
-function money(value) {
-  const number = Number(value || 0);
-  return `${(Number.isFinite(number) ? number : 0).toLocaleString('ru-RU').replaceAll('\u00a0', ' ')} ₽`;
-}
-
-function formatDate(value) {
-  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
-}
-
-function requestProcedures(request = {}) {
-  return Array.isArray(request.procedures) ? request.procedures : [];
-}
-
-function requestPricing(request = {}) {
-  const finance = request.finance && typeof request.finance === 'object' ? request.finance : {};
-  const subtotal = Math.max(0, Number(finance.serviceTotal || 0));
-  const discountPercent = Math.max(0, Math.min(100, Number(finance.discountPercent || 0)));
-  const discountAmount = Math.max(0, Number(finance.discountTotal || 0));
-  const total = Math.max(0, Number(finance.planTotal || 0));
-  return { subtotal, discountPercent, total, discountAmount };
-}
-
-function requestPayment(request = {}) {
-  const payment = request.payment && typeof request.payment === 'object' ? request.payment : {};
-  return {
-    state: String(payment.state || 'unpaid'),
-    paid: Math.max(0, Number(payment.paid || 0)),
-    due: Math.max(0, Number(payment.due || 0)),
-  };
-}
-
-function requestMoment(request = {}) {
-  return `${String(request.date || '').slice(0, 10)}T${String(request.from || '00:00').padStart(5, '0')}`;
-}
-
-const ACTION_STATUS_LABELS = Object.freeze({
-  booked: 'Записался',
-  rescheduled: 'Перенёс',
-  cancelled: 'Отменил',
-});
-
-const PAYMENT_STATUS_LABELS = Object.freeze({
-  due: 'К оплате',
-  paid: 'Оплачено',
-  debt: 'Задолженность',
-});
-
-function requestStatuses(request = {}) {
-  return projectRecordStatuses(request, request.history, requestPayment(request));
-}
-
-function actionStatus(request = {}) {
-  const status = requestStatuses(request).action;
-  return ACTION_STATUS_LABELS[status] || '';
-}
-
-function financeStatus(request = {}) {
-  const payment = requestPayment(request);
-  const status = requestStatuses(request).payment;
-  return {
-    label: PAYMENT_STATUS_LABELS[status] || '',
-    extra: status === 'due' || status === 'debt' ? money(payment.due) : '',
-  };
-}
-
-function workplaceName(state, request = {}) {
-  const tenantId = String(request?.tenantId || state.tenantId || '');
-  const relationship = (Array.isArray(state.relationships) ? state.relationships : [])
-    .find((item) => String(item?.tenantId || '') === tenantId);
-  const workplaces = Array.isArray(relationship?.context?.workplaces)
-    ? relationship.context.workplaces
-    : Array.isArray(state.context?.workplaces) ? state.context.workplaces : [];
-  return workplaces.find((item) => String(item?.key || '') === String(request.workplaceId || ''))?.name
-    || [relationship?.context?.profile?.name, relationship?.context?.profile?.surname].filter(Boolean).join(' ').trim()
-    || 'Пространство';
-}
-
-function historyDetailBody(state, request) {
-  const pricing = requestPricing(request);
-  const payment = requestPayment(request);
-  const totals = [
-    { label: 'Стоимость', value: money(pricing.subtotal) },
-    { label: 'Скидка', value: money(pricing.discountAmount) },
-    { label: 'Оплачено', value: money(payment.paid), strong: true },
-  ];
-  const paymentStatus = requestStatuses(request).payment;
-  if ((paymentStatus === 'due' || paymentStatus === 'debt') && payment.due > 0.009) {
-    totals.push({ label: PAYMENT_STATUS_LABELS[paymentStatus], value: money(payment.due), strong: true });
-  }
-  return readOnlyReceipt({
-    title: workplaceName(state, request),
-    status: actionStatus(request),
-    date: formatDate(request.date),
-    time: request.from || '',
-    items: requestProcedures(request).map((item) => ({ label: item?.name || 'Процедура', value: money(item?.cost || 0) })),
-    totals,
-  });
-}
 
 function accountName(state) {
   const account = state.account || {};
@@ -257,22 +147,47 @@ function bindWorkspaceInteraction(root, state, handlers, { bindZ = true, onZRigh
   return () => { if (root.v2WorkspaceInteractionDispose === dispose) root.v2WorkspaceInteractionDispose = null; dispose?.(); };
 }
 
+function relationshipProfile(relationship = {}) {
+  const context = relationship?.context && typeof relationship.context === 'object' ? relationship.context : {};
+  const nested = context?.profile && typeof context.profile === 'object' ? context.profile : {};
+  const direct = relationship?.profile && typeof relationship.profile === 'object' ? relationship.profile : {};
+  const card = relationship?.card && typeof relationship.card === 'object' ? relationship.card : {};
+  const cardProfile = card?.profile && typeof card.profile === 'object' ? card.profile : {};
+  const source = Object.keys(direct).length ? direct : Object.keys(nested).length ? nested : cardProfile;
+  return {
+    ...source,
+    name: String(source.name || relationship.name || card.name || '').trim(),
+    surname: String(source.surname || relationship.surname || card.surname || '').trim(),
+    profession: String(source.profession || relationship.profession || card.profession || '').trim(),
+    phone: String(source.phone || relationship.phone || card.phone || '').trim(),
+    photo: String(source.photo || source.image || source.avatar || relationship.photo || relationship.image || relationship.avatar || card.photo || card.image || card.avatar || ''),
+    photoCropX: Number(source.photoCropX ?? relationship.photoCropX ?? card.photoCropX ?? 50),
+    photoCropY: Number(source.photoCropY ?? relationship.photoCropY ?? card.photoCropY ?? 50),
+  };
+}
+
+function relationshipWorkplaces(relationship = {}) {
+  if (Array.isArray(relationship?.context?.workplaces)) return relationship.context.workplaces;
+  if (Array.isArray(relationship?.workplaces)) return relationship.workplaces;
+  return [];
+}
+
 function relationshipTitle(relationship = {}) {
-  const profile = relationship?.context?.profile || {};
+  const profile = relationshipProfile(relationship);
   return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профиль';
 }
 
-function relationshipCard(relationship = {}) {
-  const profile = relationship?.context?.profile || {};
+function relationshipCard(relationship = {}, { interactive = true } = {}) {
+  const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
   return entityVisualCard({
     appearance: profileCardAppearance(profile),
     fields: profileCardFields(profile, []),
     image: String(profile.photo || ''),
     imagePosition: `${Number(profile.photoCropX || 50)}% ${Number(profile.photoCropY || 50)}%`,
-    interactive: true,
-    data: `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"`,
-    aria: `Открыть ${title}`,
+    interactive,
+    data: interactive ? `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"` : '',
+    aria: interactive ? `Открыть ${title}` : title,
   });
 }
 
@@ -393,7 +308,7 @@ async function openGlobalAccountControls(root, state, handlers, relationships = 
 
   const representatives = scopedRelationships.length
     ? miniCardRail(scopedRelationships.map((relationship, index) => {
-        const profile = relationship?.context?.profile || {};
+        const profile = relationshipProfile(relationship);
         const title = relationshipTitle(relationship);
         return miniCard({
           title,
@@ -575,9 +490,9 @@ async function renderGlobalJournal(root, state, handlers) {
       resolveRecordContext: (record) => {
         const relationship = (Array.isArray(state.relationships) ? state.relationships : [])
           .find((item) => String(item?.tenantId || '') === String(record?.tenantId || '')) || null;
-        const workplaces = Array.isArray(relationship?.context?.workplaces) ? relationship.context.workplaces : [];
+        const workplaces = relationshipWorkplaces(relationship || {});
         return {
-          professional: relationship?.context?.profile || null,
+          professional: relationship ? relationshipProfile(relationship) : null,
           workplace: workplaces.find((item) => String(item?.key || item?.id || '') === String(record?.workplaceId || '')) || null,
         };
       },
@@ -587,7 +502,7 @@ async function renderGlobalJournal(root, state, handlers) {
 }
 
 function relationshipSearchText(relationship = {}) {
-  const profile = relationship?.context?.profile || {};
+  const profile = relationshipProfile(relationship);
   return [
     relationshipTitle(relationship),
     profile.profession,
@@ -636,26 +551,18 @@ function selectedGlobalRelationship(state) {
     .find((relationship) => String(relationship?.tenantId || '') === tenantId) || null;
 }
 
-function globalContactRecords(state, tenantId) {
-  return (Array.isArray(state.accountRecords) ? state.accountRecords : [])
-    .filter((request) => String(request?.tenantId || '') === String(tenantId || ''));
-}
-
 function confirmDeleteGlobalContact(state, handlers, relationship) {
   const tenantId = String(relationship?.tenantId || '');
   const title = relationshipTitle(relationship);
   if (!tenantId) return;
-  const layer = mountModal(document.body, modal(`<div class="modal-title"><h2>Удалить контакт?</h2><p>${escapeHtml(title)} будет убран из Контактов. Все действующие согласия будут отозваны. Исторические данные сохранятся.</p></div><div class="form-error" data-contact-delete-error></div><div class="modal-actions">${button('Удалить', { variant: 'danger', data: 'data-confirm-delete-contact' })}${button('Отмена', { variant: 'secondary', data: 'data-cancel-delete-contact' })}</div>`, { variant: 'x', title: 'Удаление контакта' }));
-  if (!layer) return;
-  layer.querySelector('[data-cancel-delete-contact]')?.addEventListener('click', () => layer.v2Close?.());
-  layer.querySelector('[data-confirm-delete-contact]')?.addEventListener('click', async (event) => {
+  const layer = mountModal(document.body, modal(`<div class="modal-title"><h2>Удалить контакт?</h2><p>${escapeHtml(title)} будет убран из Контактов. Все действующие согласия будут отозваны.</p></div><div class="form-error" data-contact-delete-error></div><div class="modal-actions">${button('Удалить', { variant: 'danger', data: 'data-confirm-delete-contact' })}${button('Отмена', { variant: 'secondary', data: 'data-cancel-delete-contact' })}</div>`, { variant: 'x', title: 'Удаление контакта' }));
+  layer?.querySelector('[data-cancel-delete-contact]')?.addEventListener('click', () => layer.v2Close?.());
+  layer?.querySelector('[data-confirm-delete-contact]')?.addEventListener('click', async (event) => {
     event.currentTarget.disabled = true;
     try {
       await deleteGlobalAccountRelationship(tenantId);
       state.relationships = (Array.isArray(state.relationships) ? state.relationships : [])
         .filter((item) => String(item?.tenantId || '') !== tenantId);
-      state.accountRecords = (Array.isArray(state.accountRecords) ? state.accountRecords : [])
-        .filter((request) => String(request?.tenantId || '') !== tenantId);
       state.accountSelectedContactTenantId = '';
       state.accountTab = 'contacts';
       state.accountDeckActive = 'contacts';
@@ -675,301 +582,11 @@ function openGlobalContactSettings(state, handlers, relationship) {
   return openSharedProfileSettingsMenu({
     title: 'Настройки',
     actions: [
-      {
-        id: 'consents',
-        label: 'Согласия',
-        onSelect: () => void openAccountConsentSettings(state, { tenantId, onChanged: () => {} }),
-      },
-      {
-        id: 'delete',
-        label: 'Удалить',
-        variant: 'critical',
-        onSelect: () => confirmDeleteGlobalContact(state, handlers, relationship),
-      },
+      { id: 'consents', label: 'Согласия', onSelect: () => void openAccountConsentSettings(state, { tenantId, onChanged: () => {} }) },
+      { id: 'delete', label: 'Удалить', variant: 'critical', onSelect: () => confirmDeleteGlobalContact(state, handlers, relationship) },
     ],
     data: 'data-global-contact-settings-menu',
   });
-}
-
-function contactHeaderMarkup(relationship) {
-  const profile = relationship?.context?.profile || {};
-  const title = relationshipTitle(relationship);
-  return v2Header({
-    a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
-    b: title,
-  });
-}
-
-function setGlobalAccountHeader(root, markup) {
-  const header = root.querySelector('[data-v2-header]');
-  if (header) header.outerHTML = markup;
-}
-
-function contactWorkplaces(relationship, records = []) {
-  const interacted = new Set((Array.isArray(records) ? records : [])
-    .map((request) => String(request?.workplaceId || request?.workplaceKey || '').trim())
-    .filter(Boolean));
-  return (Array.isArray(relationship?.context?.workplaces) ? relationship.context.workplaces : [])
-    .filter((workplace) => interacted.has(String(workplace?.key || '').trim()));
-}
-
-function contactWorkplaceRail(relationship, records = []) {
-  const profile = relationship?.context?.profile || {};
-  const workplaces = contactWorkplaces(relationship, records);
-  if (!workplaces.length) return '';
-  return entityCardRail(workplaces.map((workplace) => entityVisualCard({
-    appearance: workplaceCardAppearance(workplace),
-    fields: workplaceCardFields(workplace, workplace.cardProfile || profile),
-    image: String(workplace.photo || ''),
-    imagePosition: `${Number(workplace.photoCropX || 50)}% ${Number(workplace.photoCropY || 50)}%`,
-    interactive: true,
-    data: `data-global-contact-workplace="${escapeHtml(String(workplace.key || ''))}"`,
-    aria: `Открыть ${String(workplace.name || 'рабочее пространство')}`,
-  })), { className: 'v2-profile-workplaces' });
-}
-
-function contactPersonalAccountCard(relationship, account) {
-  return personalAccountVisualCard({
-    title: relationshipTitle(relationship),
-    balance: Math.max(0, Number(account?.balance || 0)),
-    data: 'data-global-contact-personal-account',
-    aria: 'Открыть Личный счёт',
-  });
-}
-
-function contactDepositStatus(status = '') {
-  if (status === 'expired') return 'Срок завершён';
-  if (status === 'closed') return 'Закрыт';
-  return 'Активен';
-}
-
-function contactDepositCard(deposit = {}) {
-  const terms = deposit?.terms && typeof deposit.terms === 'object' ? deposit.terms : {};
-  return entityVisualCard({
-    appearance: depositCardAppearance(),
-    fields: depositCardFields({
-      uei: String(deposit?.person?.uei || ''),
-      title: String(deposit?.programName || 'Депозит'),
-      subtitle: String(terms.termRule || 'Бессрочно'),
-      status: contactDepositStatus(deposit?.status),
-      metaLeft: String(terms.benefit || 'Без дополнительной выгоды'),
-      metaRight: money(deposit?.balance),
-    }),
-    image: depositCardPhoto(),
-    imagePosition: depositCardPhotoPosition(),
-    interactive: true,
-    data: `data-global-contact-deposit="${escapeHtml(String(deposit?.depositId || ''))}"`,
-    aria: `Открыть депозит ${String(deposit?.programName || '')}`,
-  });
-}
-
-function contactDepositHistory(deposit = {}) {
-  const labels = {
-    'deposit-funding': 'Внесение',
-    'deposit-benefit': 'Выгода',
-    'deposit-benefit-reversal': 'Отмена выгоды',
-    'deposit-withdrawal': 'Возврат остатка',
-    payment: 'Использование при оплате',
-    refund: 'Возврат оплаты',
-  };
-  const rows = (Array.isArray(deposit?.history) ? deposit.history : [])
-    .slice()
-    .sort((a, b) => String(b?.occurredAt || '').localeCompare(String(a?.occurredAt || '')))
-    .map((movement) => v2ListEntry({
-      title: labels[String(movement?.kind || '')] || 'Операция',
-      subtitle: shortDateTime(movement?.occurredAt, '—'),
-      rightTop: `${String(movement?.direction || '').toUpperCase() === 'IN' ? '+' : '−'}${money(movement?.amount)}`,
-    }));
-  return rows.length ? v2ListEntries(rows) : emptyState('Истории пока нет', 'Движения депозита появятся здесь.');
-}
-
-function openGlobalContactDepositLayer(root, state, handlers, relationship, deposit, restoreHeader) {
-  const profile = relationship?.context?.profile || {};
-  const title = relationshipTitle(relationship);
-  const terms = deposit?.terms && typeof deposit.terms === 'object' ? deposit.terms : {};
-  const layer = mountV2ZLayer(root, v2ZLayer(page([
-    details([
-      { label: 'Депозит', value: String(deposit?.programName || 'Депозит') },
-      { label: 'Остаток', value: money(deposit?.balance) },
-      { label: 'Внесено', value: money(deposit?.fundedAmount) },
-      { label: 'Срок', value: String(terms.termRule || 'Бессрочно') },
-      { label: 'Состояние', value: contactDepositStatus(deposit?.status) },
-    ]),
-    v2Section('История', contactDepositHistory(deposit)),
-  ]), { className: 'account-contact-deposit-z' }), {
-    stack: true,
-    onClose: () => restoreHeader?.(),
-  });
-  if (!layer) return null;
-  setGlobalAccountHeader(root, v2Header({
-    a: { kind: 'avatar', label: title, image: String(profile.photo || ''), disabled: true },
-    b: String(deposit?.programName || 'Депозит'),
-  }));
-  clearV2V(root);
-  return layer;
-}
-
-function contactPersonalAccountHistory(account = {}) {
-  const labels = {
-    funding: 'Пополнение',
-    withdrawal: 'Возврат',
-    payment: 'Оплата',
-    'payment-refund': 'Возврат оплаты',
-    refund: 'Возврат оплаты',
-  };
-  const rows = (Array.isArray(account?.movements) ? account.movements : [])
-    .slice()
-    .sort((a, b) => String(b?.occurredAt || '').localeCompare(String(a?.occurredAt || '')))
-    .map((movement) => {
-      const direction = String(movement?.direction || '').toUpperCase();
-      return v2ListEntry({
-        title: labels[String(movement?.kind || '')] || 'Операция',
-        subtitle: shortDateTime(movement?.occurredAt, '—'),
-        rightTop: `${direction === 'IN' ? '+' : '−'}${money(movement?.amount)}`,
-        rightBottom: `Остаток ${money(movement?.balanceAfter)}`,
-      });
-    });
-  return rows.length
-    ? v2ListEntries(rows)
-    : emptyState('Истории пока нет', 'Движения Личного счёта появятся здесь.');
-}
-
-function contactPersonalAccountDebts(account = {}) {
-  const rows = (Array.isArray(account?.debts) ? account.debts : [])
-    .slice()
-    .sort((a, b) => String(b?.occurredAt || '').localeCompare(String(a?.occurredAt || '')))
-    .map((debt) => {
-      const open = String(debt?.status || '') !== 'closed' && Number(debt?.outstandingAmount || 0) > 0.009;
-      return v2ListEntry({
-        title: open ? 'Задолженность' : 'Задолженность погашена',
-        subtitle: shortDateTime(debt?.occurredAt, '—'),
-        rightTop: money(open ? debt?.outstandingAmount : debt?.originalAmount),
-        rightBottom: open ? 'К оплате' : 'Погашено',
-      });
-    });
-  return rows.length ? v2ListEntries(rows) : '';
-}
-
-function openGlobalContactPersonalAccountLayer(root, state, handlers, relationship, account, restoreHeader) {
-  const profile = relationship?.context?.profile || {};
-  const title = relationshipTitle(relationship);
-  const limit = Math.max(0, Math.min(100, Number(account?.spendLimitPercent ?? 100)));
-  const debts = contactPersonalAccountDebts(account);
-  const body = page([
-    details([
-      { label: 'Личный счёт', value: money(account?.balance) },
-      { label: 'Задолженность', value: money(account?.debtTotal) },
-      { label: 'Оплата Личным счётом', value: limit >= 100 ? 'Без ограничений' : `До ${limit}%` },
-    ]),
-    v2Section('История', contactPersonalAccountHistory(account)),
-    debts ? v2Section('Задолженность', debts) : '',
-  ]);
-  const layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-personal-account-z' }), {
-    stack: true,
-    onClose: () => restoreHeader?.(),
-  });
-  if (!layer) return null;
-  setGlobalAccountHeader(root, v2Header({
-    a: { kind: 'avatar', label: title, image: String(profile.photo || ''), disabled: true },
-    b: 'Личный счёт',
-  }));
-  clearV2V(root);
-  return layer;
-}
-
-function contactHistoryMiniCard(state, request, index, dataName = 'data-global-contact-history') {
-  const procedures = requestProcedures(request).map((item) => String(item?.name || '').trim()).filter(Boolean);
-  const pricing = requestPricing(request);
-  return miniCard({
-    title: workplaceName(state, request),
-    value: procedures[0] || 'Запись',
-    subtitle: [formatDate(request.date), request.from].filter(Boolean).join(' · '),
-    rows: [
-      { label: 'Сумма', value: money(pricing.total) },
-    ],
-    interactive: true,
-    data: `${dataName}="${index}"`,
-    aria: `Открыть запись ${formatDate(request.date)} ${request.from || ''}`,
-  });
-}
-
-function bindContactHeaderActions(root, state, handlers, relationship, {
-  workplaceKey = '',
-  repeatRequest = null,
-  actionRoot = root,
-} = {}) {
-  const tenantId = String(relationship?.tenantId || '');
-  root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => {
-    openGlobalContactSettings(state, handlers, relationship);
-  });
-  actionRoot?.querySelector('[data-global-contact-booking]')?.addEventListener('click', () => {
-    handlers.onStartBooking?.(tenantId, {
-      workplaceKey: String(workplaceKey || ''),
-      repeatRequest,
-    });
-  });
-}
-
-function openGlobalContactHistoryLayer(root, state, handlers, relationship, request, restoreHeader) {
-  const profile = relationship?.context?.profile || {};
-  const title = relationshipTitle(relationship);
-  const canRepeat = requestProcedures(request).length > 0;
-  const body = `${historyDetailBody(state, request)}${canRepeat ? actionBlock(button('Повторить', {
-    data: 'data-global-contact-booking',
-    aria: 'Повторить процедуру',
-  })) : ''}`;
-  const layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-history-z' }), {
-    stack: true,
-    onClose: () => restoreHeader?.(),
-  });
-  if (!layer) return null;
-
-  setGlobalAccountHeader(root, v2Header({
-    a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
-    b: workplaceName(state, request),
-  }));
-  setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки' });
-  bindContactHeaderActions(root, state, handlers, relationship, { repeatRequest: request, actionRoot: layer });
-  return layer;
-}
-
-function openGlobalContactWorkplaceLayer(root, state, handlers, relationship, workplace, records, restoreHeader) {
-  const key = String(workplace?.key || '');
-  if (!key) return null;
-  const rows = (Array.isArray(records) ? records : [])
-    .filter((request) => String(request?.workplaceId || request?.workplaceKey || '') === key)
-    .sort((a, b) => requestMoment(b).localeCompare(requestMoment(a)));
-  const history = rows.length
-    ? v2Section('История', miniCardRail(rows.map((request, index) => contactHistoryMiniCard(state, request, index, 'data-global-workplace-history'))))
-    : emptyState('История пока пустая', 'Записи этого пространства появятся здесь.');
-  const body = `${history}${actionBlock(button('Записаться', {
-    data: 'data-global-contact-booking',
-    aria: 'Записаться',
-  }))}`;
-  const layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-workplace-z' }), {
-    stack: true,
-    onClose: () => restoreHeader?.(),
-  });
-  if (!layer) return null;
-
-  const profile = relationship?.context?.profile || {};
-  const title = relationshipTitle(relationship);
-  const showHeader = () => {
-    setGlobalAccountHeader(root, v2Header({
-      a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
-      b: String(workplace.name || title),
-    }));
-    setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки' });
-    bindContactHeaderActions(root, state, handlers, relationship, { workplaceKey: key, actionRoot: layer });
-  };
-  showHeader();
-
-  layer.querySelectorAll('[data-global-workplace-history]').forEach((node) => node.addEventListener('click', () => {
-    const request = rows[Number(node.dataset.globalWorkplaceHistory)];
-    if (!request) return;
-    openGlobalContactHistoryLayer(root, state, handlers, relationship, request, showHeader);
-  }));
-  return layer;
 }
 
 async function renderGlobalContactDetail(root, state, handlers) {
@@ -980,69 +597,24 @@ async function renderGlobalContactDetail(root, state, handlers) {
     await handlers.render();
     return;
   }
-
-  const tenantId = String(relationship.tenantId || '');
-  const records = globalContactRecords(state, tenantId);
-  const [personalAccounts, deposits] = await Promise.all([
-    getGlobalPersonalAccounts().catch(() => []),
-    getGlobalDeposits().catch(() => []),
-  ]);
-  const personalAccount = personalAccounts.find((item) => String(item?.tenantId || '') === tenantId) || null;
-  const contactDeposits = deposits.filter((item) => String(item?.tenantId || '') === tenantId);
-  await renderGlobalContacts(root, state, handlers);
-
-  const workplaces = contactWorkplaceRail(relationship, records);
-  const programCards = [
-    personalAccount ? contactPersonalAccountCard(relationship, personalAccount) : '',
-    ...contactDeposits.map(contactDepositCard),
-  ].filter(Boolean);
-  const programs = programCards.length ? entityCardRail(programCards) : '';
-  const content = [
-    workplaces ? v2Section('Пространства', workplaces) : '',
-    programs ? v2Section('Программы', programs) : '',
-  ].filter(Boolean).join('') || emptyState('Профиль пока пустой', 'Данные взаимодействия появятся здесь.');
-  const body = `${content}${actionBlock(button('Записаться', {
-    data: 'data-global-contact-booking',
-    aria: 'Записаться',
-  }))}`;
-
-  let layer = null;
-  const showContactHeader = () => {
-    setGlobalAccountHeader(root, contactHeaderMarkup(relationship));
-    setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки' });
-    bindContactHeaderActions(root, state, handlers, relationship, { actionRoot: layer });
-  };
-
-  layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-detail-z' }), {
-    stack: true,
-    onClose: () => {
-      state.accountTab = 'contacts';
-      state.accountDeckActive = 'contacts';
-      state.accountSelectedContactTenantId = '';
-      void handlers.render();
-    },
+  const profile = relationshipProfile(relationship);
+  const title = relationshipTitle(relationship);
+  renderV2Shell(root, state, {
+    header: v2Header({
+      a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
+      b: title,
+    }),
+    v: { data: 'data-global-contact-settings', aria: 'Настройки контакта' },
+    body: `${entityCardStack([relationshipCard(relationship, { interactive: false })])}${actionBlock(button('Записаться', {
+      data: 'data-global-contact-booking',
+      aria: `Записаться к ${title}`,
+    }))}`,
   });
-  if (!layer) return;
-  showContactHeader();
-
-  layer.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
-    const workplace = (Array.isArray(relationship?.context?.workplaces) ? relationship.context.workplaces : [])
-      .find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
-    if (!workplace) return;
-    openGlobalContactWorkplaceLayer(root, state, handlers, relationship, workplace, records, showContactHeader);
-  }));
-
-  layer.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
-    if (!personalAccount) return;
-    openGlobalContactPersonalAccountLayer(root, state, handlers, relationship, personalAccount, showContactHeader);
+  bindWorkspaceInteraction(root, state, handlers);
+  root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
+  root.querySelector('[data-global-contact-booking]')?.addEventListener('click', () => {
+    handlers.onStartBooking?.(String(relationship.tenantId || ''), { entry: 'profile' });
   });
-
-  layer.querySelectorAll('[data-global-contact-deposit]').forEach((node) => node.addEventListener('click', () => {
-    const deposit = contactDeposits.find((item) => String(item?.depositId || '') === String(node.dataset.globalContactDeposit || ''));
-    if (!deposit) return;
-    openGlobalContactDepositLayer(root, state, handlers, relationship, deposit, showContactHeader);
-  }));
-
 }
 
 export async function renderGlobalAccount(root, state, callbacks = {}) {
