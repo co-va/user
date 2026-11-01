@@ -215,14 +215,29 @@ export async function changeGlobalAccountPassword(currentPassword, newPassword) 
 
 export async function getGlobalAccountRelationships() {
   return jsonResponse(
-    await request('/online-booking/account/relationships', { auth: true }),
+    await request('/account/contacts', { auth: true }),
     'Не удалось загрузить контакты',
+  );
+}
+
+export async function searchGlobalAccountContacts(phone) {
+  const params = new URLSearchParams({ phone: String(phone || '').trim() });
+  return jsonResponse(
+    await request(`/account/contacts/search?${params}`, { auth: true }),
+    'Не удалось найти контакт',
+  );
+}
+
+export async function getGlobalAccountContact(tenantId) {
+  return jsonResponse(
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}`, { auth: true }),
+    'Не удалось открыть контакт',
   );
 }
 
 export async function deleteGlobalAccountRelationship(tenantId) {
   return jsonResponse(
-    await request(`/online-booking/account/relationships/${encodeURIComponent(String(tenantId || ''))}`, {
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}`, {
       auth: true,
       method: 'DELETE',
     }),
@@ -239,7 +254,7 @@ export async function getGlobalAccountRecords() {
 
 export async function getAccountConsentState(tenantId) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consent-state`, {
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/consents`, {
       auth: true,
     }),
     'Не удалось проверить согласия',
@@ -248,7 +263,7 @@ export async function getAccountConsentState(tenantId) {
 
 export async function submitAccountConsents(tenantId, consents = []) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consents`, {
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/connect`, {
       auth: true,
       method: 'POST',
       body: JSON.stringify({ consents }),
@@ -259,7 +274,7 @@ export async function submitAccountConsents(tenantId, consents = []) {
 
 export async function revokeAccountConsent(tenantId, documentId) {
   return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consents/${encodeURIComponent(String(documentId || ''))}/revoke`, {
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/consents/${encodeURIComponent(String(documentId || ''))}/revoke`, {
       auth: true,
       method: 'POST',
     }),
