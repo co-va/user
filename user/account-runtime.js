@@ -1,15 +1,12 @@
 import { getAccountToken } from '../core/account/index.js';
 import {
   enableWebPush,
-  shouldOfferWebPushSetup,
   syncWebPush,
   webPushFailureMessage,
   webPushOptedOut,
   webPushSupported,
 } from '../core/notifications/web-push.js';
 import { button, escapeHtml, modal, mountModal } from '../ui/user-ui.js';
-
-const optedOutAtRuntimeStart = webPushOptedOut();
 
 function accountAppReady() {
   return Boolean(document.querySelector('[data-v2-app]'));
@@ -30,19 +27,13 @@ function deviceCanOfferPushSetup() {
   return true;
 }
 
-function shouldOfferAccountPushSetup() {
+function shouldOfferAccountPushSetup({ optedOutAtSessionStart = false } = {}) {
   if (!webPushSupported()) return false;
   if (Notification.permission === 'denied') return false;
+  if (!deviceCanOfferPushSetup()) return false;
 
-  const optedOutNow = webPushOptedOut();
-  if (optedOutNow) {
-    // If Push was already disabled when this page opened, offer it again now.
-    // If the user disabled Push during this runtime, do not immediately nag them.
-    return optedOutAtRuntimeStart && deviceCanOfferPushSetup();
-  }
-
-  if (shouldOfferWebPushSetup()) return true;
-  return deviceCanOfferPushSetup();
+  if (webPushOptedOut()) return optedOutAtSessionStart;
+  return true;
 }
 
 function pushSetupModal(initialStatus = '') {
@@ -57,76 +48,80 @@ function pushSetupModal(initialStatus = '') {
   <div class="muted" data-account-push-status aria-live="polite">${escapeHtml(initialStatus)}</div>`;
 }
 
-export function startGlobalAccountPushRuntime({ intervalMs = 1500 } = {}) {
-  let disposed = false;
-  let busy = false;
-  let promptShown = false;
-  let synchronized = false;
-  let timer = null;
+async function offerPushSetupOnce({ optedOutAtSessionStart = false } = {}) {
+  if (!webPushSupported() || !getAccountToken() || !accountAppReady()) return;
 
-  const offer = async () => {
-    if (disposed || busy || synchronized || !getAccountToken() || !accountAppReady()) return;
-    if (!webPushSupported()) return;
+  if (Notification.permission === 'granted' && !webPushOptedOut()) {
+    const state = await syncWebPush();
+    if (state?.subscribed) return;
+  }
 
-    busy = true;
+  if (!shouldOfferAccountPushSetup({ optedOutAtSessionStart })) return;
+  if (document.querySelector('[data-account-push-setup-modal]')) return;
+
+  const layer = mountModal(document.body, modal(pushSetupModal(), {
+    title: 'Уведомления на устройстве',
+    variant: 'x',
+    xRole: 'action',
+    surface: 'app',
+  }));
+  if (!layer) return;
+
+  layer.dataset.accountPushSetupModal = 'true';
+  const enable = layer.querySelector('[data-account-push-enable]');
+  const later = layer.querySelector('[data-account-push-later]');
+  const status = layer.querySelector('[data-account-push-status]');
+
+  later?.addEventListener('click', () => layer.remove());
+  enable?.addEventListener('click', async () => {
+    enable.disabled = true;
+    if (status) status.textContent = 'Включаем…';
     try {
-      if (Notification.permission === 'granted' && !webPushOptedOut()) {
-        const state = await syncWebPush();
-        synchronized = Boolean(state?.subscribed);
-        if (synchronized) return;
-      }
-
-      if (!shouldOfferAccountPushSetup()) return;
-      if (promptShown || document.querySelector('[data-account-push-setup-modal]')) return;
-
-      promptShown = true;
-      const layer = mountModal(document.body, modal(pushSetupModal(), {
-        title: 'Уведомления на устройстве',
-        variant: 'x',
-        xRole: 'action',
-        surface: 'app',
-      }));
-      if (!layer) {
-        promptShown = false;
+      const next = await enableWebPush({ strict: false });
+      if (next?.subscribed) {
+        layer.remove();
         return;
       }
-      layer.dataset.accountPushSetupModal = 'true';
-      const enable = layer.querySelector('[data-account-push-enable]');
-      const later = layer.querySelector('[data-account-push-later]');
-      const status = layer.querySelector('[data-account-push-status]');
-      later?.addEventListener('click', () => {
-        synchronized = true;
-        layer.remove();
-      });
-      enable?.addEventListener('click', async () => {
-        enable.disabled = true;
-        if (status) status.textContent = 'Включаем…';
-        try {
-          const next = await enableWebPush({ strict: false });
-          if (next?.subscribed) {
-            synchronized = true;
-            layer.remove();
-            return;
-          }
-          if (status) status.textContent = webPushFailureMessage(next) || 'Не удалось включить уведомления.';
-        } catch (error) {
-          if (status) status.textContent = error instanceof Error ? error.message : 'Не удалось включить уведомления.';
-        } finally {
-          if (enable.isConnected) enable.disabled = false;
-        }
-      });
-    } catch {
-      // Push setup must not block the Account application.
+      if (status) status.textContent = webPushFailureMessage(next) || 'Не удалось включить уведомления.';
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : 'Не удалось включить уведомления.';
     } finally {
-      busy = false;
+      if (enable.isConnected) enable.disabled = false;
+    }
+  });
+}
+
+export function startGlobalAccountPushRuntime() {
+  let disposed = false;
+  let checkedForSession = false;
+
+  const checkSession = async () => {
+    if (disposed) return;
+
+    const token = String(getAccountToken() || '').trim();
+    if (!token) {
+      checkedForSession = false;
+      return;
+    }
+    if (checkedForSession || !accountAppReady()) return;
+
+    checkedForSession = true;
+    const optedOutAtSessionStart = webPushOptedOut();
+    try {
+      await offerPushSetupOnce({ optedOutAtSessionStart });
+    } catch {
+      // Push setup must not block the User application.
     }
   };
 
-  void offer();
-  timer = window.setInterval(() => void offer(), Math.max(1000, Number(intervalMs) || 1500));
+  const host = document.querySelector('#app') || document.body;
+  const observer = new MutationObserver(() => void checkSession());
+  observer.observe(host, { childList: true, subtree: true });
+  void checkSession();
+
   return () => {
     disposed = true;
-    if (timer) window.clearInterval(timer);
+    observer.disconnect();
   };
 }
 
