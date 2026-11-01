@@ -1,5 +1,9 @@
 import { renderUser as renderUserApp } from './app.js';
-import './record-create.js';
+import {
+  installPasswordRecoveryRequest,
+  isPasswordResetLocation,
+  renderPasswordReset,
+} from './password-recovery.js';
 
 const root = document.querySelector('#app');
 
@@ -35,5 +39,15 @@ window.addEventListener('resize', syncViewport, { passive: true });
 window.visualViewport?.addEventListener('resize', syncViewport, { passive: true });
 window.visualViewport?.addEventListener('scroll', syncViewport, { passive: true });
 
+installPasswordRecoveryRequest();
 syncViewport();
-await renderUser();
+setThemeColor('#2F3338');
+
+if (isPasswordResetLocation()) {
+  root.innerHTML = '<main id="user-content" data-user-runtime></main>';
+  renderPasswordReset(document.querySelector('#user-content'));
+  syncViewport();
+} else {
+  await import('./record-create.js');
+  await renderUser();
+}
