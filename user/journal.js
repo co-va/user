@@ -577,8 +577,15 @@ export function renderJournal(root, options = {}) {
     });
   };
 
+  const refresh = () => {
+    if (!root.isConnected || root.querySelector('[data-record-creation-flow]')) return;
+    render();
+  };
+  root.userJournalRefresh = refresh;
+
   render();
   return () => {
+    if (root.userJournalRefresh === refresh) delete root.userJournalRefresh;
     disposeView();
     clearV2ZHeaderRows(root);
     clearV2Y(root);
