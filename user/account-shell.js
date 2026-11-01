@@ -1,5 +1,6 @@
 import {
   accountErrorMessage,
+  getGlobalAccountPlatformState,
   updateGlobalAccount,
   deleteGlobalAccount,
   deleteGlobalAccountRelationship,
@@ -16,8 +17,6 @@ import {
   entityCardStack,
   entityVisualCard,
   normalizeEntityCardAppearance,
-  miniCard,
-  miniCardRail,
   escapeHtml,
   field,
   v2ListEntries,
@@ -41,6 +40,7 @@ import {
   openSharedPhotoAction,
   openSharedProfileSettingsMenu,
 } from '../ui/user-ui.js';
+import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
 import { notificationSettings } from '../ui/settings/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
@@ -302,41 +302,33 @@ async function loadGlobalNotificationState() {
   return { pushState };
 }
 
-async function openGlobalAccountControls(root, state, handlers, relationships = state.relationships) {
+async function openGlobalAccountControls(root, state) {
   const existing = root.querySelector('[data-account-controls-modal]');
   if (existing) return existing;
 
-  const scopedRelationships = Array.isArray(relationships) ? relationships : [];
-  const notificationState = await loadGlobalNotificationState();
+  const [notificationState, platformState] = await Promise.all([
+    loadGlobalNotificationState(),
+    getGlobalAccountPlatformState().catch(() => null),
+  ]);
   const pushSupported = Boolean(notificationState.pushState?.supported && notificationState.pushState?.enabled);
   const pushSubscribed = Boolean(notificationState.pushState?.subscribed);
-
-  const representatives = scopedRelationships.length
-    ? miniCardRail(scopedRelationships.map((relationship, index) => {
-        const profile = relationshipProfile(relationship);
-        const title = relationshipTitle(relationship);
-        return miniCard({
-          title,
-          subtitle: String(profile.profession || '').trim(),
-          image: String(profile.photo || ''),
-          initials: title.slice(0, 1).toUpperCase(),
-          interactive: true,
-          data: `data-account-consent-contact="${index}"`,
-          aria: `Открыть согласия ${title}`,
-          actionLabel: 'Согласия',
-        });
-      }))
-    : emptyState('Контактов пока нет', 'Согласия появятся после связи с контактом.');
+  const platformDocument = platformState?.document && typeof platformState.document === 'object'
+    ? platformState.document
+    : null;
+  const platformAccepted = Boolean(platformState?.accepted);
+  const platformDocuments = platformDocument
+    ? documentTiles([documentTile({
+        title: platformDocument.title || 'Условия использования учетной записи',
+        version: platformDocument.version || 1,
+        status: platformAccepted ? 'Принято' : 'Требует принятия',
+        statusState: platformAccepted ? 'signed' : 'pending',
+        data: 'data-account-platform-document',
+        aria: 'Открыть документ платформы',
+      })], { layout: 'rail' })
+    : emptyState('Документ недоступен', 'Не удалось загрузить документ платформы.');
 
   const content = `<div data-account-controls-modal>
     ${v2Section('Уведомления', notificationSettings([
-      {
-        label: 'Email',
-        description: state.account?.email ? `Сервисные сообщения на ${state.account.email}` : 'Email не указан.',
-        checked: Boolean(state.account?.email),
-        disabled: true,
-        data: 'data-account-notification-email',
-      },
       {
         label: 'Push',
         description: pushSupported ? 'Push-уведомления на этом устройстве.' : 'Push на этом устройстве сейчас недоступны.',
@@ -345,7 +337,7 @@ async function openGlobalAccountControls(root, state, handlers, relationships = 
         data: 'data-account-notification-push',
       },
     ]))}
-    ${v2Section('Согласия', representatives)}
+    ${v2Section('Документы', platformDocuments)}
   </div>`;
 
   const layer = mountModal(document.body, modal(content, {
@@ -371,15 +363,14 @@ async function openGlobalAccountControls(root, state, handlers, relationships = 
     }
   });
 
-  layer?.querySelectorAll('[data-account-consent-contact]').forEach((node) => node.addEventListener('click', () => {
-    const relationship = scopedRelationships[Number(node.dataset.accountConsentContact)];
-    const tenantId = String(relationship?.tenantId || '');
-    if (!tenantId) return;
-    void openAccountConsentSettings(state, {
-      tenantId,
-      onChanged: () => {},
+  layer?.querySelector('[data-account-platform-document]')?.addEventListener('click', () => {
+    if (!platformDocument) return;
+    openDocumentViewer({
+      title: platformDocument.title || 'Условия использования учетной записи',
+      version: platformDocument.version || 1,
+      content: platformDocument.content ?? platformDocument.text ?? '',
     });
-  }));
+  });
 
   return layer;
 }
@@ -415,7 +406,7 @@ function openGlobalProfileSettingsMenu(state, handlers) {
     actions:[
       {id:'photo',label:'Фото',onSelect:()=>openAccountPhotoSettings(state,handlers)},
       {id:'password',label:'Изменить пароль',onSelect:()=>openAccountPasswordSettings(state)},
-      {id:'controls',label:'Согласия / Уведомления',onSelect:()=>void openGlobalAccountControls(document.body,state,handlers)},
+      {id:'controls',label:'Согласия / Уведомления',onSelect:()=>void openGlobalAccountControls(document.body,state)},
       {id:'logout',label:'Выход',variant:'danger',onSelect:()=>handlers.onLogout?.()},
       {id:'delete',label:'Удалить профиль',variant:'critical',onSelect:()=>confirmDeleteAccount(state,handlers)},
     ],
