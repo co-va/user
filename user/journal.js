@@ -55,9 +55,12 @@ const LIST_MODES = [
   { id: 'flow', label: 'Поток' },
   { id: 'time', label: 'По времени' },
 ];
+const JOURNAL_DAY_FROM = '09:00';
+const JOURNAL_DAY_TO = '23:00';
 const RECORD_COLOR = '#EFFFBB';
 const PAID_COLOR = '#DDE8D7';
 const NO_SHOW_COLOR = '#F1DADA';
+const EVENT_DEFAULT_COLOR = '#777A7D';
 
 function dateKey(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
@@ -357,7 +360,7 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   const eventById = new Map(events.map((event) => [String(event?.id || ''), event]).filter(([id]) => Boolean(id)));
   const timeline = root.querySelector('[data-user-journal-timeline]');
   if (!timeline) return dispose;
-  timeline.innerHTML = journalDayTimeline({ from: '09:00', to: '23:00', usages, day });
+  timeline.innerHTML = journalDayTimeline({ from: JOURNAL_DAY_FROM, to: JOURNAL_DAY_TO, usages, day });
   initJournalDayTimeline(timeline, {
     onUsageClick: ({ usageId }) => {
       const id = String(usageId || '');
@@ -380,73 +383,133 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   return dispose;
 }
 
-function minutesBetween(from = '', to = '') {
-  const start = usageMinutes(from);
-  const end = usageMinutes(to);
-  return start == null || end == null || end <= start ? 0 : end - start;
+function monthRecordColor(record = {}) {
+  const state = recordVisualState(record, { paid: paymentFor(record).paid });
+  if (state === 'paid') return PAID_COLOR;
+  if (state === 'no-show') return NO_SHOW_COLOR;
+  return RECORD_COLOR;
 }
 
-function monthData(records = []) {
+function monthEventColor(event = {}) {
+  const color = String(event?.color || '').trim();
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : EVENT_DEFAULT_COLOR;
+}
+
+function monthData(records = [], events = []) {
   const index = new Map();
+  const day = (key) => {
+    if (!index.has(key)) index.set(key, { records: [], events: [] });
+    return index.get(key);
+  };
+
   records.forEach((record) => {
     if (String(record?.status || '').toLowerCase() === 'cancelled') return;
     const key = String(record?.date || '').slice(0, 10);
     if (!key) return;
-    const rows = index.get(key) || [];
-    rows.push(record);
-    index.set(key, rows);
+    day(key).records.push(record);
+  });
+  events.forEach((event) => {
+    const key = String(event?.date || '').slice(0, 10);
+    if (!key) return;
+    day(key).events.push(event);
   });
   return index;
 }
 
-function monthDateContent(records = []) {
-  let paid = 0;
-  let active = 0;
-  let noShow = 0;
-  for (const record of records) {
-    const duration = minutesBetween(record?.from, record?.to);
-    const state = recordVisualState(record, { paid: paymentFor(record).paid });
-    if (state === 'paid') paid += duration;
-    else if (state === 'no-show') noShow += duration;
-    else active += duration;
+function monthUsageInterval(value = {}, color = EVENT_DEFAULT_COLOR) {
+  const start = usageMinutes(value?.from);
+  const rawEnd = usageMinutes(value?.to);
+  if (start == null || rawEnd == null || rawEnd === start) return null;
+  const end = rawEnd > start ? rawEnd : rawEnd + 24 * 60;
+  return { start, end, color };
+}
+
+function monthDateContent(day = {}) {
+  const records = Array.isArray(day?.records) ? day.records : [];
+  const events = Array.isArray(day?.events) ? day.events : [];
+  const intervals = [
+    ...records.map((record) => monthUsageInterval(record, monthRecordColor(record))),
+    ...events.map((event) => monthUsageInterval(event, monthEventColor(event))),
+  ].filter(Boolean);
+
+  const baselineStart = usageMinutes(JOURNAL_DAY_FROM) ?? 0;
+  const baselineEnd = usageMinutes(JOURNAL_DAY_TO) ?? 24 * 60;
+  const rangeStart = Math.max(0, Math.min(baselineStart, ...intervals.map((item) => item.start)));
+  const rangeEnd = Math.min(24 * 60, Math.max(baselineEnd, ...intervals.map((item) => item.end)));
+  const total = Math.max(1, rangeEnd - rangeStart);
+  const clipped = intervals.map((item) => ({
+    ...item,
+    start: Math.max(rangeStart, item.start),
+    end: Math.min(rangeEnd, item.end),
+  })).filter((item) => item.end > item.start);
+  const boundaries = [...new Set([
+    rangeStart,
+    rangeEnd,
+    ...clipped.flatMap((item) => [item.start, item.end]),
+  ])].sort((left, right) => left - right);
+  const pieces = [];
+
+  for (let index = 0; index < boundaries.length - 1; index += 1) {
+    const start = boundaries[index];
+    const end = boundaries[index + 1];
+    if (end <= start) continue;
+    const active = clipped.filter((item) => item.start < end && item.end > start);
+    if (!active.length) continue;
+    const colors = active.map((item) => item.color);
+    const background = colors.length === 1
+      ? colors[0]
+      : `linear-gradient(180deg,${colors.flatMap((color, colorIndex) => {
+        const from = colorIndex / colors.length * 100;
+        const to = (colorIndex + 1) / colors.length * 100;
+        return [`${color} ${from.toFixed(2)}%`, `${color} ${to.toFixed(2)}%`];
+      }).join(',')})`;
+    const left = (start - rangeStart) / total * 100;
+    const width = (end - start) / total * 100;
+    pieces.push(`<span class="calendar__date-fill-segment" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${background}"></span>`);
   }
-  const total = Math.max(1, paid + active + noShow);
-  let cursor = 0;
-  const stops = [];
-  for (const item of [
-    { value: paid, color: PAID_COLOR },
-    { value: active, color: RECORD_COLOR },
-    { value: noShow, color: NO_SHOW_COLOR },
-  ]) {
-    if (!(item.value > 0)) continue;
-    const end = cursor + item.value / total * 100;
-    stops.push(`${item.color} ${cursor.toFixed(2)}%`, `${item.color} ${end.toFixed(2)}%`);
-    cursor = end;
-  }
-  const fill = stops.length
-    ? `<span class="calendar__date-fill" style="--calendar-date-fill:linear-gradient(90deg,${stops.join(',')})" aria-hidden="true"></span>`
+
+  const fill = pieces.length
+    ? `<span class="calendar__date-fill" aria-hidden="true">${pieces.join('')}</span>`
     : '';
-  const count = records.length ? `<span class="calendar__date-count">${records.length} зап.</span>` : '';
+  const counts = [
+    records.length ? `<span>${records.length} зап</span>` : '',
+    events.length ? `<span>${events.length} соб</span>` : '',
+  ].filter(Boolean).join('');
+  const count = counts ? `<span class="calendar__date-count">${counts}</span>` : '';
   return `${fill}${count}`;
 }
 
 function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
-  root.innerHTML = '<div data-user-journal-calendar></div>';
-  const calendar = root.querySelector('[data-user-journal-calendar]');
-  if (!calendar) return () => {};
-  const index = monthData(readRecords(records));
-  initCalendar(calendar, {
-    workingDates: [],
-    month,
-    renderDateContent: ({ dateKey: key, isCurrentMonth }) => isCurrentMonth ? monthDateContent(index.get(key) || []) : '',
-    resolveDateIndicators: () => [],
-    onDateSelect: (key) => {
-      const [year, monthNumber, day] = String(key).split('-').map(Number);
-      if (year && monthNumber && day) onDateSelect(new Date(year, monthNumber - 1, day));
-    },
-    onMonthChange,
-  });
-  return () => {};
+  let disposed = false;
+  let visibleMonth = new Date(month);
+
+  const renderCalendar = () => {
+    if (disposed || !root.isConnected) return;
+    root.innerHTML = '<div data-user-journal-calendar></div>';
+    const calendar = root.querySelector('[data-user-journal-calendar]');
+    if (!calendar) return;
+    const index = monthData(readRecords(records), getAccountEvents());
+    initCalendar(calendar, {
+      workingDates: [],
+      month: visibleMonth,
+      renderDateContent: ({ dateKey: key, isCurrentMonth }) => isCurrentMonth
+        ? monthDateContent(index.get(key) || { records: [], events: [] })
+        : '',
+      resolveDateIndicators: () => [],
+      onDateSelect: (key) => {
+        const [year, monthNumber, day] = String(key).split('-').map(Number);
+        if (year && monthNumber && day) onDateSelect(new Date(year, monthNumber - 1, day));
+      },
+      onMonthChange: (nextMonth) => {
+        visibleMonth = new Date(nextMonth);
+        onMonthChange(nextMonth);
+      },
+    });
+  };
+
+  renderCalendar();
+  if (!accountEventsLoaded()) void loadAccountEvents().then(renderCalendar).catch(() => {});
+  return () => { disposed = true; };
 }
 
 function listEntry(record, { focus = false } = {}) {
