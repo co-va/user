@@ -533,40 +533,140 @@ function listEntry(record, { focus = false } = {}) {
   });
 }
 
-function bindListRecords(root, records) {
-  const byId = new Map(records.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
+function eventId(event = {}) {
+  return String(event?.id || '');
+}
+
+function eventAppointmentTime(event = {}, edge = 'from') {
+  const date = String(event?.date || '').slice(0, 10);
+  const minutes = usageMinutes(edge === 'to' ? event?.to : event?.from);
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match || minutes == null) return NaN;
+  const stamp = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Math.floor(minutes / 60), minutes % 60).getTime();
+  if (!Number.isFinite(stamp)) return NaN;
+  if (edge !== 'to') return stamp;
+  const from = usageMinutes(event?.from);
+  return from != null && minutes <= from ? stamp + 24 * 60 * 60 * 1000 : stamp;
+}
+
+function eventActivityTime(event = {}) {
+  const activity = Date.parse(String(event?.updatedAt || event?.createdAt || ''));
+  return Number.isFinite(activity) ? activity : eventAppointmentTime(event, 'from');
+}
+
+function eventListEntry(event, { focus = false } = {}) {
+  const id = eventId(event);
+  const title = String(event?.title || '').trim() || 'Событие';
+  const description = String(event?.description || '').trim();
+  const from = String(event?.from || '').trim();
+  const to = String(event?.to || '').trim();
+  const period = from && to ? `${from}–${to}` : from || to;
+  return v2ListEntry({
+    overline: 'Событие',
+    title,
+    subtitle: description,
+    rightTop: [shortDate(event?.date, ''), period].filter(Boolean).join(' · '),
+    leadingSwatch: monthEventColor(event),
+    interactive: Boolean(id),
+    data: id ? `data-user-journal-event="${escapeHtml(id)}"` : '',
+    aria: id ? `Открыть событие ${title}` : '',
+    className: focus ? 'journal-list-focus' : '',
+    initial: 'С',
+  });
+}
+
+function listItemAppointmentTime(item, edge = 'from') {
+  const value = item?.type === 'event'
+    ? eventAppointmentTime(item.value, edge)
+    : recordAppointmentTime(item?.value, edge);
+  return Number.isFinite(value) ? value : NaN;
+}
+
+function listItemEntry(item, { focus = false } = {}) {
+  return item?.type === 'event'
+    ? eventListEntry(item.value, { focus })
+    : listEntry(item?.value, { focus });
+}
+
+function bindListItems(root, records, events, rerender) {
+  const recordById = new Map(records.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
   root.querySelectorAll('[data-user-journal-record]').forEach((node) => node.addEventListener('click', () => {
-    const record = byId.get(String(node.dataset.userJournalRecord || ''));
+    const record = recordById.get(String(node.dataset.userJournalRecord || ''));
     if (record) openUserRecord(record);
+  }));
+
+  const eventById = new Map(events.map((event) => [eventId(event), event]).filter(([id]) => Boolean(id)));
+  root.querySelectorAll('[data-user-journal-event]').forEach((node) => node.addEventListener('click', () => {
+    const event = eventById.get(String(node.dataset.userJournalEvent || ''));
+    if (event) openUserEventView(event, { eventActions: accountEventActions, onClose: rerender });
   }));
 }
 
 function renderList(root, { records, mode }) {
-  const rows = readRecords(records);
-  if (!rows.length) {
-    root.innerHTML = emptyState('Список', 'Записей пока нет.');
-    return;
-  }
-  if (mode === 'time') {
-    const ordered = [...rows].sort((a, b) => recordAppointmentTime(a, 'from') - recordAppointmentTime(b, 'from'));
+  let disposed = false;
+
+  const draw = () => {
+    if (disposed || !root.isConnected) return;
+    const recordRows = readRecords(records);
+    const eventRows = getAccountEvents();
+    const items = [
+      ...recordRows.map((value) => ({ type: 'record', value })),
+      ...eventRows.map((value) => ({ type: 'event', value })),
+    ];
+
+    if (!items.length) {
+      root.innerHTML = emptyState('Список', 'Записей и событий пока нет.');
+      return;
+    }
+
+    if (mode === 'time') {
+      const ordered = [...items].sort((a, b) => {
+        const left = listItemAppointmentTime(a, 'from');
+        const right = listItemAppointmentTime(b, 'from');
+        if (!Number.isFinite(left)) return Number.isFinite(right) ? 1 : 0;
+        if (!Number.isFinite(right)) return -1;
+        return left - right;
+      });
+      const now = Date.now();
+      const focus = ordered.findIndex((item) => {
+        const end = listItemAppointmentTime(item, 'to');
+        return Number.isFinite(end) && end > now;
+      });
+      root.innerHTML = v2ListEntries(ordered.map((item, index) => listItemEntry(item, { focus: index === focus })));
+      bindListItems(root, recordRows, eventRows, draw);
+      return;
+    }
+
     const now = Date.now();
-    const focus = ordered.findIndex((record) => recordAppointmentTime(record, 'to') > now);
-    root.innerHTML = v2ListEntries(ordered.map((record, index) => listEntry(record, { focus: index === focus })));
-    bindListRecords(root, ordered);
-    return;
-  }
-  const prepared = rows.map((record) => {
-    const payment = paymentFor(record);
-    const completed = isRecordCompletedSide(record, { paid: payment.paid, now: Date.now() });
-    return { record, payment, completed };
-  });
-  const completed = prepared.filter((item) => item.completed)
-    .sort((a, b) => recordActivityTime(a.record, a.payment.activity, { completed: true }) - recordActivityTime(b.record, b.payment.activity, { completed: true }));
-  const pending = prepared.filter((item) => !item.completed)
-    .sort((a, b) => recordActivityTime(b.record, b.payment.activity) - recordActivityTime(a.record, a.payment.activity));
-  const ordered = [...completed, ...pending].map((item) => item.record);
-  root.innerHTML = v2ListEntries(ordered.map((record) => listEntry(record)));
-  bindListRecords(root, ordered);
+    const prepared = items.map((item) => {
+      if (item.type === 'event') {
+        const end = eventAppointmentTime(item.value, 'to');
+        return {
+          ...item,
+          completed: Number.isFinite(end) && end <= now,
+          activity: eventActivityTime(item.value),
+        };
+      }
+      const payment = paymentFor(item.value);
+      const completed = isRecordCompletedSide(item.value, { paid: payment.paid, now });
+      return {
+        ...item,
+        completed,
+        activity: recordActivityTime(item.value, payment.activity, { completed }),
+      };
+    });
+    const completed = prepared.filter((item) => item.completed)
+      .sort((a, b) => (Number.isFinite(a.activity) ? a.activity : 0) - (Number.isFinite(b.activity) ? b.activity : 0));
+    const pending = prepared.filter((item) => !item.completed)
+      .sort((a, b) => (Number.isFinite(b.activity) ? b.activity : 0) - (Number.isFinite(a.activity) ? a.activity : 0));
+    const ordered = [...completed, ...pending];
+    root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
+    bindListItems(root, recordRows, eventRows, draw);
+  };
+
+  draw();
+  if (!accountEventsLoaded()) void loadAccountEvents().then(draw).catch(() => {});
+  return () => { disposed = true; };
 }
 
 export function renderJournal(root, options = {}) {
@@ -618,7 +718,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      renderList(viewRoot, { records, mode: listMode });
+      disposeView = renderList(viewRoot, { records, mode: listMode });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
