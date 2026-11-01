@@ -16,29 +16,29 @@ async function request(path, options = {}) {
 }
 
 export function getAccountCalendarStatus() {
-  return request('/online-booking/account/calendar');
+  return request('/account/calendar');
 }
 
 export async function beginGoogleCalendarConnection() {
-  const payload = await request('/online-booking/account/calendar/google/connect', { method: 'POST' });
+  const payload = await request('/account/calendar/google/connect', { method: 'POST' });
   const url = String(payload?.url || '');
   if (!url) throw new Error('Google не вернул ссылку подключения.');
   window.location.assign(url);
 }
 
 export function connectYandexCalendar({ login = '', password = '' } = {}) {
-  return request('/online-booking/account/calendar/yandex/connect', {
+  return request('/account/calendar/yandex/connect', {
     method: 'POST',
     body: JSON.stringify({ login, password }),
   });
 }
 
 export function disconnectAccountCalendar(provider) {
-  return request(`/online-booking/account/calendar/${encodeURIComponent(String(provider || ''))}`, { method: 'DELETE' });
+  return request(`/account/calendar/${encodeURIComponent(String(provider || ''))}`, { method: 'DELETE' });
 }
 
 export function setAccountCalendarExport(provider, calendarId) {
-  return request(`/online-booking/account/calendar/${encodeURIComponent(String(provider || ''))}/export`, {
+  return request(`/account/calendar/${encodeURIComponent(String(provider || ''))}/export`, {
     method: 'PUT',
     body: JSON.stringify({ calendarId }),
   });
@@ -49,7 +49,7 @@ export function syncAccountCalendars({ force = false } = {}) {
   if (!token) return Promise.resolve({ connected: 0, synced: 0, skipped: true });
   if (syncInFlight) return syncInFlight;
   if (!force && Date.now() - lastSyncAt < 60_000) return Promise.resolve({ connected: 0, synced: 0, skipped: true });
-  syncInFlight = request('/online-booking/account/calendar/sync', { method: 'POST' })
+  syncInFlight = request('/account/calendar/sync', { method: 'POST' })
     .then((result) => {
       lastSyncAt = Date.now();
       if (Number(result?.connected || 0) > 0) {
