@@ -72,7 +72,7 @@ export function getAccountNotesForDay(date) {
 export async function loadAccountNotes({ force = false } = {}) {
   if (loaded && !force) return getAccountNotes();
   if (loading && !force) return loading;
-  loading = request('/online-booking/account/notes')
+  loading = request('/account/notes')
     .then((payload) => {
       rows = (Array.isArray(payload) ? payload : []).map(normalize).filter((item) => item.id);
       loaded = true;
@@ -89,7 +89,7 @@ export async function createAccountNote(input = {}) {
     ownerType: 'account',
     context: { ...(input?.context || {}), scope: 'account' },
   });
-  const saved = await request(`/online-booking/account/notes/${encodeURIComponent(note.id)}`, {
+  const saved = await request(`/account/notes/${encodeURIComponent(note.id)}`, {
     method: 'PUT',
     body: JSON.stringify({ note }),
   });
@@ -109,7 +109,7 @@ export async function updateAccountNote(id, patch = {}) {
     createdAt: current.createdAt,
     context: { ...(current.context || {}), ...(patch?.context || {}), scope: 'account' },
   });
-  const saved = await request(`/online-booking/account/notes/${encodeURIComponent(current.id)}`, {
+  const saved = await request(`/account/notes/${encodeURIComponent(current.id)}`, {
     method: 'PUT',
     body: JSON.stringify({ note }),
   });
@@ -120,7 +120,7 @@ export async function updateAccountNote(id, patch = {}) {
 export async function removeAccountNote(id) {
   const key = String(id || '');
   if (!key) return false;
-  await request(`/online-booking/account/notes/${encodeURIComponent(key)}`, { method: 'DELETE' });
+  await request(`/account/notes/${encodeURIComponent(key)}`, { method: 'DELETE' });
   rows = rows.filter((item) => item.id !== key);
   loaded = true;
   return true;
