@@ -106,7 +106,7 @@ function procedureEntry(procedure, workplaceKey) {
   };
 }
 
-function summaryMarkup(state = {}, context = {}, workplaceKey = '') {
+function summaryMarkup(state = {}, workplaceKey = '') {
   const procedures = Array.isArray(state.procedures) ? state.procedures : [];
   const total = procedures.reduce((sum, procedure) => {
     const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
@@ -158,7 +158,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
     const confirmation = config?.step === 'confirmation' && text(config?.action?.data).includes('data-records-confirm');
     if (!confirmation) return ownerRender(config);
     const state = owner.getRecordState?.() || {};
-    return ownerRender({ ...config, body: summaryMarkup(state, recordContext, activeWorkplaceKey) });
+    return ownerRender({ ...config, body: summaryMarkup(state, activeWorkplaceKey) });
   };
 
   const provider = {
