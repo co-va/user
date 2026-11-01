@@ -5,6 +5,8 @@ import {
   shouldOfferWebPushSetup,
   syncWebPush,
   webPushFailureMessage,
+  webPushOptedOut,
+  webPushSupported,
 } from '../core/notifications/web-push.js';
 import { button, escapeHtml, modal, mountModal } from '../ui/user-ui.js';
 
@@ -12,10 +14,24 @@ function accountAppReady() {
   return Boolean(document.querySelector('[data-v2-app] [data-account-deck-item]'));
 }
 
+function shouldOfferAccountPushSetup() {
+  if (shouldOfferWebPushSetup()) return true;
+  if (!webPushSupported()) return false;
+  if (Notification.permission === 'denied' || webPushOptedOut()) return false;
+
+  const mobileApple = /iPhone|iPad|iPod/i.test(String(navigator.userAgent || ''));
+  const coarsePointer = typeof window.matchMedia === 'function'
+    && window.matchMedia('(pointer: coarse)').matches;
+
+  // iPhone/iPad Web Push remains governed by the installed-app rule in web-push.js.
+  // Other supported browsers, including ordinary desktop tabs, may offer setup.
+  return !(mobileApple && coarsePointer);
+}
+
 function pushSetupModal(initialStatus = '') {
   return `<div class="modal-title">
-    <h2>Уведомления на телефоне</h2>
-    <p>Включите уведомления, чтобы узнавать о важных событиях, даже когда приложение закрыто.</p>
+    <h2>Уведомления на устройстве</h2>
+    <p>Включите уведомления, чтобы узнавать о важных событиях, даже когда приложение или вкладка закрыты.</p>
   </div>
   <div class="modal-actions">
     ${button('Включить', { data: 'data-account-push-enable' })}
@@ -33,7 +49,7 @@ export function startGlobalAccountPushRuntime({ intervalMs = 1500 } = {}) {
 
   const offer = async () => {
     if (disposed || busy || synchronized || !getAccountToken() || !accountAppReady()) return;
-    if (!shouldOfferWebPushSetup()) return;
+    if (!shouldOfferAccountPushSetup()) return;
     busy = true;
     try {
       if (Notification.permission === 'granted') {
@@ -48,7 +64,7 @@ export function startGlobalAccountPushRuntime({ intervalMs = 1500 } = {}) {
 
       promptShown = true;
       const layer = mountModal(document.body, modal(pushSetupModal(), {
-        title: 'Уведомления на телефоне',
+        title: 'Уведомления на устройстве',
         variant: 'x',
         xRole: 'action',
         surface: 'app',
