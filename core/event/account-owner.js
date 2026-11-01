@@ -11,7 +11,6 @@ function normalize(value = {}) {
   const now = new Date().toISOString();
   return {
     id: String(value?.id || ''),
-    tenantId: '',
     ownerType: 'account',
     ownerId: String(value?.ownerId || ''),
     context: value?.context && typeof value.context === 'object' && !Array.isArray(value.context)
