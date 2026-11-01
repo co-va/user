@@ -1,19 +1,27 @@
 .note-reels{
-  display:grid;
-  gap:4px;
+  display:block;
+  width:100%;
+  height:60px;
+  max-height:60px;
   min-width:0;
   margin:0;
-  padding:6px 0 10px 16px;
+  padding:0 0 0 16px;
+  overflow:visible;
 }
 .note-reels__rail{
-  gap:8px;
-  padding-top:8px;
-  padding-bottom:9px;
+  box-sizing:border-box;
+  width:100%;
+  height:66px;
+  min-height:66px;
+  gap:15px;
+  padding:5px 0 0;
+  align-items:flex-start;
 }
 .note-reels .v2-rail>*{
-  flex:0 0 72px;
-  width:72px;
-  max-width:72px;
+  flex:0 0 60px;
+  width:60px;
+  min-width:60px;
+  max-width:60px;
 }
 
 .note-sticker{
@@ -77,24 +85,24 @@
 }
 
 .note-sticker--compact{
-  width:72px;
-  min-width:72px;
-  max-width:72px;
-  height:76px;
-  min-height:76px;
-  max-height:76px;
-  padding:14px 7px 8px;
-  gap:2px;
-  border-radius:11px;
+  width:60px;
+  min-width:60px;
+  max-width:60px;
+  height:60px;
+  min-height:60px;
+  max-height:60px;
+  border-radius:9px;
+  padding:11px 5px 6px;
+  gap:1px;
 }
 .note-sticker--compact .note-sticker__tape{
-  top:-5px;
-  height:9px;
+  top:-4px;
+  height:8px;
   width:42%;
 }
-.note-sticker--compact .note-sticker__target{font-size:7px;line-height:1.05}
-.note-sticker--compact .note-sticker__title{font-size:10px;line-height:1.08;white-space:nowrap}
-.note-sticker--compact .note-sticker__text{font-size:9px;line-height:1.12;-webkit-line-clamp:2}
+.note-sticker--compact .note-sticker__target{font-size:7px;line-height:1}
+.note-sticker--compact .note-sticker__title{font-size:9px;line-height:1.05;white-space:nowrap}
+.note-sticker--compact .note-sticker__text{font-size:8px;line-height:1.05;-webkit-line-clamp:2}
 
 .note-detail{
   min-height:0;
@@ -161,46 +169,3 @@
   line-height:1.18;
   -webkit-line-clamp:3;
 }
-
-.v2-y-host .note-reels{
-  display:block;
-  width:100%;
-  height:60px;
-  max-height:60px;
-  margin:0;
-  padding:0 0 0 16px;
-  overflow:visible;
-}
-.v2-y-host .note-reels__rail{
-  box-sizing:border-box;
-  width:100%;
-  height:66px;
-  min-height:66px;
-  gap:15px;
-  padding:5px 0 0;
-  align-items:flex-start;
-}
-.v2-y-host .note-reels .v2-rail>*{
-  flex:0 0 60px;
-  width:60px;
-  min-width:60px;
-  max-width:60px;
-}
-.v2-y-host .note-sticker--compact{
-  width:60px;
-  min-width:60px;
-  max-width:60px;
-  height:60px;
-  min-height:60px;
-  max-height:60px;
-  border-radius:9px;
-  padding:11px 5px 6px;
-  gap:1px;
-}
-.v2-y-host .note-sticker--compact .note-sticker__tape{
-  top:-4px;
-  height:8px;
-}
-.v2-y-host .note-sticker--compact .note-sticker__target{font-size:7px;line-height:1}
-.v2-y-host .note-sticker--compact .note-sticker__title{font-size:9px;line-height:1.05}
-.v2-y-host .note-sticker--compact .note-sticker__text{font-size:8px;line-height:1.05;-webkit-line-clamp:2}
