@@ -31,6 +31,32 @@ async function renderUser(initial = {}) {
   syncViewport();
 }
 
+function installRecordRuntimeLoader() {
+  let runtimePromise = null;
+
+  const removeLoaders = () => {
+    window.removeEventListener('cova:user-record-open-professionals', loadAndReplay);
+    window.removeEventListener('cova:user-record-start', loadAndReplay);
+  };
+
+  const loadAndReplay = async (event) => {
+    const type = String(event?.type || '');
+    if (!type) return;
+    const detail = event?.detail && typeof event.detail === 'object' ? event.detail : undefined;
+    try {
+      if (!runtimePromise) runtimePromise = import('./record-create.js');
+      await runtimePromise;
+      removeLoaders();
+      window.dispatchEvent(new CustomEvent(type, { detail }));
+    } catch {
+      runtimePromise = null;
+    }
+  };
+
+  window.addEventListener('cova:user-record-open-professionals', loadAndReplay);
+  window.addEventListener('cova:user-record-start', loadAndReplay);
+}
+
 window.addEventListener('cova:user-record-created', (event) => {
   const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
   void renderUser({
@@ -56,6 +82,6 @@ if (isPasswordResetLocation()) {
   syncViewport();
 } else {
   installPasswordRecoveryRequest();
-  await import('./record-create.js');
+  installRecordRuntimeLoader();
   await renderUser();
 }
