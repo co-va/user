@@ -115,16 +115,16 @@ export function focusNoteReels(root, noteIds = []) {
   return first;
 }
 
-export function noteDetail(note = {}, { targetLabel = '' } = {}) {
+export function noteDetail(note = {}) {
   const color = validColor(note?.color);
-  const meta = [dateLabel(note?.date), timeLabel(note)].filter(Boolean).join(' · ');
   const title = String(note?.title || '').trim();
   const body = String(note?.text || '').trim();
+  const date = dateLabel(note?.date);
   return `<section class="note-detail" style="--note-color:${escapeHtml(color)}">
-    <div class="note-detail__meta">${escapeHtml(meta)}</div>
-    ${targetLabel ? `<div class="note-detail__target">${escapeHtml(targetLabel)}</div>` : ''}
-    <div class="note-detail__color" aria-label="Цвет заметки"></div>
-    ${title ? `<h2>${escapeHtml(title)}</h2>` : ''}
-    ${body ? `<div class="note-detail__text">${escapeHtml(body)}</div>` : ''}
+    <article class="note-detail__paper">
+      ${title ? `<h2>${escapeHtml(title)}</h2>` : ''}
+      ${body ? `<div class="note-detail__text">${escapeHtml(body)}</div>` : ''}
+      ${date ? `<div class="note-detail__date">${escapeHtml(date)}</div>` : ''}
+    </article>
   </section>`;
 }
