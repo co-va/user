@@ -18,6 +18,6 @@
 .work-time-row{display:grid;gap:6px}.work-time-row__label{color:var(--text-secondary);font-size:13px}.work-time-row__fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}.work-time-row__fields .field{grid-template-columns:auto 1fr;align-items:center;gap:7px}.work-time-row__fields .field>span{font-size:13px}@media(max-width:360px){.work-time-row__fields{gap:6px}}
 
 .journal-record--event{border-left:4px solid var(--journal-event-color,#777A7D);background:color-mix(in srgb,var(--journal-event-color,#777A7D) 16%,#fff);display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.journal-record--event-overlap{box-shadow:0 0 0 2px #C96C6C,0 2px 6px rgba(17,17,17,.08)}
 .journal-event__time{font-size:.78em;opacity:.75}
 .journal-event__title{font-weight:700}
-.journal-usage__overlap{position:absolute;right:6px;bottom:4px;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border:1px solid currentColor;border-radius:9px;background:var(--white);font-size:11px;font-weight:800;line-height:1}
