@@ -14,24 +14,27 @@ import {
   registerGlobalAccount,
 } from '../core/account/index.js';
 import { getGlobalAccountBookingTargets } from '../core/account/booking-targets.js';
-import {
-  button,
-  documentTile,
-  documentTiles,
-  field,
-  formValidationMessage,
-  initPasswordFields,
-  openDocumentViewer,
-  openNotice,
-  passwordField,
-  phoneField,
-  v2Sticker,
-} from '../ui/user-ui.js';
+import { button } from '../ui/buttons/index.js';
+import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
+import { field, formValidationMessage, initPasswordFields, passwordField, phoneField } from '../ui/inputs/index.js';
+import { openNotice } from '../ui/modals/index.js';
+import { v2Sticker } from '../ui/v2/sticker.js';
 import { formError, formView } from '../ui/forms/index.js';
-import { renderGlobalAccount } from './account-shell.js';
 
 function flowThemeClasses() {
   return 'booking-account booking-account--account booking-account--v2';
+}
+
+let accountShellPromise = null;
+
+function loadAccountShell() {
+  if (!accountShellPromise) accountShellPromise = import('./account-shell.js');
+  return accountShellPromise;
+}
+
+async function renderAccountSurface(root, state, callbacks) {
+  const { renderGlobalAccount } = await loadAccountShell();
+  return renderGlobalAccount(root, state, callbacks);
 }
 
 function renderLoading(root) {
@@ -137,7 +140,7 @@ async function renderGlobalUserHome(root, state) {
   state.account = account;
 
   const callbacks = accountCallbacks(root, state);
-  await renderGlobalAccount(root, state, callbacks);
+  await renderAccountSurface(root, state, callbacks);
 
   const tab = String(state.accountTab || 'journal');
   const needsRelationships = tab === 'journal'
@@ -157,7 +160,7 @@ async function renderGlobalUserHome(root, state) {
 
   state.relationships = Array.isArray(relationships) ? relationships : [];
   state.accountRecords = Array.isArray(records) ? records : [];
-  await renderGlobalAccount(root, state, callbacks);
+  await renderAccountSurface(root, state, callbacks);
 }
 
 async function continueGlobalIdentity(root, state) {
@@ -418,8 +421,11 @@ function renderGlobalUserLegal(root, state) {
 
 export async function renderGlobalUser(root, initial = {}) {
   const state = globalAccountState(initial);
-  renderGlobalUserEntry(root, state);
-  if (!getAccountToken()) return;
+  if (!getAccountToken()) {
+    renderGlobalUserEntry(root, state);
+    return;
+  }
+  renderLoading(root);
 
   try {
     const [account, platformState] = await Promise.all([
