@@ -45,7 +45,7 @@ import { notificationSettings } from '../ui/settings/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
 import { openAccountPersonalDataZ } from './personal-data.js';
-import { profileCardAppearance, profileCardFields, workplaceCardAppearance, workplaceCardFields } from '../core/profile/card-presentation.js';
+import { profileCardAppearance, profileCardFields } from '../core/profile/card-presentation.js';
 import { renderJournal } from './journal.js';
 import { renderAccountCalendarIntegrations } from './calendar-integrations.js';
 
@@ -164,12 +164,6 @@ function relationshipProfile(relationship = {}) {
     photoCropX: Number(source.photoCropX ?? relationship.photoCropX ?? card.photoCropX ?? 50),
     photoCropY: Number(source.photoCropY ?? relationship.photoCropY ?? card.photoCropY ?? 50),
   };
-}
-
-function relationshipWorkplaces(relationship = {}) {
-  if (Array.isArray(relationship?.context?.workplaces)) return relationship.context.workplaces;
-  if (Array.isArray(relationship?.workplaces)) return relationship.workplaces;
-  return [];
 }
 
 function relationshipTitle(relationship = {}) {
