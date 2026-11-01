@@ -16,7 +16,7 @@ export {
   listTimeGridAvailableEnds,
   listTimeGridAvailableStarts,
 } from './grid.js';
-export { buildNaturalBookingTimeRows } from './booking-candidates.js';
+export { buildNaturalTimeRows } from './natural-availability.js';
 export {
   normalizeWorkplaceTimeZone,
   zonedDateTimeParts,
