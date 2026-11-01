@@ -8,8 +8,6 @@
 .list-entries.is-reordering{user-select:none;-webkit-user-select:none}
 .list-entry.is-reordering{z-index:4;transform:scale(.985);box-shadow:0 10px 24px rgba(0,0,0,.16);cursor:grabbing}
 
-.journal-list-mode-navigation .segment-control{margin-top:-10px;margin-bottom:6px}.journal-list-viewport{height:calc(var(--visual-vh,100dvh) - 282px - var(--nav-height) - env(safe-area-inset-bottom));min-height:220px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}.journal-list-viewport::-webkit-scrollbar{display:none}.journal-list-viewport>.list-entries{padding-bottom:18px}.journal-list-anchor{height:2px;margin:6px 0 10px;background:var(--text-muted);box-shadow:0 1px 0 rgba(255,255,255,.72)}
-
 .list-entry__reorder-handle{width:36px;height:48px;display:grid;place-items:center;align-self:center;margin-left:-4px;margin-right:2px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;color:var(--text-secondary);font-size:18px;line-height:1;letter-spacing:-3px}
 .list-entry__reorder-handle:active,.list-entry.is-reordering .list-entry__reorder-handle{cursor:grabbing}
 .list-entry__content:has(.list-entry__reorder-handle){grid-template-columns:36px minmax(0,1fr) auto auto auto}
