@@ -625,13 +625,7 @@ function openGlobalSystemSearch(state, handlers) {
 }
 
 function openGlobalContactsSettings(state, handlers) {
-  return openSharedProfileSettingsMenu({
-    title: 'Контакты',
-    actions: [
-      { id: 'system-search', label: 'Поиск в системе', onSelect: () => openGlobalSystemSearch(state, handlers) },
-    ],
-    data: 'data-global-contacts-settings-menu',
-  });
+  return openGlobalSystemSearch(state, handlers);
 }
 
 async function renderGlobalContacts(root, state, handlers) {
