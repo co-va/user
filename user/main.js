@@ -1,4 +1,4 @@
-import { renderGlobalUser } from './account.js';
+import { renderUser as renderUserApp } from './app.js';
 import './record-create.js';
 
 const root = document.querySelector('#app');
@@ -19,7 +19,7 @@ function setThemeColor(value) {
 async function renderUser(initial = {}) {
   setThemeColor('#2F3338');
   root.innerHTML = '<main id="user-content" data-user-runtime></main>';
-  await renderGlobalUser(document.querySelector('#user-content'), initial);
+  await renderUserApp(document.querySelector('#user-content'), initial);
   syncViewport();
 }
 
