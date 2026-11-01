@@ -277,6 +277,7 @@ function openDayAction({ root, day, from, targetSource, rerender }) {
     const owner = openRecordCreationOwner({
       surfaceRoot: root.closest('[data-v2-z],[data-v2-z-layer]'),
       bodyRoot: root,
+      onCancel: rerender,
     });
     if (!owner) return;
     owner.setShellHeader?.('<div class="record-creation-step-title">Событие</div>');
@@ -287,6 +288,7 @@ function openDayAction({ root, day, from, targetSource, rerender }) {
     const owner = openRecordCreationOwner({
       surfaceRoot: root.closest('[data-v2-z],[data-v2-z-layer]'),
       bodyRoot: root,
+      onCancel: rerender,
     });
     if (!owner) return;
     owner.setShellHeader?.('<div class="record-creation-step-title">Заметка</div>');
@@ -302,6 +304,7 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   let clockTimer = null;
   const rerender = () => {
     if (disposed || !root.isConnected) return;
+    if (root.querySelector('[data-record-creation-flow]')) return;
     dispose();
     renderDay(root, { date, records, navigationRoot, onChange });
   };
