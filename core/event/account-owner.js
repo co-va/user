@@ -23,7 +23,6 @@ function normalize(value = {}) {
     title: String(value?.title || ''),
     description: String(value?.description || ''),
     color: String(value?.color || '#777A7D'),
-    workplaceId: '',
     createdAt: String(value?.createdAt || now),
     updatedAt: String(value?.updatedAt || value?.createdAt || now),
   };
@@ -83,7 +82,6 @@ export async function createAccountEvent(input = {}) {
     id: String(input?.id || eventId()),
     ownerType: 'account',
     context: { ...(input?.context || {}), scope: 'account' },
-    workplaceId: '',
   });
   const saved = await request(`/online-booking/account/events/${encodeURIComponent(event.id)}`, {
     method: 'PUT',
@@ -124,5 +122,4 @@ export const accountEventActions = {
   create: createAccountEvent,
   update: updateAccountEvent,
   remove: removeAccountEvent,
-  supportsNotes: false,
 };
