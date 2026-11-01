@@ -265,19 +265,6 @@ function renderEntry(root, state) {
     if (submit) submit.disabled = true;
 
     try {
-      const prepared = await prepareGlobalAccount({ identifier });
-      if (!prepared.exists) {
-        state.accountDraft = {
-          ...(state.accountDraft || {}),
-          identifier,
-          ...(prepared.identifierType === 'EMAIL' ? { email: identifier.toLowerCase() } : {}),
-          ...(prepared.identifierType === 'PHONE' ? { phone: identifier } : {}),
-        };
-        state.error = 'Аккаунт не найден. Выберите «Зарегистрироваться».';
-        renderEntry(root, state);
-        return;
-      }
-
       const payload = await loginGlobalAccount(identifier, password);
       state.account = payload.account;
       state.error = '';
