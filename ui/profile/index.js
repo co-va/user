@@ -1,12 +1,153 @@
+import { datePicker, initDatePickers } from '../calendar/index.js';
 import { button } from '../buttons/index.js';
 import { formError, formView } from '../forms/index.js';
-import { formValidationMessage, initPasswordFields, passwordField, selectPhotoFile } from '../inputs/index.js';
+import { field, formValidationMessage, initPasswordFields, passwordField, phoneInput, selectPhotoFile } from '../inputs/index.js';
+import { collectLinks, initLinks, links } from '../links/index.js';
 import { modal, mountModal, openNotice } from '../modals/index.js';
+import { actionBlock } from '../page/page.js';
+import { collectRepeatedField, initRepeatedFields, repeatedField } from '../repeated-fields/index.js';
+import { select } from '../selectors/index.js';
 import { settingsPanel } from '../settings/index.js';
 import { v2ListEntry, v2ListEntries } from '../lists/list-entry.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 function actionData(id = '') {
   return `data-shared-profile-action="${String(id || '').trim()}"`;
+}
+
+function profileData(account = {}) {
+  return account.profileData && typeof account.profileData === 'object' ? account.profileData : {};
+}
+
+function unique(values = [], limit = 5) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))].slice(0, limit);
+}
+
+function bareInput({ name = '', value = '', type = 'text', placeholder = '', required = false, autocomplete = '', maxlength = '' } = {}) {
+  return `<input class="profile-editor__primary-input" name="${escapeHtml(name)}" type="${escapeHtml(type)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"${required ? ' required' : ''}${autocomplete ? ` autocomplete="${escapeHtml(autocomplete)}"` : ''}${maxlength !== '' ? ` maxlength="${escapeHtml(maxlength)}"` : ''}>`;
+}
+
+function profileEditorSection(title = '', content = '') {
+  return `<section class="profile-editor__section"><h2 class="profile-editor__section-title">${escapeHtml(title)}</h2><div class="profile-editor__section-body">${content}</div></section>`;
+}
+
+export function openSharedPersonalDataEditor({ account = {}, onClose = null } = {}) {
+  const profile = profileData(account);
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const maxBirthDate = `${currentYear}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const personalFields = `<div class="form-grid profile-editor__personal-grid">
+    ${field({ label: 'Имя', name: 'name', value: account.name || '', required: true, autocomplete: 'given-name' })}
+    ${field({ label: 'Фамилия', name: 'surname', value: account.surname || '', autocomplete: 'family-name' })}
+    ${select({
+      label: 'Пол',
+      name: 'gender',
+      value: profile.gender || '',
+      options: [
+        { value: '', label: 'Не указан' },
+        { value: 'male', label: 'Мужской' },
+        { value: 'female', label: 'Женский' },
+      ],
+    })}
+    ${datePicker({
+      label:'Дата рождения',
+      name:'birthDate',
+      value:profile.birthDate || '',
+      max:maxBirthDate,
+      minYear:currentYear - 110,
+      maxYear:currentYear,
+      initialYear:currentYear - 30,
+      allowClear:true,
+    })}
+  </div>`;
+
+  const contactFields = `<div class="profile-editor__contacts-grid">
+    ${repeatedField({
+      label:'Телефон *',
+      name:'additionalPhone',
+      values:profile.phones || [],
+      type:'tel',
+      placeholder:'Дополнительный телефон',
+      showEmptyRow:false,
+      addInHeader:true,
+      lead:phoneInput({ name:'phone', value:account.phone || '', required:true, aria:'Телефон' }),
+    })}
+    ${repeatedField({
+      label:'Email *',
+      name:'additionalEmail',
+      values:profile.emails || [],
+      type:'email',
+      placeholder:'name@example.com',
+      showEmptyRow:false,
+      addInHeader:true,
+      lead:bareInput({ name:'email', value:account.email || '', type:'email', required:true, autocomplete:'email' }),
+    })}
+    <div class="profile-editor__verification-row">
+      <span data-account-email-status>Проверяем подтверждение email…</span>
+      <button type="button" class="profile-editor__text-action" data-account-email-verify>Подтвердить</button>
+    </div>
+    ${repeatedField({
+      label:'Telegram',
+      name:'additionalTelegram',
+      values:profile.telegrams || [],
+      type:'text',
+      placeholder:'@username',
+      showEmptyRow:false,
+      addInHeader:true,
+      lead:bareInput({ name:'telegram', value:profile.telegram || '', placeholder:'@username', maxlength:100 }),
+    })}
+    ${links({ label:'Ссылки', links:Array.isArray(profile.links) ? profile.links : [], name:'accountProfileLinks', addInHeader:true })}
+  </div>`;
+
+  const content = formView(`
+    <div class="profile-editor">
+      ${profileEditorSection('Личные данные', personalFields)}
+      ${profileEditorSection('Контактные данные', contactFields)}
+    </div>
+    ${formError('', { data: 'data-account-personal-error', keepEmpty: true })}
+    ${actionBlock(button('Сохранить', { type: 'submit', data: 'data-account-personal-save' }))}
+  `, { className: 'account-personal-data-form profile-editor-form', data: 'data-account-personal-form' });
+
+  const layer = mountModal(document.body, modal(content, {
+    variant: 'q',
+    title: 'Профиль',
+    className: 'modal--profile-editor',
+  }));
+  if (!layer) return null;
+
+  initRepeatedFields(layer);
+  initLinks(layer);
+  initDatePickers(layer);
+
+  if (typeof onClose === 'function') {
+    const close = layer.v2Close?.bind(layer);
+    let closed = false;
+    layer.v2Close = () => {
+      if (closed) return;
+      closed = true;
+      onClose();
+      close?.();
+    };
+  }
+  return layer;
+}
+
+export function readSharedPersonalDataEditor(form) {
+  const data = new FormData(form);
+  return {
+    name: String(data.get('name') || '').trim(),
+    surname: String(data.get('surname') || '').trim(),
+    phone: String(data.get('phone') || '').trim(),
+    email: String(data.get('email') || '').trim().toLowerCase(),
+    phones: unique(collectRepeatedField(form, 'additionalPhone')),
+    emails: unique(collectRepeatedField(form, 'additionalEmail').map((value) => String(value).toLowerCase())),
+    telegram: String(data.get('telegram') || '').trim(),
+    telegrams: unique(collectRepeatedField(form, 'additionalTelegram')),
+    gender: String(data.get('gender') || ''),
+    birthDate: String(data.get('birthDate') || ''),
+    links: collectLinks(form, 'accountProfileLinks').slice(0, 8),
+  };
 }
 
 export function openSharedProfileSettingsMenu({
