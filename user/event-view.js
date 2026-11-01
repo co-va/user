@@ -11,6 +11,11 @@ function minutes(value = '') {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
+function dateLabel(value = '') {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
+}
+
 export function openUserEventView(eventOrId, { eventActions, onClose = () => {} } = {}) {
   if (!eventActions?.read || !eventActions?.update || !eventActions?.remove) return null;
   const eventId = String(typeof eventOrId === 'object' ? eventOrId?.id : eventOrId || '');
@@ -20,9 +25,14 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
   const layer = mountModal(document.body, modal('<div data-user-event-view></div>', {
     variant: 'q',
     surface: 'app',
-    title: 'Событие',
+    className: 'user-event-detail-q',
   }));
   if (!layer) return null;
+  layer.setAttribute('aria-label', 'Событие');
+  const headerHost = layer.querySelector('[data-v2-q-header-content]');
+  if (headerHost) {
+    headerHost.innerHTML = '<div class="user-event-shell-title" style="position:absolute;top:0;left:52px;height:24px;display:flex;align-items:center;margin:0;font-size:20px;line-height:24px;font-weight:500">Событие</div>';
+  }
   const close = layer.v2Close?.bind(layer);
   if (close) layer.v2Close = () => { if (layer.isConnected) { close(); onClose(); } };
   const host = () => layer.querySelector('[data-user-event-view]');
@@ -32,12 +42,11 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
     const root = host();
     if (!root || !current) return;
     root.innerHTML = `<section class="form-grid event-view">
-      <div><strong>${escapeHtml(current.title || 'Событие')}</strong></div>
-      <div>${escapeHtml(current.date || '')}</div>
+      <h2 style="margin:0;font-size:23px;line-height:1.15">${escapeHtml(current.title || 'Событие')}</h2>
+      ${current.description ? `<div class="event-view__description" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.45">${escapeHtml(current.description)}</div>` : ''}
+      <div style="color:var(--text-secondary);font-size:13px;font-weight:650">${escapeHtml(dateLabel(current.date || ''))}</div>
       <div><strong>С ${escapeHtml(current.from || '')} — До ${escapeHtml(current.to || '')}</strong></div>
-      <div class="color-picker__swatch" style="background:${escapeHtml(current.color || '#777A7D')}"></div>
-      ${current.description ? `<div class="event-view__description">${escapeHtml(current.description).replace(/\n/g, '<br>')}</div>` : ''}
-      ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'critical', data: 'data-user-event-delete' })}`)}
+      ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'danger', data: 'data-user-event-delete' })}`)}
     </section>`;
     root.querySelector('[data-user-event-edit]')?.addEventListener('click', renderEdit);
     root.querySelector('[data-user-event-delete]')?.addEventListener('click', async (event) => {
@@ -58,13 +67,13 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
     const root = host();
     if (!root || !current) return;
     root.innerHTML = `<form class="form-grid" data-user-event-edit-form>
-      ${field({ label: 'Наименование', name: 'title', value: current.title, required: true })}
-      ${textareaField({ label: 'Описание', name: 'description', value: current.description, rows: 6 })}
+      <div class="user-event-color-picker">${colorPicker({ name: 'color', value: current.color || '#777A7D' })}</div>
       <div class="time-range-fields">
         ${timePicker({ label: 'С', name: 'from', value: current.from, minuteStep: 1 })}
         ${timePicker({ label: 'До', name: 'to', value: current.to, minuteStep: 1 })}
       </div>
-      ${colorPicker({ name: 'color', value: current.color || '#777A7D' })}
+      ${field({ label: 'Наименование', name: 'title', value: current.title, required: true })}
+      ${textareaField({ label: 'Описание', name: 'description', value: current.description, rows: 6 })}
       ${actionBlock(`${button('Сохранить', { type: 'submit' })}${button('Отмена', { variant: 'secondary', data: 'data-user-event-cancel' })}`)}
     </form>`;
     initTimePickers(root);
