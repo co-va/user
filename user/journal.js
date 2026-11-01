@@ -349,7 +349,7 @@ function renderDay(root, { date, records, navigationRoot, onChange }) {
   const eventById = new Map(events.map((event) => [String(event?.id || ''), event]).filter(([id]) => Boolean(id)));
   const timeline = root.querySelector('[data-user-journal-timeline]');
   if (!timeline) return dispose;
-  timeline.innerHTML = journalDayTimeline({ from: JOURNAL_DAY_FROM, to: JOURNAL_DAY_TO, usages, day });
+  timeline.innerHTML = journalDayTimeline({ from: JOURNAL_DAY_FROM, to: JOURNAL_DAY_TO, usages });
   initJournalDayTimeline(timeline, {
     onUsageClick: ({ usageId }) => {
       const id = String(usageId || '');
