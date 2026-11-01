@@ -165,7 +165,7 @@
 .note-detail{
   --note-color:#CFC3FF;
   min-height:0;
-  padding:26px 10px 34px;
+  padding:30px 14px 38px;
 }
 .note-detail__paper{
   position:relative;
@@ -177,18 +177,16 @@
   gap:24px;
   overflow:visible;
   border:0;
-  border-radius:30px 30px 38px 30px;
+  border-radius:28px;
   background:
-    radial-gradient(circle at 14% 10%,rgba(255,255,255,.30),transparent 34%),
-    radial-gradient(circle at 84% 88%,rgba(255,255,255,.08),transparent 30%),
-    repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,rgba(17,17,17,.010) 1px 2px),
-    color-mix(in srgb,var(--note-color) 84%,#fff 16%);
+    radial-gradient(circle at 22% 12%,rgba(255,255,255,.20),transparent 38%),
+    linear-gradient(145deg,rgba(255,255,255,.08),rgba(255,255,255,0) 52%),
+    color-mix(in srgb,var(--note-color) 86%,#fff 14%);
   color:#111;
   box-shadow:
-    0 30px 44px -24px rgba(52,39,78,.52),
-    0 14px 24px -16px rgba(17,17,17,.34),
-    inset 0 1px 0 rgba(255,255,255,.32);
-  transform:rotate(-.18deg);
+    0 24px 36px -22px rgba(49,37,70,.44),
+    0 9px 18px -14px rgba(17,17,17,.24),
+    inset 0 1px 0 rgba(255,255,255,.24);
 }
 .note-detail__paper::before{
   content:"";
@@ -197,70 +195,73 @@
   z-index:0;
   pointer-events:none;
   border-radius:inherit;
-  background:
-    repeating-radial-gradient(circle at 20% 30%,rgba(255,255,255,.055) 0 1px,transparent 1px 4px),
-    linear-gradient(115deg,rgba(255,255,255,.10),transparent 38%,rgba(17,17,17,.018));
-  mix-blend-mode:soft-light;
-  opacity:.72;
+  background:linear-gradient(120deg,rgba(255,255,255,.08),transparent 35%,rgba(17,17,17,.012));
 }
 .note-detail__paper::after{
   content:"";
   position:absolute;
-  right:10px;
-  bottom:-14px;
+  right:6px;
+  bottom:-11px;
   z-index:-1;
-  width:112px;
-  height:34px;
+  width:78px;
+  height:22px;
   border-radius:50%;
-  background:rgba(38,24,58,.26);
-  filter:blur(14px);
-  transform:rotate(-14deg);
+  background:rgba(47,34,67,.20);
+  filter:blur(10px);
+  transform:rotate(-12deg);
 }
 .note-detail__tape{
   position:absolute;
-  top:-24px;
+  top:-21px;
   left:50%;
   z-index:5;
-  width:122px;
-  height:46px;
-  transform:translateX(-50%) rotate(-1.3deg);
-  clip-path:polygon(3% 6%,96% 0,100% 17%,96% 28%,100% 42%,96% 54%,100% 69%,96% 82%,99% 96%,4% 100%,0 87%,4% 74%,0 60%,4% 46%,0 30%,4% 17%);
-  background:
-    repeating-linear-gradient(0deg,rgba(255,255,255,.14) 0 1px,rgba(17,17,17,.018) 1px 3px),
-    color-mix(in srgb,var(--note-color) 36%,#fff 64%);
-  opacity:.90;
-  box-shadow:0 7px 12px -7px rgba(17,17,17,.32);
+  width:118px;
+  height:38px;
+  transform:translateX(-50%) rotate(-1.2deg);
+  clip-path:polygon(2% 7%,98% 2%,96% 15%,100% 27%,96% 39%,100% 52%,96% 65%,100% 78%,97% 95%,3% 100%,5% 88%,0 76%,4% 63%,0 50%,4% 37%,0 25%,4% 14%);
+  background:color-mix(in srgb,var(--note-color) 32%,#fff 68%);
+  opacity:.84;
+  box-shadow:0 5px 9px -7px rgba(17,17,17,.28);
   pointer-events:none;
 }
 .note-detail__curl{
   position:absolute;
-  right:-12px;
-  bottom:-12px;
+  right:-2px;
+  bottom:-2px;
   z-index:4;
-  width:98px;
-  height:98px;
-  border-top-left-radius:100%;
-  border-bottom-right-radius:24px;
-  background:
-    linear-gradient(145deg,
-      rgba(255,255,255,.98) 0%,
-      color-mix(in srgb,var(--note-color) 26%,#fff 74%) 46%,
-      color-mix(in srgb,var(--note-color) 58%,#fff 42%) 100%);
-  box-shadow:-14px -13px 24px -14px rgba(40,27,59,.50),inset 7px 8px 12px rgba(255,255,255,.50);
-  transform:rotate(-2deg);
+  width:72px;
+  height:72px;
+  clip-path:polygon(100% 0,100% 100%,0 100%);
+  border-bottom-right-radius:22px;
+  background:linear-gradient(138deg,
+    color-mix(in srgb,var(--note-color) 48%,#fff 52%) 0%,
+    color-mix(in srgb,var(--note-color) 24%,#fff 76%) 54%,
+    rgba(255,255,255,.96) 100%);
+  box-shadow:-10px -10px 20px -15px rgba(42,29,61,.55);
   pointer-events:none;
+}
+.note-detail__curl::before{
+  content:"";
+  position:absolute;
+  left:3px;
+  top:3px;
+  width:72px;
+  height:12px;
+  border-radius:50%;
+  background:rgba(42,29,61,.13);
+  filter:blur(5px);
+  transform:rotate(-43deg);
+  transform-origin:left center;
 }
 .note-detail__curl::after{
   content:"";
   position:absolute;
-  left:10px;
-  top:10px;
-  width:64px;
-  height:22px;
-  border-radius:50%;
-  background:rgba(255,255,255,.36);
-  filter:blur(5px);
-  transform:rotate(-28deg);
+  right:3px;
+  bottom:3px;
+  width:34px;
+  height:34px;
+  border-radius:0 0 18px 0;
+  background:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.58));
 }
 .note-detail h2{
   position:relative;
