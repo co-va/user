@@ -224,7 +224,7 @@ export async function searchGlobalAccountContacts(phone) {
   const params = new URLSearchParams({ phone: String(phone || '').trim() });
   return jsonResponse(
     await request(`/account/contacts/search?${params}`, { auth: true }),
-    'Не удалось найти контакт',
+    'Не удалось выполнить поиск в системе',
   );
 }
 
@@ -263,7 +263,7 @@ export async function getAccountConsentState(tenantId) {
 
 export async function submitAccountConsents(tenantId, consents = []) {
   return jsonResponse(
-    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/connect`, {
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/consents`, {
       auth: true,
       method: 'POST',
       body: JSON.stringify({ consents }),
