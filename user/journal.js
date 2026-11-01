@@ -433,10 +433,8 @@ function monthDateContent(day = {}) {
     ...events.map((event) => monthUsageInterval(event, monthEventColor(event))),
   ].filter(Boolean);
 
-  const baselineStart = usageMinutes(JOURNAL_DAY_FROM) ?? 0;
-  const baselineEnd = usageMinutes(JOURNAL_DAY_TO) ?? 24 * 60;
-  const rangeStart = Math.max(0, Math.min(baselineStart, ...intervals.map((item) => item.start)));
-  const rangeEnd = Math.min(24 * 60, Math.max(baselineEnd, ...intervals.map((item) => item.end)));
+  const rangeStart = usageMinutes(JOURNAL_DAY_FROM) ?? 0;
+  const rangeEnd = usageMinutes(JOURNAL_DAY_TO) ?? 24 * 60;
   const total = Math.max(1, rangeEnd - rangeStart);
   const clipped = intervals.map((item) => ({
     ...item,
@@ -464,9 +462,8 @@ function monthDateContent(day = {}) {
         const to = (colorIndex + 1) / colors.length * 100;
         return [`${color} ${from.toFixed(2)}%`, `${color} ${to.toFixed(2)}%`];
       }).join(',')})`;
-    const left = (start - rangeStart) / total * 100;
     const width = (end - start) / total * 100;
-    pieces.push(`<span class="calendar__date-fill-segment" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${background}"></span>`);
+    pieces.push(`<span class="calendar__date-fill-segment" style="width:${width.toFixed(3)}%;background:${background}"></span>`);
   }
 
   const fill = pieces.length
