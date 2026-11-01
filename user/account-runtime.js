@@ -1,7 +1,6 @@
 import { getAccountToken } from '../core/account/index.js';
 import {
   enableWebPush,
-  getWebPushState,
   shouldOfferWebPushSetup,
   syncWebPush,
   webPushFailureMessage,
@@ -11,7 +10,7 @@ import {
 import { button, escapeHtml, modal, mountModal } from '../ui/user-ui.js';
 
 function accountAppReady() {
-  return Boolean(document.querySelector('[data-v2-app] [data-account-deck-item]'));
+  return Boolean(document.querySelector('[data-v2-app]'));
 }
 
 function shouldOfferAccountPushSetup() {
@@ -49,17 +48,17 @@ export function startGlobalAccountPushRuntime({ intervalMs = 1500 } = {}) {
 
   const offer = async () => {
     if (disposed || busy || synchronized || !getAccountToken() || !accountAppReady()) return;
-    if (!shouldOfferAccountPushSetup()) return;
+    if (!webPushSupported()) return;
+
     busy = true;
     try {
-      if (Notification.permission === 'granted') {
-        const current = await getWebPushState();
-        if (current?.subscribed) {
-          const state = await syncWebPush();
-          synchronized = Boolean(state?.subscribed);
-          return;
-        }
+      if (Notification.permission === 'granted' && !webPushOptedOut()) {
+        const state = await syncWebPush();
+        synchronized = Boolean(state?.subscribed);
+        if (synchronized) return;
       }
+
+      if (!shouldOfferAccountPushSetup()) return;
       if (promptShown || document.querySelector('[data-account-push-setup-modal]')) return;
 
       promptShown = true;
@@ -87,11 +86,6 @@ export function startGlobalAccountPushRuntime({ intervalMs = 1500 } = {}) {
         try {
           const next = await enableWebPush({ strict: false });
           if (next?.subscribed) {
-            synchronized = true;
-            layer.remove();
-            return;
-          }
-          if (next?.permission === 'denied') {
             synchronized = true;
             layer.remove();
             return;
