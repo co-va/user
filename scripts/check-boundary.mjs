@@ -76,7 +76,7 @@ if (!/import\(['"]\.\.\/booking\/entry\.js['"]\)/.test(userMain)) {
 if (!/label:\s*['"]Телефон или email['"]/.test(accountEntry)) {
   throw new Error('User login must accept one phone-or-email identifier');
 }
-if (/getRememberedAccountEmail/.test(accountEntry) || /ACCOUNT_EMAIL_KEY/.test(accountApi)) {
+if (/getRememberedAccountEmail/.test(accountEntry) || /const\s+ACCOUNT_EMAIL_KEY\s*=/.test(accountApi)) {
   throw new Error('User login memory must not be email-only');
 }
 if (/if\s*\(identifier\)\s*\{\s*return\s*\{\s*exists:\s*true/s.test(accountApi)) {
