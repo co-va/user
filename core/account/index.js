@@ -237,41 +237,6 @@ export async function getGlobalAccountRecords() {
   );
 }
 
-export async function getBookingContext(tenantId, workplaceKey = '') {
-  const params = new URLSearchParams();
-  if (workplaceKey) params.set('workplace', workplaceKey);
-  const suffix = params.toString() ? `?${params}` : '';
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/context${suffix}`),
-    'Не удалось загрузить онлайн-запись',
-  );
-}
-
-export async function getAccount(tenantId) {
-  const token = getAccountToken();
-  if (!token) return null;
-
-  const response = await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/me`, {
-    auth: true,
-  });
-  if (response.status === 401) {
-    clearAccount();
-    return null;
-  }
-  return jsonResponse(response, 'Не удалось открыть аккаунт');
-}
-
-export async function createBookingRequest(tenantId, data) {
-  return jsonResponse(
-    await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/requests`, {
-      auth: true,
-      method: 'POST',
-      body: JSON.stringify(data || {}),
-    }),
-    'Не удалось подтвердить запись',
-  );
-}
-
 export async function getAccountConsentState(tenantId) {
   return jsonResponse(
     await request(`/online-booking/${encodeURIComponent(String(tenantId || ''))}/account/consent-state`, {
