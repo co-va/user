@@ -1,4 +1,3 @@
-import { renderUser as renderUserApp } from './app.js';
 import {
   installPasswordRecoveryRequest,
   isPasswordResetLocation,
@@ -21,6 +20,7 @@ function setThemeColor(value) {
 }
 
 async function renderUser(initial = {}) {
+  const { renderUser: renderUserApp } = await import('./app.js');
   setThemeColor('#2F3338');
   root.innerHTML = '<main id="user-content" data-user-runtime></main>';
   await renderUserApp(document.querySelector('#user-content'), initial);
@@ -39,7 +39,6 @@ window.addEventListener('resize', syncViewport, { passive: true });
 window.visualViewport?.addEventListener('resize', syncViewport, { passive: true });
 window.visualViewport?.addEventListener('scroll', syncViewport, { passive: true });
 
-installPasswordRecoveryRequest();
 syncViewport();
 setThemeColor('#2F3338');
 
@@ -48,6 +47,7 @@ if (isPasswordResetLocation()) {
   renderPasswordReset(document.querySelector('#user-content'));
   syncViewport();
 } else {
+  installPasswordRecoveryRequest();
   await import('./record-create.js');
   await renderUser();
 }
