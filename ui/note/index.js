@@ -128,3 +128,21 @@ export function noteDetail(note = {}) {
     </article>
   </section>`;
 }
+
+export function noteAttachmentSticker(note = {}) {
+  const id = String(note?.id || '');
+  if (!id) return '';
+  const color = validColor(note?.color);
+  const title = String(note?.title || '').trim();
+  const body = String(note?.text || '').trim();
+  const summary = title || body || 'Заметка';
+  return `<button type="button" class="note-attachment-sticker" data-note-attachment="${escapeHtml(id)}" style="--note-color:${escapeHtml(color)}" aria-label="Открыть прикреплённую заметку ${escapeHtml(summary)}">
+    ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
+    ${body ? `<span>${escapeHtml(body)}</span>` : ''}
+  </button>`;
+}
+
+export function noteAttachmentStickers(notes = []) {
+  const content = (Array.isArray(notes) ? notes : []).map(noteAttachmentSticker).filter(Boolean).join('');
+  return content ? `<div class="note-attachment-stickers" aria-label="Прикреплённые заметки">${content}</div>` : '';
+}
