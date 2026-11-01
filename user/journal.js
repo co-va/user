@@ -179,7 +179,8 @@ function openUserRecord(record) {
     ? `<div class="modal-actions">${button('Повторить', { data: 'data-user-record-repeat' })}</div>`
     : '';
   const layer = mountModal(document.body, modal(`${body}${actions}`, {
-    variant: 's',
+    variant: 'x',
+    xRole: 'action',
     surface: 'app',
     title: presentation.name,
   }));
