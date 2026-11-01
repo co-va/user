@@ -3,7 +3,7 @@ import {
   createPlatformRecord,
   getProfessionalRecordContext,
   getRecordTargets,
-} from '../core/account/recording.js';
+} from '../core/record/platform-api.js';
 import {
   getRecordProcedures,
   getRecordSlots,
@@ -148,7 +148,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
     return;
   }
 
-  const slotStep = Math.max(0, Number(recordContext?.settings?.slotStep) || 0);
+  const slotStep = Math.max(0, Number(recordContext?.slotStep) || 0);
   const repeatRequest = options?.repeatRequest && typeof options.repeatRequest === 'object' ? options.repeatRequest : null;
   const requestedWorkplace = text(options?.workplaceKey || repeatRequest?.workplaceId || repeatRequest?.workplaceKey);
   let activeWorkplaceKey = '';
