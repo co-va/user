@@ -218,7 +218,12 @@ function profileSummary(state) {
 }
 
 function bindGlobalRelationships(root, state, handlers) {
-  root.querySelectorAll('[data-global-relationship]').forEach((node) => node.addEventListener('click', () => {
+  const host = root.querySelector('[data-account-contact-list]');
+  if (!host || host.dataset.relationshipNavigationBound === 'true') return;
+  host.dataset.relationshipNavigationBound = 'true';
+  host.addEventListener('click', (event) => {
+    const node = event.target?.closest?.('[data-global-relationship]');
+    if (!node || !host.contains(node)) return;
     const tenantId = String(node.dataset.globalRelationship || '');
     if (!tenantId) return;
     state.accountSelectedContactTenantId = tenantId;
@@ -226,7 +231,7 @@ function bindGlobalRelationships(root, state, handlers) {
     state.accountDeckActive = 'contacts';
     state.accountDeckOpen = false;
     void handlers.render();
-  }));
+  });
 }
 
 function bindGlobalProfileSettingsEntry(root, state, handlers) {
