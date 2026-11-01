@@ -3,6 +3,10 @@ import {
   isPasswordResetLocation,
   renderPasswordReset,
 } from './password-recovery.js';
+import {
+  isEmailVerificationLocation,
+  renderEmailVerification,
+} from './email-verification.js';
 
 const root = document.querySelector('#app');
 
@@ -45,6 +49,10 @@ setThemeColor('#2F3338');
 if (isPasswordResetLocation()) {
   root.innerHTML = '<main id="user-content" data-user-runtime></main>';
   renderPasswordReset(document.querySelector('#user-content'));
+  syncViewport();
+} else if (isEmailVerificationLocation()) {
+  root.innerHTML = '<main id="user-content" data-user-runtime></main>';
+  await renderEmailVerification(document.querySelector('#user-content'));
   syncViewport();
 } else {
   installPasswordRecoveryRequest();
