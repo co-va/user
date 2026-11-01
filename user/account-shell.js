@@ -1,6 +1,11 @@
 import {
   accountErrorMessage,
+  getAccountConsentState,
+  getGlobalAccountContact,
   getGlobalAccountPlatformState,
+  getGlobalAccountRelationships,
+  searchGlobalAccountContacts,
+  submitAccountConsents,
   updateGlobalAccount,
   deleteGlobalAccount,
   deleteGlobalAccountRelationship,
@@ -45,7 +50,12 @@ import { notificationSettings } from '../ui/settings/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
 import { openAccountPersonalDataZ } from './personal-data.js';
-import { profileCardAppearance, profileCardFields } from '../core/profile/card-presentation.js';
+import {
+  profileCardAppearance,
+  profileCardFields,
+  workplaceCardAppearance,
+  workplaceCardFields,
+} from '../core/profile/card-presentation.js';
 import { renderJournal } from './journal.js';
 import { renderAccountCalendarIntegrations } from './calendar-integrations.js';
 
@@ -171,7 +181,7 @@ function relationshipTitle(relationship = {}) {
   return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профиль';
 }
 
-function relationshipCard(relationship = {}, { interactive = true } = {}) {
+function relationshipCard(relationship = {}, { interactive = true, data = '' } = {}) {
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
   return entityVisualCard({
@@ -180,7 +190,7 @@ function relationshipCard(relationship = {}, { interactive = true } = {}) {
     image: String(profile.photo || ''),
     imagePosition: `${Number(profile.photoCropX || 50)}% ${Number(profile.photoCropY || 50)}%`,
     interactive,
-    data: interactive ? `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"` : '',
+    data: interactive ? (data || `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"`) : '',
     aria: interactive ? `Открыть ${title}` : title,
   });
 }
@@ -507,23 +517,121 @@ async function renderGlobalJournal(root, state, handlers) {
 }
 
 function relationshipSearchText(relationship = {}) {
-  const profile = relationshipProfile(relationship);
-  return [
-    relationshipTitle(relationship),
-    profile.profession,
-    profile.phone,
-  ].map((value) => String(value || '').trim()).filter(Boolean).join(' ').toLocaleLowerCase('ru');
+  return relationshipTitle(relationship).toLocaleLowerCase('ru-RU');
 }
 
 function contactsBody(relationships = [], query = '') {
-  const needle = String(query || '').trim().toLocaleLowerCase('ru');
+  const needle = String(query || '').trim().toLocaleLowerCase('ru-RU');
   const filtered = needle
     ? relationships.filter((relationship) => relationshipSearchText(relationship).includes(needle))
     : relationships;
   if (!filtered.length) {
-    return emptyState(needle ? 'Ничего не найдено' : 'Контактов пока нет', needle ? 'Измени запрос поиска.' : 'Новые контакты появятся здесь.');
+    return emptyState(needle ? 'Ничего не найдено' : 'Контактов пока нет', needle ? 'Измени имя в поиске.' : 'Новые контакты появятся здесь.');
   }
   return entityCardStack(filtered.map(relationshipCard));
+}
+
+async function refreshRelationships(state) {
+  const relationships = await getGlobalAccountRelationships();
+  state.relationships = Array.isArray(relationships) ? relationships : [];
+  state.relationshipsLoaded = true;
+  return state.relationships;
+}
+
+function systemSearchResults(results = []) {
+  if (!results.length) return emptyState('Ничего не найдено', 'Проверь номер телефона.');
+  return results.map((relationship, index) => {
+    const status = relationship?.connected
+      ? '<div class="muted">Уже в контактах</div>'
+      : button('Добавить', { data: `data-account-system-add="${index}"` });
+    return `<div class="form-grid" data-account-system-result="${index}">${relationshipCard(relationship, { interactive: false })}${status}</div>`;
+  }).join('');
+}
+
+function openGlobalSystemSearch(state, handlers) {
+  const content = `<form class="form-grid" data-account-system-search-form>
+    ${field({ label: 'Телефон', name: 'accountSystemPhone', type: 'tel', autocomplete: 'tel', placeholder: '+7 000 000-00-00' })}
+    ${button('Найти', { data: 'data-account-system-search-submit' })}
+    <div class="form-error" data-account-system-search-error></div>
+    <div data-account-system-search-results></div>
+  </form>`;
+  const layer = mountModal(document.body, modal(content, { variant: 'x', title: 'Поиск в системе' }));
+  if (!layer) return null;
+
+  const form = layer.querySelector('[data-account-system-search-form]');
+  const resultsHost = layer.querySelector('[data-account-system-search-results]');
+  const errorHost = layer.querySelector('[data-account-system-search-error]');
+  let results = [];
+
+  const renderResults = () => {
+    if (!resultsHost) return;
+    resultsHost.innerHTML = systemSearchResults(results);
+    resultsHost.querySelectorAll('[data-account-system-add]').forEach((control) => control.addEventListener('click', async () => {
+      const relationship = results[Number(control.dataset.accountSystemAdd)];
+      const tenantId = String(relationship?.tenantId || '');
+      if (!tenantId) return;
+      control.disabled = true;
+      try {
+        const consentState = await submitAccountConsents(tenantId, []);
+        if (consentState?.pdnActive) {
+          await refreshRelationships(state);
+          relationship.connected = true;
+          renderResults();
+          if (state.accountTab === 'contacts') await handlers.render?.();
+          return;
+        }
+        layer.v2Close?.();
+        await openAccountConsentSettings(state, {
+          tenantId,
+          onChanged: async (documentId) => {
+            if (String(documentId || '') !== 'pdn-consent') return;
+            const next = await getAccountConsentState(tenantId).catch(() => null);
+            if (!next?.pdnActive) return;
+            await refreshRelationships(state);
+            if (state.accountTab === 'contacts') await handlers.render?.();
+          },
+        });
+      } catch (error) {
+        control.disabled = false;
+        if (errorHost) errorHost.textContent = accountErrorMessage(error, 'Не удалось добавить контакт');
+      }
+    }));
+  };
+
+  const search = async () => {
+    const phone = String(new FormData(form).get('accountSystemPhone') || '').trim();
+    if (errorHost) errorHost.textContent = '';
+    if (resultsHost) resultsHost.innerHTML = '<div class="muted">Поиск…</div>';
+    try {
+      const payload = await searchGlobalAccountContacts(phone);
+      results = Array.isArray(payload) ? payload : [];
+      renderResults();
+    } catch (error) {
+      results = [];
+      if (resultsHost) resultsHost.innerHTML = '';
+      if (errorHost) errorHost.textContent = accountErrorMessage(error, 'Не удалось выполнить поиск в системе');
+    }
+  };
+
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void search();
+  });
+  layer.querySelector('[data-account-system-search-submit]')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    void search();
+  });
+  return layer;
+}
+
+function openGlobalContactsSettings(state, handlers) {
+  return openSharedProfileSettingsMenu({
+    title: 'Контакты',
+    actions: [
+      { id: 'system-search', label: 'Поиск в системе', onSelect: () => openGlobalSystemSearch(state, handlers) },
+    ],
+    data: 'data-global-contacts-settings-menu',
+  });
 }
 
 async function renderGlobalContacts(root, state, handlers) {
@@ -535,12 +643,12 @@ async function renderGlobalContacts(root, state, handlers) {
   });
   renderV2Shell(root, state, {
     header,
-    v: { data: 'data-account-profile-settings', aria: 'Настройки контактов' },
-    body: `${searchable ? field({ name: 'accountContactSearch', type: 'search', placeholder: 'Поиск', autocomplete: 'off', data: 'data-account-contact-search' }) : ''}<div data-account-contact-list>${contactsBody(relationships)}</div>`,
+    v: { data: 'data-global-contacts-settings', aria: 'Действия контактов' },
+    body: `${searchable ? field({ name: 'accountContactSearch', type: 'search', placeholder: 'Поиск по имени', autocomplete: 'off', data: 'data-account-contact-search' }) : ''}<div data-account-contact-list>${contactsBody(relationships)}</div>`,
   });
   bindWorkspaceInteraction(root, state, handlers);
-  bindGlobalProfileSettingsEntry(root, state, handlers);
   bindGlobalRelationships(root, state, handlers);
+  root.querySelector('[data-global-contacts-settings]')?.addEventListener('click', () => openGlobalContactsSettings(state, handlers));
   const search = root.querySelector('[data-account-contact-search]');
   search?.addEventListener('input', () => {
     const host = root.querySelector('[data-account-contact-list]');
@@ -554,6 +662,43 @@ function selectedGlobalRelationship(state) {
   const tenantId = String(state.accountSelectedContactTenantId || '');
   return (Array.isArray(state.relationships) ? state.relationships : [])
     .find((relationship) => String(relationship?.tenantId || '') === tenantId) || null;
+}
+
+async function loadGlobalContactDetail(state, relationship) {
+  if (!relationship?.tenantId || relationship.__contactDetailLoaded) return relationship;
+  const detail = await getGlobalAccountContact(relationship.tenantId);
+  const merged = { ...relationship, ...detail, __contactDetailLoaded: true };
+  const index = (Array.isArray(state.relationships) ? state.relationships : [])
+    .findIndex((item) => String(item?.tenantId || '') === String(relationship.tenantId || ''));
+  if (index >= 0) state.relationships.splice(index, 1, merged);
+  return merged;
+}
+
+function contactWorkplaceCard(relationship, workplace, { interactive = true } = {}) {
+  const profile = relationshipProfile(relationship);
+  return entityVisualCard({
+    appearance: workplaceCardAppearance(workplace),
+    fields: workplaceCardFields(workplace, profile),
+    image: String(workplace?.photo || ''),
+    imagePosition: `${Number(workplace?.photoCropX || 50)}% ${Number(workplace?.photoCropY || 50)}%`,
+    interactive,
+    data: interactive ? `data-global-contact-workplace="${escapeHtml(String(workplace?.key || ''))}"` : '',
+    aria: interactive ? `Открыть ${String(workplace?.name || 'пространство')}` : String(workplace?.name || 'Пространство'),
+  });
+}
+
+function openGlobalContactWorkplaceQ(relationship, workplace) {
+  const rows = [
+    workplace?.city ? { label: 'Город', value: String(workplace.city) } : null,
+    workplace?.address ? { label: 'Адрес', value: String(workplace.address) } : null,
+    workplace?.phone ? { label: 'Телефон', value: formatPhone(workplace.phone) || String(workplace.phone) } : null,
+    workplace?.about ? { label: 'Описание', value: String(workplace.about) } : null,
+  ].filter(Boolean);
+  const content = `${entityCardStack([contactWorkplaceCard(relationship, workplace, { interactive: false })])}${rows.length ? details(rows) : ''}`;
+  return mountModal(document.body, modal(content, {
+    variant: 'q',
+    title: String(workplace?.name || 'Пространство'),
+  }));
 }
 
 function confirmDeleteGlobalContact(state, handlers, relationship) {
@@ -595,31 +740,43 @@ function openGlobalContactSettings(state, handlers, relationship) {
 }
 
 async function renderGlobalContactDetail(root, state, handlers) {
-  const relationship = selectedGlobalRelationship(state);
+  let relationship = selectedGlobalRelationship(state);
   if (!relationship) {
     state.accountTab = 'contacts';
     state.accountDeckActive = 'contacts';
     await handlers.render();
     return;
   }
+  try {
+    relationship = await loadGlobalContactDetail(state, relationship);
+  } catch (error) {
+    openNotice({
+      title: 'Контакт не открыт',
+      message: accountErrorMessage(error, 'Не удалось загрузить данные контакта'),
+      action: 'Закрыть',
+      variant: 'technical',
+    });
+  }
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
+  const workplaces = Array.isArray(relationship?.workplaces) ? relationship.workplaces : [];
+  const workplaceRail = workplaces.length
+    ? v2Section('Пространства', entityCardRail(workplaces.map((workplace) => contactWorkplaceCard(relationship, workplace))))
+    : '';
   renderV2Shell(root, state, {
     header: v2Header({
       a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
       b: title,
     }),
     v: { data: 'data-global-contact-settings', aria: 'Настройки контакта' },
-    body: `${entityCardStack([relationshipCard(relationship, { interactive: false })])}${actionBlock(button('Записаться', {
-      data: 'data-global-contact-record',
-      aria: `Записаться к ${title}`,
-    }))}`,
+    body: `${entityCardStack([relationshipCard(relationship, { interactive: false })])}${workplaceRail}`,
   });
   bindWorkspaceInteraction(root, state, handlers);
   root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
-  root.querySelector('[data-global-contact-record]')?.addEventListener('click', () => {
-    handlers.onStartRecord?.(String(relationship.tenantId || ''), { entry: 'profile' });
-  });
+  root.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
+    const workplace = workplaces.find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
+    if (workplace) openGlobalContactWorkplaceQ(relationship, workplace);
+  }));
 }
 
 export async function renderGlobalAccount(root, state, callbacks = {}) {
