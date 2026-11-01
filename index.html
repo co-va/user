@@ -101,10 +101,13 @@
     }, 8000);
 
     try {
+      const passwordResetRoute = location.pathname === '/reset-password.html';
       await import('./user/main.js');
       window.clearTimeout(watchdog);
-      void import('./ui/inputs/keyboard-runtime.js');
-      void import('./user/account-runtime.js');
+      if (!passwordResetRoute) {
+        void import('./ui/inputs/keyboard-runtime.js');
+        void import('./user/account-runtime.js');
+      }
     } catch (error) {
       window.clearTimeout(watchdog);
       console.error('User boot failed', error);
