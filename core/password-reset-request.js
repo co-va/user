@@ -7,18 +7,26 @@ function identifierFrom(target) {
   return String(new FormData(form).get('identifier') || '').trim();
 }
 
+function validEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim().toLowerCase());
+}
+
 function validPhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.length >= 10 && digits.length <= 15;
 }
 
+function validIdentifier(value) {
+  return validEmail(value) || validPhone(value);
+}
+
 async function requestPasswordReset(target) {
   const identifier = identifierFrom(target);
-  if (!validPhone(identifier)) {
+  if (!validIdentifier(identifier)) {
     target.closest?.('form')?.querySelector?.('[name="identifier"]')?.focus?.();
     openNotice({
       title: 'Восстановление пароля',
-      message: 'Укажите номер телефона.',
+      message: 'Укажите телефон или email.',
       action: 'Закрыть',
     });
     return;
