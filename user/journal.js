@@ -209,7 +209,6 @@ function eventUsage(event = {}) {
     ...event,
     type: 'event',
     sourceId: String(event?.id || ''),
-    rigidity: 'soft',
   };
 }
 
