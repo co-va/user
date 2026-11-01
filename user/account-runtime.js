@@ -9,22 +9,40 @@ import {
 } from '../core/notifications/web-push.js';
 import { button, escapeHtml, modal, mountModal } from '../ui/user-ui.js';
 
+const optedOutAtRuntimeStart = webPushOptedOut();
+
 function accountAppReady() {
   return Boolean(document.querySelector('[data-v2-app]'));
 }
 
-function shouldOfferAccountPushSetup() {
-  if (shouldOfferWebPushSetup()) return true;
-  if (!webPushSupported()) return false;
-  if (Notification.permission === 'denied' || webPushOptedOut()) return false;
+function installedAppMode() {
+  const displayStandalone = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches;
+  return displayStandalone || navigator.standalone === true;
+}
 
+function deviceCanOfferPushSetup() {
   const mobileApple = /iPhone|iPad|iPod/i.test(String(navigator.userAgent || ''));
   const coarsePointer = typeof window.matchMedia === 'function'
     && window.matchMedia('(pointer: coarse)').matches;
 
-  // iPhone/iPad Web Push remains governed by the installed-app rule in web-push.js.
-  // Other supported browsers, including ordinary desktop tabs, may offer setup.
-  return !(mobileApple && coarsePointer);
+  if (mobileApple && coarsePointer) return installedAppMode();
+  return true;
+}
+
+function shouldOfferAccountPushSetup() {
+  if (!webPushSupported()) return false;
+  if (Notification.permission === 'denied') return false;
+
+  const optedOutNow = webPushOptedOut();
+  if (optedOutNow) {
+    // If Push was already disabled when this page opened, offer it again now.
+    // If the user disabled Push during this runtime, do not immediately nag them.
+    return optedOutAtRuntimeStart && deviceCanOfferPushSetup();
+  }
+
+  if (shouldOfferWebPushSetup()) return true;
+  return deviceCanOfferPushSetup();
 }
 
 function pushSetupModal(initialStatus = '') {
