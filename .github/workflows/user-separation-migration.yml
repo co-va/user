@@ -24,70 +24,57 @@ jobs:
 
           account = Path('user/account.js')
           s = account.read_text()
-          old_import = '  getGlobalAccountRelationships,\n'
+          old_import = "  getGlobalAccountRelationships,\n"
           assert old_import in s
           s = s.replace(old_import, '', 1)
-          old = """  const profileOnly = tab === 'profile' || tab === 'profile-settings';
-          const needsRelationships = tab === 'journal' || tab === 'contacts' || tab === 'contact-detail';
-          const needsRecords = tab === 'journal' || tab === 'contact-detail';
 
-          const relationshipsPromise = profileOnly
-            ? getGlobalAccountBookingTargets().catch(() => [])
-            : needsRelationships
-              ? getGlobalAccountRelationships().catch(() => [])
-              : Promise.resolve([]);
-          """
-          new = """  const needsRelationships = tab === 'profile'
-            || tab === 'profile-settings'
-            || tab === 'journal'
-            || tab === 'contacts'
-            || tab === 'contact-detail';
-          const needsRecords = tab === 'journal' || tab === 'contact-detail';
-
-          const relationshipsPromise = needsRelationships
-            ? getGlobalAccountBookingTargets().catch(() => [])
-            : Promise.resolve([]);
-          """
-          assert old in s
-          s = s.replace(old, new, 1)
+          start_marker = "  const profileOnly = tab === 'profile' || tab === 'profile-settings';"
+          end_marker = "\n\n  const [relationships, records] = await Promise.all"
+          start = s.index(start_marker)
+          end = s.index(end_marker, start)
+          new_block = "\n".join([
+              "  const needsRelationships = tab === 'profile'",
+              "    || tab === 'profile-settings'",
+              "    || tab === 'journal'",
+              "    || tab === 'contacts'",
+              "    || tab === 'contact-detail';",
+              "  const needsRecords = tab === 'journal' || tab === 'contact-detail';",
+              "",
+              "  const relationshipsPromise = needsRelationships",
+              "    ? getGlobalAccountBookingTargets().catch(() => [])",
+              "    : Promise.resolve([]);",
+              "  const recordsPromise = needsRecords",
+              "    ? getGlobalAccountRecords().catch(() => [])",
+              "    : Promise.resolve([]);",
+          ])
+          s = s[:start] + new_block + s[end:]
           assert 'getGlobalAccountRelationships' not in s
           account.write_text(s)
 
           shell = Path('user/account-shell.js')
           s = shell.read_text()
-          old = """import {
-            accountErrorMessage,
-            getGlobalAccountRelationships,
-            updateGlobalAccount,
-            deleteGlobalAccount,
-            deleteGlobalAccountRelationship,
-            decideGlobalAccountInvestment,
-          } from '../core/account/index.js';
-          """
-          new = """import {
-            accountErrorMessage,
-            updateGlobalAccount,
-            deleteGlobalAccount,
-            deleteGlobalAccountRelationship,
-          } from '../core/account/index.js';
-          """
-          assert old in s
-          s = s.replace(old, new, 1)
-          for block in [
-            """import {
-            calculateInvestmentState,
-            investmentRoleLabel,
-            normalizeInvestmentTerms,
-          } from './investment-calculator.js';
-          """,
-            """import {
-            cashEntityCardAppearance,
-            cashEntityCardFields,
-          } from './investment-card.js';
-          """,
+          for line in [
+              "  getGlobalAccountRelationships,\n",
+              "  decideGlobalAccountInvestment,\n",
           ]:
-            assert block in s
-            s = s.replace(block, '', 1)
+              assert line in s, line
+              s = s.replace(line, '', 1)
+
+          def remove_block(source, start_marker, end_marker):
+              start = source.index(start_marker)
+              end = source.index(end_marker, start) + len(end_marker)
+              return source[:start] + source[end:]
+
+          s = remove_block(
+              s,
+              "import {\n  calculateInvestmentState,",
+              "} from './investment-calculator.js';\n",
+          )
+          s = remove_block(
+              s,
+              "import {\n  cashEntityCardAppearance,",
+              "} from './investment-card.js';\n",
+          )
 
           start = s.index("function accountInvestments(state, status = '') {")
           end = s.index('function disposeGlobalAccountJournal(root) {', start)
@@ -97,25 +84,43 @@ jobs:
           end_marker = "  const finance = financeCards.length ? entityCardRail(financeCards) : '';\n"
           end = s.index(end_marker, start) + len(end_marker)
           s = s[:start] + s[end:]
+
           finance_line = "    finance ? v2Section('Инвестиции / займы', finance) : '',\n"
           assert finance_line in s
           s = s.replace(finance_line, '', 1)
-          bind_line = '  bindAccountInvestments(layer, root, state, handlers, acceptedInvestments, pendingInvestments, showContactHeader);\n'
+
+          bind_line = "  bindAccountInvestments(layer, root, state, handlers, acceptedInvestments, pendingInvestments, showContactHeader);\n"
           assert bind_line in s
           s = s.replace(bind_line, '', 1)
-          for forbidden in ['getGlobalAccountRelationships', 'decideGlobalAccountInvestment', 'Investment', 'investment']:
-            assert forbidden not in s, forbidden
+
+          for forbidden in [
+              'getGlobalAccountRelationships',
+              'decideGlobalAccountInvestment',
+              'accountInvestments',
+              'accountInvestmentCard',
+              'accountInvestmentProposalCard',
+              'bindAccountInvestments',
+              'investment-calculator.js',
+              'investment-card.js',
+          ]:
+              assert forbidden not in s, forbidden
           shell.write_text(s)
 
           api = Path('core/account/index.js')
           s = api.read_text()
           for start_marker, end_marker in [
-            ('export async function getGlobalAccountRelationships() {', 'export async function deleteGlobalAccountRelationship(tenantId) {'),
-            ('export async function decideGlobalAccountInvestment(tenantId, investmentId, decision) {', 'export async function getGlobalAccountRecords() {'),
+              (
+                  'export async function getGlobalAccountRelationships() {',
+                  'export async function deleteGlobalAccountRelationship(tenantId) {',
+              ),
+              (
+                  'export async function decideGlobalAccountInvestment(tenantId, investmentId, decision) {',
+                  'export async function getGlobalAccountRecords() {',
+              ),
           ]:
-            start = s.index(start_marker)
-            end = s.index(end_marker, start)
-            s = s[:start] + s[end:]
+              start = s.index(start_marker)
+              end = s.index(end_marker, start)
+              s = s[:start] + s[end:]
           assert 'getGlobalAccountRelationships' not in s
           assert 'decideGlobalAccountInvestment' not in s
           api.write_text(s)
