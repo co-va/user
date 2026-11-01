@@ -2,7 +2,9 @@
 body:has(.shared-login-screen){background:var(--surface-dark)}
 .app-shell:has(.shared-login-screen){width:100%;max-width:none;min-height:100dvh;margin:0;padding-top:0;background:var(--surface-dark);box-shadow:none}
 .shared-login-screen{width:min(100%,var(--app-max-width));min-height:100dvh;background:var(--surface-dark)}
-.shared-login-screen .v2-sticker,.booking-account--account .v2-sticker{border-radius:0}
-.shared-login-form .field input,.shared-login-form .password-field__control input,.booking-account--account .field input,.booking-account--account .field select,.booking-account--account .field textarea,.booking-account--account .phone-input__national,.booking-account--account .ui-button{border-radius:0!important}
-.shared-login-form .v2-sticker-link,.booking-account--account .v2-sticker-link{border-radius:0}
+.shared-login-screen .v2-sticker,.user-account .v2-sticker{border-radius:0}
+.shared-login-form .field input,.shared-login-form .password-field__control input,.user-account .field input,.user-account .field select,.user-account .field textarea,.user-account .phone-input__national,.user-account .ui-button{border-radius:0!important}
+.shared-login-form .v2-sticker-link,.user-account .v2-sticker-link{border-radius:0}
+.user-account{width:100%;min-height:var(--visual-vh,100dvh);background:var(--app-bg,#F5F5F3);color:var(--text);overflow-x:hidden}.user-account form{width:100%;min-width:0;display:grid;gap:14px}.user-account .field,.user-account .phone-input,.user-account .array-row{min-width:0}.user-account .field>span{font-size:14px}.user-account .field input,.user-account .field select,.user-account .field textarea,.user-account .phone-input__national{min-width:0;min-height:52px;padding:12px 14px;font-size:16px}.user-account .phone-input{grid-template-columns:minmax(132px,.88fr) minmax(0,1.4fr);gap:10px}.user-account .entity-card--canonical .entity-card__metrics--horizontal{text-align:center}.user-account .entity-card--canonical .entity-card__metric{justify-items:center}.user-account .entity-card--canonical .entity-card__detail-row{text-align:left}.user-account .ui-calendar{max-width:100%}.user-account .empty-state{text-align:center}.user-account .muted{text-align:center}
 .shared-login-screen .ui-button:active,[data-shared-profile-action="logout"]:active{transform:translateY(1px);filter:brightness(.9)}
+@media(max-width:520px){.user-account .phone-input{grid-template-columns:minmax(122px,.88fr) minmax(0,1.3fr)}}@media(max-width:380px){.user-account .phone-input{grid-template-columns:1fr}}
