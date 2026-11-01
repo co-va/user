@@ -63,6 +63,7 @@ for (const file of walk(root)) {
 const accountEntry = fs.readFileSync(path.join(root, 'user/account.js'), 'utf8');
 const userMain = fs.readFileSync(path.join(root, 'user/main.js'), 'utf8');
 const accountApi = fs.readFileSync(path.join(root, 'core/account/index.js'), 'utf8');
+const passwordReset = fs.readFileSync(path.join(root, 'core/password-reset-request.js'), 'utf8');
 
 if (/booking-targets/.test(accountEntry)) {
   throw new Error('User Auth/Journal startup must not import Booking targets');
@@ -81,6 +82,9 @@ if (/getRememberedAccountEmail/.test(accountEntry) || /const\s+ACCOUNT_EMAIL_KEY
 }
 if (/if\s*\(identifier\)\s*\{\s*return\s*\{\s*exists:\s*true/s.test(accountApi)) {
   throw new Error('User account prepare must use the platform contract instead of assuming an identifier exists');
+}
+if (!/validEmail\(/.test(passwordReset) || !/validPhone\(/.test(passwordReset) || !/Укажите телефон или email/.test(passwordReset)) {
+  throw new Error('User password recovery must accept phone or email');
 }
 
 console.log('User boundary: PASS');
