@@ -5,7 +5,6 @@ const OVERLAP_CARD_OFFSET_PX = 44;
 
 const escape = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const moneyText = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU')} ₽`;
-const overlapMarkup = (usage) => usage?.overlap ? '<span class="journal-usage__overlap" aria-label="Есть пересечение" title="Есть пересечение">⚠</span>' : '';
 
 function recordMarkup(usage, { interactive = true } = {}) {
   const person = usage?.person || {};
@@ -16,21 +15,22 @@ function recordMarkup(usage, { interactive = true } = {}) {
   const phone = person.phone ? `<span class="journal-record__phone">${escape(person.phone)}</span>` : '';
   const services = (usage.procedures || []).map((item) => `<span class="journal-record__service">${escape(item.name)}</span>`).join('');
   const statusClass = usage?.paid ? ' journal-record--paid' : usage?.attendance === 'no-show' ? ' journal-record--no-show' : '';
-  const content = `<span class="journal-record__head"><strong class="journal-record__identity">${identity}</strong><strong class="journal-record__total">${escape(total)}</strong></span>${phone}${services}${overlapMarkup(usage)}`;
+  const content = `<span class="journal-record__head"><strong class="journal-record__identity">${identity}</strong><strong class="journal-record__total">${escape(total)}</strong></span>${phone}${services}`;
   return interactive
     ? `<button type="button" class="journal-record${statusClass}" data-journal-usage="${escape(usage.sourceId || usage.id)}">${content}</button>`
     : `<div class="journal-record${statusClass}" aria-disabled="true">${content}</div>`;
 }
 
-function usageMarkup(usage, { interactive = true } = {}) {
+function usageMarkup(usage, { interactive = true, overlapConflict = false } = {}) {
   if (usage?.type === 'record') return recordMarkup(usage, { interactive });
   const title = escape(usage?.title || 'Событие');
   const period = `${escape(usage?.from || '')}–${escape(usage?.to || '')}`;
   const color = /^#[0-9A-Fa-f]{6}$/.test(String(usage?.color || '')) ? String(usage.color) : '#777A7D';
-  const content = `<span class="journal-event__time">${period}</span><strong class="journal-event__title">${title}</strong>${overlapMarkup(usage)}`;
+  const conflictClass = overlapConflict ? ' journal-record--event-overlap' : '';
+  const content = `<span class="journal-event__time">${period}</span><strong class="journal-event__title">${title}</strong>`;
   return interactive
-    ? `<button type="button" class="journal-record journal-record--event" style="--journal-event-color:${escape(color)}" data-journal-usage="${escape(usage.sourceId || usage.id)}">${content}</button>`
-    : `<div class="journal-record journal-record--event" style="--journal-event-color:${escape(color)}" aria-disabled="true">${content}</div>`;
+    ? `<button type="button" class="journal-record journal-record--event${conflictClass}" style="--journal-event-color:${escape(color)}" data-journal-usage="${escape(usage.sourceId || usage.id)}">${content}</button>`
+    : `<div class="journal-record journal-record--event${conflictClass}" style="--journal-event-color:${escape(color)}" aria-disabled="true">${content}</div>`;
 }
 
 function dateOrdinal(value) {
@@ -62,6 +62,15 @@ function usageSegment(usage, day = '') {
   return { start: clippedStart, end: clippedEnd };
 }
 
+function createdTime(usage = {}) {
+  const value = Date.parse(String(usage?.createdAt || ''));
+  return Number.isFinite(value) ? value : null;
+}
+
+function entriesOverlap(left, right) {
+  return left.segment.start < right.segment.end && right.segment.start < left.segment.end;
+}
+
 function usageLaneLayout(values = [], day = '') {
   const entries = (Array.isArray(values) ? values : []).map((usage, index) => ({
     usage,
@@ -83,7 +92,20 @@ function usageLaneLayout(values = [], day = '') {
       entry.lane = lane;
     });
     const laneCount = Math.max(1, laneEnds.length);
-    group.forEach((entry) => layout.set(entry.index, { lane: entry.lane, laneCount }));
+    group.forEach((entry) => {
+      let overlapConflict = false;
+      if (entry.usage?.type === 'event') {
+        overlapConflict = group.some((other) => {
+          if (other === entry || !entriesOverlap(entry, other)) return false;
+          if (other.usage?.type !== 'event') return true;
+          const entryCreated = createdTime(entry.usage);
+          const otherCreated = createdTime(other.usage);
+          if (entryCreated != null && otherCreated != null) return entryCreated > otherCreated;
+          return entry.index > other.index;
+        });
+      }
+      layout.set(entry.index, { lane: entry.lane, laneCount, overlapConflict });
+    });
     group = [];
     groupEnd = -1;
   };
@@ -208,7 +230,7 @@ export function journalDayTimeline({
       const left = lane.lane * OVERLAP_CARD_OFFSET_PX;
       horizontal = `;left:${left}px;right:0;z-index:${lane.lane + 1}`;
     }
-    return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}" data-time-usage="${escape(usage.sourceId || usage.id)}">${renderUsage(usage, { interactive: true }, usageRenderer)}</div>`;
+    return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}" data-time-usage="${escape(usage.sourceId || usage.id)}">${renderUsage(usage, { interactive: true, overlapConflict: Boolean(lane?.overlapConflict) }, usageRenderer)}</div>`;
   }).join('');
 
   return `<section class="time-timeline" data-time-timeline data-time-from="${escape(minutesToTime(start))}" data-time-to="${escape(minutesToTime(end))}" style="--time-total-minutes:${total}">${slotsMarkup(start, end, { workStart, workEnd })}<div class="time-timeline__usages">${overlays}</div></section>`;
