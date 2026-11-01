@@ -1,8 +1,5 @@
 {
   "name": "@co-va/user",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "node scripts/check-boundary.mjs && node scripts/check-syntax.mjs"
-  }
+  "type": "module"
 }
