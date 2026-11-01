@@ -315,17 +315,32 @@ async function openGlobalAccountControls(root, state) {
   const platformDocument = platformState?.document && typeof platformState.document === 'object'
     ? platformState.document
     : null;
+  const privacyPolicy = platformState?.privacyPolicy && typeof platformState.privacyPolicy === 'object'
+    ? platformState.privacyPolicy
+    : null;
   const platformAccepted = Boolean(platformState?.accepted);
-  const platformDocuments = platformDocument
-    ? documentTiles([documentTile({
-        title: platformDocument.title || 'Условия использования учетной записи',
-        version: platformDocument.version || 1,
-        status: platformAccepted ? 'Принято' : 'Требует принятия',
-        statusState: platformAccepted ? 'signed' : 'pending',
-        data: 'data-account-platform-document',
-        aria: 'Открыть документ платформы',
-      })], { layout: 'rail' })
-    : emptyState('Документ недоступен', 'Не удалось загрузить документ платформы.');
+  const documentCards = [];
+  if (platformDocument) {
+    documentCards.push(documentTile({
+      title: platformDocument.title || 'Условия использования учетной записи',
+      version: platformDocument.version || 1,
+      status: platformAccepted ? 'Принято' : 'Требует принятия',
+      statusState: platformAccepted ? 'signed' : 'pending',
+      data: 'data-account-platform-document',
+      aria: 'Открыть Условия использования',
+    }));
+  }
+  if (privacyPolicy) {
+    documentCards.push(documentTile({
+      title: privacyPolicy.title || 'Политика обработки персональных данных',
+      version: privacyPolicy.version || 1,
+      data: 'data-account-platform-privacy',
+      aria: 'Открыть Политику обработки персональных данных',
+    }));
+  }
+  const platformDocuments = documentCards.length
+    ? documentTiles(documentCards, { layout: 'rail' })
+    : emptyState('Документы недоступны', 'Не удалось загрузить документы платформы.');
 
   const content = `<div data-account-controls-modal>
     ${v2Section('Уведомления', notificationSettings([
@@ -342,7 +357,7 @@ async function openGlobalAccountControls(root, state) {
 
   const layer = mountModal(document.body, modal(content, {
     variant: 'q',
-    title: 'Согласия / Уведомления',
+    title: 'Документы / Уведомления',
     className: 'modal--account-controls',
   }));
 
@@ -369,6 +384,15 @@ async function openGlobalAccountControls(root, state) {
       title: platformDocument.title || 'Условия использования учетной записи',
       version: platformDocument.version || 1,
       content: platformDocument.content ?? platformDocument.text ?? '',
+    });
+  });
+
+  layer?.querySelector('[data-account-platform-privacy]')?.addEventListener('click', () => {
+    if (!privacyPolicy) return;
+    openDocumentViewer({
+      title: privacyPolicy.title || 'Политика обработки персональных данных',
+      version: privacyPolicy.version || 1,
+      content: privacyPolicy.content ?? privacyPolicy.text ?? '',
     });
   });
 
@@ -406,7 +430,7 @@ function openGlobalProfileSettingsMenu(state, handlers) {
     actions:[
       {id:'photo',label:'Фото',onSelect:()=>openAccountPhotoSettings(state,handlers)},
       {id:'password',label:'Изменить пароль',onSelect:()=>openAccountPasswordSettings(state)},
-      {id:'controls',label:'Согласия / Уведомления',onSelect:()=>void openGlobalAccountControls(document.body,state)},
+      {id:'controls',label:'Документы / Уведомления',onSelect:()=>void openGlobalAccountControls(document.body,state)},
       {id:'logout',label:'Выход',variant:'danger',onSelect:()=>handlers.onLogout?.()},
       {id:'delete',label:'Удалить профиль',variant:'critical',onSelect:()=>confirmDeleteAccount(state,handlers)},
     ],
