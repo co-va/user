@@ -29,7 +29,7 @@ export function getRecordProcedures(context = {}, workplaceKey = '') {
 }
 
 export function recordProcedurePrice(procedure = {}, workplaceKey = '') {
-  const price = procedureWorkplaceAssignment(procedure, workplaceKey)?.bookingPrice;
+  const price = procedureWorkplaceAssignment(procedure, workplaceKey)?.price;
   return {
     minimum: Math.max(0, Number(price?.minimum || 0)),
     variable: Boolean(price?.variable),
