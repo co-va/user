@@ -85,7 +85,6 @@ export function openSharedPersonalDataEditor({ account = {}, onClose = null } = 
     })}
     <div class="profile-editor__verification-row">
       <span data-account-email-status>Проверяем подтверждение email…</span>
-      <button type="button" class="profile-editor__text-action" data-account-email-verify>Подтвердить</button>
     </div>
     ${repeatedField({
       label:'Telegram',
