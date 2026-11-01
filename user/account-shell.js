@@ -1,10 +1,8 @@
 import {
   accountErrorMessage,
-  getGlobalAccountRelationships,
   updateGlobalAccount,
   deleteGlobalAccount,
   deleteGlobalAccountRelationship,
-  decideGlobalAccountInvestment,
 } from '../core/account/index.js';
 import { formatPhone } from '../core/phone/index.js';
 import { projectRecordStatuses } from '../core/record/state.js';
@@ -49,15 +47,6 @@ import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
 import { openAccountPersonalDataZ } from './personal-data.js';
 import { profileCardAppearance, profileCardFields, workplaceCardAppearance, workplaceCardFields } from '../core/profile/card-presentation.js';
-import {
-  calculateInvestmentState,
-  investmentRoleLabel,
-  normalizeInvestmentTerms,
-} from './investment-calculator.js';
-import {
-  cashEntityCardAppearance,
-  cashEntityCardFields,
-} from './investment-card.js';
 import { personalAccountVisualCard } from './personal-account-card.js';
 import {
   depositCardAppearance,
@@ -562,215 +551,6 @@ async function renderGlobalProfileSettings(root, state, handlers) {
   openGlobalProfileSettingsMenu(state, handlers);
 }
 
-function accountInvestments(state, status = '') {
-  const rows = [];
-  for (const relationship of Array.isArray(state.relationships) ? state.relationships : []) {
-    const investments = Array.isArray(relationship?.context?.investments)
-      ? relationship.context.investments
-      : [];
-    for (const investment of investments) {
-      const terms = normalizeInvestmentTerms(investment);
-      if (status && terms.participantStatus !== status) continue;
-      rows.push({
-        tenantId: String(relationship?.tenantId || ''),
-        relationship,
-        investment,
-        terms,
-      });
-    }
-  }
-  return rows;
-}
-
-function accountInvestmentCard(row) {
-  const investment = row.investment;
-  const state = calculateInvestmentState(investment, investment.movements || []);
-  return entityVisualCard({
-    appearance: cashEntityCardAppearance(investment, 'investment'),
-    fields: cashEntityCardFields(investment, state.result, 'investment', '', {
-      roleLabel: investmentRoleLabel('external'),
-      balanceLabel: 'Результат',
-      balanceValue: state.result,
-    }),
-    image: String(investment.photo || ''),
-    interactive: true,
-    data: `data-account-investment="${escapeHtml(row.tenantId)}:${escapeHtml(String(investment.id || ''))}"`,
-    aria: `Открыть инвестицию ${String(investment.name || '')}`,
-  });
-}
-
-function accountInvestmentProposalCard(row) {
-  const investment = row.investment;
-  const state = calculateInvestmentState(investment, investment.movements || []);
-  return entityVisualCard({
-    appearance: cashEntityCardAppearance(investment, 'investment'),
-    fields: cashEntityCardFields(investment, state.result, 'investment', '', {
-      roleLabel: investmentRoleLabel('external'),
-      balanceLabel: 'Результат',
-      balanceValue: state.result,
-    }),
-    image: String(investment.photo || ''),
-    interactive: true,
-    data: `data-account-investment-proposal="${escapeHtml(`${row.tenantId}:${investment.id}`)}"`,
-    aria: `Открыть предложение ${String(investment.name || '')}`,
-  });
-}
-
-function accountInvestmentSummary(investment) {
-  const state = calculateInvestmentState(investment, investment.movements || []);
-  const terms = normalizeInvestmentTerms(investment);
-  const rows = [
-    v2ListEntry({ title: 'Вложено', rightTop: money(state.contributed) }),
-    v2ListEntry({ title: 'Возвращено капитала', rightTop: money(state.returnedCapital) }),
-    v2ListEntry({ title: 'Получено дохода', rightTop: money(state.income) }),
-    v2ListEntry({ title: 'Расходы', rightTop: money(state.expenses) }),
-    v2ListEntry({ title: 'Текущая стоимость', rightTop: money(state.currentValue) }),
-  ];
-  if (['profit-share', 'revenue-share', 'fixed-return'].includes(terms.participationModel)) {
-    rows.push(
-      v2ListEntry({ title: 'Доход по условиям', rightTop: money(state.entitledIncome) }),
-      v2ListEntry({ title: 'Осталось получить', rightTop: money(state.incomeDue) }),
-    );
-  }
-  rows.push(
-    v2ListEntry({ title: 'Результат', rightTop: money(state.result) }),
-    v2ListEntry({ title: 'ROI', rightTop: state.roi == null ? '—' : `${Number(state.roi).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%` }),
-    v2ListEntry({ title: 'Годовая доходность', rightTop: state.annualizedReturn == null ? '—' : `${Number(state.annualizedReturn).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%` }),
-    v2ListEntry({ title: 'Окуплено', rightTop: state.paybackRatio == null ? '—' : `${Number(state.paybackRatio).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%` }),
-  );
-  if (state.paybackDate) rows.push(v2ListEntry({ title: 'Точка окупаемости', rightTop: formatDate(state.paybackDate) }));
-  return v2ListEntries(rows);
-}
-
-function accountInvestmentTermsRows(row) {
-  const terms = row.terms;
-  const modelLabels = {
-    returnable: 'Возвратная инвестиция',
-    equity: 'Доля',
-    'profit-share': 'Процент от прибыли',
-    'revenue-share': 'Процент от выручки',
-    'fixed-return': 'Фиксированная доходность',
-    joint: 'Совместный проект',
-    other: 'Другое',
-  };
-  const rows = [
-    v2ListEntry({ title: 'Проект', rightTop: relationshipTitle(row.relationship) }),
-    terms.objectName ? v2ListEntry({ title: 'Объект', rightTop: terms.objectName }) : '',
-    v2ListEntry({ title: 'Условия участия', rightTop: modelLabels[terms.participationModel] || 'Инвестиция' }),
-    terms.targetAmount > 0 ? v2ListEntry({ title: 'План вложения', rightTop: money(terms.targetAmount) }) : '',
-    terms.sharePercent > 0 ? v2ListEntry({ title: 'Доля', rightTop: `${terms.sharePercent}%` }) : '',
-    terms.returnPercent > 0 ? v2ListEntry({ title: 'Доходность / процент', rightTop: `${terms.returnPercent}%` }) : '',
-  ].filter(Boolean);
-  return v2ListEntries(rows);
-}
-
-function accountInvestmentHistory(investment = {}) {
-  const movementTitles = {
-    INVESTMENT_CONTRIBUTION: 'Вложение',
-    INVESTMENT_CAPITAL_RETURN: 'Возврат капитала',
-    INVESTMENT_INCOME: 'Доход',
-    INVESTMENT_EXPENSE: 'Расход',
-  };
-  const eventTitles = {
-    valuation: 'Изменение оценки',
-    saving: 'Экономия',
-    reinvestment: 'Реинвестирование',
-    'project-profit': 'Прибыль проекта',
-    'project-revenue': 'Выручка проекта',
-  };
-  const movements = (Array.isArray(investment.movements) ? investment.movements : [])
-    .filter((item) => item?.operationStatus !== 'cancelled' && item?.economicType !== 'REVERSAL')
-    .map((item) => ({
-      title: movementTitles[String(item?.economicType || '')] || 'Финансовая операция',
-      subtitle: String(item?.note || ''),
-      amount: Math.max(0, Number(item?.amount ?? item?.total) || 0),
-      moment: String(item?.occurredAt || ''),
-    }));
-  const events = (Array.isArray(investment.investmentEvents) ? investment.investmentEvents : [])
-    .filter((item) => item && !item.deletedAt)
-    .map((item) => ({
-      title: eventTitles[String(item?.type || '')] || 'Событие инвестиции',
-      subtitle: String(item?.note || ''),
-      amount: Math.max(0, Number(item?.amount) || 0),
-      moment: String(item?.occurredDate || item?.occurredAt || ''),
-    }));
-  const rows = [...movements, ...events]
-    .filter((item) => item.moment)
-    .sort((a, b) => b.moment.localeCompare(a.moment))
-    .map((item) => v2ListEntry({
-      title: item.title,
-      subtitle: item.subtitle,
-      rightTop: money(item.amount),
-      rightBottom: formatDate(String(item.moment).slice(0, 10)),
-    }));
-  return rows.length ? v2ListEntries(rows) : emptyState('Операций пока нет', 'История инвестиции появится здесь.');
-}
-
-function openAccountInvestmentProposal(state, handlers, row) {
-  const content = `${v2Section('Условия', accountInvestmentTermsRows(row))}
-    <div class="modal-actions">
-      ${button('Принять', { data: 'data-account-investment-accept' })}
-      ${button('Отклонить', { variant: 'danger', data: 'data-account-investment-decline' })}
-    </div>`;
-  const layer = mountModal(document.body, modal(content, {
-    title: String(row.investment?.name || 'Инвестиция'),
-    variant: 'x',
-    surface: 'app',
-  }));
-  if (!layer) return null;
-
-  const decide = async (decision) => {
-    try {
-      await decideGlobalAccountInvestment(row.tenantId, row.investment.id, decision);
-      const relationships = await getGlobalAccountRelationships();
-      state.relationships = Array.isArray(relationships) ? relationships : [];
-      layer.v2Close?.();
-      await handlers.render?.();
-    } catch (error) {
-      openNotice({ message: accountErrorMessage(error, 'Не удалось сохранить решение') });
-    }
-  };
-  layer.querySelector('[data-account-investment-accept]')?.addEventListener('click', () => void decide('accepted'));
-  layer.querySelector('[data-account-investment-decline]')?.addEventListener('click', () => void decide('declined'));
-  return layer;
-}
-
-function openAccountInvestmentDetail(root, state, handlers, row, restoreHeader = null) {
-  const investment = row.investment;
-  const restore = typeof restoreHeader === 'function' ? restoreHeader : () => {};
-  const layer = mountV2ZLayer(root, v2ZLayer(page([
-    v2Section('Расчёт', accountInvestmentSummary(investment)),
-    v2Section('История', accountInvestmentHistory(investment)),
-    v2Section('Условия', accountInvestmentTermsRows(row)),
-  ]), { className: 'account-investment-z' }), {
-    stack: true,
-    onClose: restore,
-  });
-  if (!layer) return null;
-  setGlobalAccountHeader(root, v2Header({
-    b: String(investment.name || 'Инвестиция'),
-  }));
-  clearV2V(root);
-  return layer;
-}
-
-function bindAccountInvestments(scope, root, state, handlers, accepted, pending, restoreHeader = null) {
-  scope.querySelectorAll('[data-account-investment]').forEach((node) => {
-    node.addEventListener('click', () => {
-      const key = String(node.dataset.accountInvestment || '');
-      const row = accepted.find((item) => `${item.tenantId}:${item.investment.id}` === key);
-      if (row) openAccountInvestmentDetail(root, state, handlers, row, restoreHeader);
-    });
-  });
-  scope.querySelectorAll('[data-account-investment-proposal]').forEach((node) => {
-    node.addEventListener('click', () => {
-      const key = String(node.dataset.accountInvestmentProposal || '');
-      const row = pending.find((item) => `${item.tenantId}:${item.investment.id}` === key);
-      if (row) openAccountInvestmentProposal(state, handlers, row);
-    });
-  });
-}
-
 function disposeGlobalAccountJournal(root) {
   root.accountJournalDispose?.();
   root.accountJournalDispose = null;
@@ -1217,17 +997,9 @@ async function renderGlobalContactDetail(root, state, handlers) {
     ...contactDeposits.map(contactDepositCard),
   ].filter(Boolean);
   const programs = programCards.length ? entityCardRail(programCards) : '';
-  const acceptedInvestments = accountInvestments(state, 'accepted').filter((item) => item.tenantId === tenantId);
-  const pendingInvestments = accountInvestments(state, 'pending').filter((item) => item.tenantId === tenantId);
-  const financeCards = [
-    ...acceptedInvestments.map(accountInvestmentCard),
-    ...pendingInvestments.map(accountInvestmentProposalCard),
-  ];
-  const finance = financeCards.length ? entityCardRail(financeCards) : '';
   const content = [
     workplaces ? v2Section('Пространства', workplaces) : '',
     programs ? v2Section('Программы', programs) : '',
-    finance ? v2Section('Инвестиции / займы', finance) : '',
   ].filter(Boolean).join('') || emptyState('Профиль пока пустой', 'Данные взаимодействия появятся здесь.');
   const body = `${content}${actionBlock(button('Записаться', {
     data: 'data-global-contact-booking',
@@ -1271,7 +1043,6 @@ async function renderGlobalContactDetail(root, state, handlers) {
     openGlobalContactDepositLayer(root, state, handlers, relationship, deposit, showContactHeader);
   }));
 
-  bindAccountInvestments(layer, root, state, handlers, acceptedInvestments, pendingInvestments, showContactHeader);
 }
 
 export async function renderGlobalAccount(root, state, callbacks = {}) {

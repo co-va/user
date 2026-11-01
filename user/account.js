@@ -8,7 +8,6 @@ import {
   getGlobalAccount,
   getGlobalAccountPlatformState,
   getGlobalAccountRecords,
-  getGlobalAccountRelationships,
   getRememberedAccountEmail,
   loginGlobalAccount,
   prepareGlobalAccount,
@@ -141,15 +140,16 @@ async function renderGlobalUserHome(root, state) {
   await renderGlobalAccount(root, state, callbacks);
 
   const tab = String(state.accountTab || 'journal');
-  const profileOnly = tab === 'profile' || tab === 'profile-settings';
-  const needsRelationships = tab === 'journal' || tab === 'contacts' || tab === 'contact-detail';
+  const needsRelationships = tab === 'profile'
+    || tab === 'profile-settings'
+    || tab === 'journal'
+    || tab === 'contacts'
+    || tab === 'contact-detail';
   const needsRecords = tab === 'journal' || tab === 'contact-detail';
 
-  const relationshipsPromise = profileOnly
+  const relationshipsPromise = needsRelationships
     ? getGlobalAccountBookingTargets().catch(() => [])
-    : needsRelationships
-      ? getGlobalAccountRelationships().catch(() => [])
-      : Promise.resolve([]);
+    : Promise.resolve([]);
   const recordsPromise = needsRecords
     ? getGlobalAccountRecords().catch(() => [])
     : Promise.resolve([]);

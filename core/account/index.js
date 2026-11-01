@@ -202,13 +202,6 @@ export async function changeGlobalAccountPassword(currentPassword, newPassword) 
   );
 }
 
-export async function getGlobalAccountRelationships() {
-  return jsonResponse(
-    await request('/online-booking/account/relationships', { auth: true }),
-    'Не удалось загрузить связи аккаунта',
-  );
-}
-
 export async function deleteGlobalAccountRelationship(tenantId) {
   return jsonResponse(
     await request(`/online-booking/account/relationships/${encodeURIComponent(String(tenantId || ''))}`, {
@@ -216,17 +209,6 @@ export async function deleteGlobalAccountRelationship(tenantId) {
       method: 'DELETE',
     }),
     'Не удалось удалить контакт',
-  );
-}
-
-export async function decideGlobalAccountInvestment(tenantId, investmentId, decision) {
-  return jsonResponse(
-    await request(`/online-booking/account/investments/${encodeURIComponent(String(tenantId || ''))}/${encodeURIComponent(String(investmentId || ''))}/decision`, {
-      auth: true,
-      method: 'POST',
-      body: JSON.stringify({ decision }),
-    }),
-    'Не удалось сохранить решение по инвестиции',
   );
 }
 
