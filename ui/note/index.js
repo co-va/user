@@ -17,7 +17,6 @@ function noteSticker(note = {}, {
   variant = 'compact',
   interactive = false,
   dataAttribute = '',
-  related = false,
   targetLabel = '',
   showDate = false,
 } = {}) {
@@ -26,11 +25,7 @@ function noteSticker(note = {}, {
   const date = dateLabel(note?.date);
   const color = validColor(note?.color);
   const summary = title || body || 'Заметка';
-  const classes = [
-    'note-sticker',
-    `note-sticker--${variant}`,
-    related ? 'is-related' : '',
-  ].filter(Boolean).join(' ');
+  const classes = ['note-sticker', `note-sticker--${variant}`].join(' ');
   const target = targetLabel ? `<span class="note-sticker__target">${escapeHtml(targetLabel)}</span>` : '';
   const dateNode = showDate && date ? `<span class="note-sticker__date">${escapeHtml(date)}</span>` : '';
   const content = `<span class="note-sticker__tape" aria-hidden="true"></span>
@@ -46,23 +41,20 @@ function noteSticker(note = {}, {
   return `<article class="${classes}" style="${style}">${content}</article>`;
 }
 
-export function noteCard(note = {}, { related = false, targetLabel = '' } = {}) {
+export function noteCard(note = {}, { targetLabel = '' } = {}) {
   const id = String(note?.id || '');
   return noteSticker(note, {
     variant: 'compact',
     interactive: true,
     dataAttribute: `data-note-reel="${escapeHtml(id)}"`,
-    related,
     targetLabel,
   });
 }
 
-export function noteReels(notes = [], { relatedIds = [], targetLabel = () => '' } = {}) {
+export function noteReels(notes = [], { targetLabel = () => '' } = {}) {
   const values = Array.isArray(notes) ? notes : [];
   if (!values.length) return '';
-  const related = new Set((Array.isArray(relatedIds) ? relatedIds : [relatedIds]).map((id) => String(id || '')).filter(Boolean));
   const cards = values.map((note) => noteCard(note, {
-    related: related.has(String(note?.id || '')),
     targetLabel: targetLabel(note),
   })).join('');
   return `<section class="note-reels" aria-label="Заметки">${v2HorizontalRail(cards, { className: 'note-reels__rail' })}</section>`;
@@ -75,19 +67,6 @@ export function initNoteReels(root, { onOpen = () => {} } = {}) {
       if (noteId) onOpen({ noteId });
     });
   });
-}
-
-export function focusNoteReels(root, noteIds = []) {
-  const values = new Set((Array.isArray(noteIds) ? noteIds : [noteIds]).map((id) => String(id || '')).filter(Boolean));
-  if (!root || !values.size) return null;
-  let first = null;
-  root.querySelectorAll?.('[data-note-reel]').forEach((node) => {
-    const focused = values.has(String(node.dataset.noteReel || ''));
-    node.classList.toggle('is-related', focused);
-    if (focused && !first) first = node;
-  });
-  first?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  return first;
 }
 
 export function noteDetail(note = {}) {
