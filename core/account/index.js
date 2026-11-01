@@ -119,6 +119,13 @@ export async function prepareGlobalAccount(input) {
   const body = input && typeof input === 'object' && !Array.isArray(input)
     ? input
     : { identifier: String(input || '').trim() };
+  const identifier = String(body.identifier || '').trim();
+  if (identifier) {
+    return {
+      exists: true,
+      identifierType: identifier.includes('@') ? 'EMAIL' : 'PHONE',
+    };
+  }
   return jsonResponse(
     await request('/online-booking/account/prepare', {
       method: 'POST',
