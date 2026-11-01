@@ -6,6 +6,8 @@ import { colorPicker, initColorPickers } from '../ui/colors/index.js';
 import { modal, mountModal, openNotice } from '../ui/modals/index.js';
 import { noteAttachmentStickers } from '../ui/note/index.js';
 import { escapeHtml } from '../ui/utils/escape-html.js';
+import { accountNoteActions, getAccountNotes } from '../core/note/account-owner.js';
+import { openUserNoteView } from './note-view.js';
 
 function minutes(value = '') {
   const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
@@ -17,12 +19,12 @@ function dateLabel(value = '') {
   return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
 }
 
-export function openUserEventView(eventOrId, {
-  eventActions,
-  relatedNotes = [],
-  onOpenNote = () => {},
-  onClose = () => {},
-} = {}) {
+function notesForEvent(eventId = '') {
+  const id = String(eventId || '');
+  return getAccountNotes().filter((note) => note?.targetType === 'event' && String(note?.targetId || '') === id);
+}
+
+export function openUserEventView(eventOrId, { eventActions, onClose = () => {} } = {}) {
   if (!eventActions?.read || !eventActions?.update || !eventActions?.remove) return null;
   const eventId = String(typeof eventOrId === 'object' ? eventOrId?.id : eventOrId || '');
   let current = eventActions.read(eventId);
@@ -47,19 +49,25 @@ export function openUserEventView(eventOrId, {
     current = eventActions.read(eventId);
     const root = host();
     if (!root || !current) return;
+    const attachedNotes = notesForEvent(eventId);
     root.innerHTML = `<section class="form-grid event-view">
       <h2 style="margin:0;font-size:23px;line-height:1.15">${escapeHtml(current.title || 'Событие')}</h2>
       ${current.description ? `<div class="event-view__description" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.45">${escapeHtml(current.description)}</div>` : ''}
       <div style="color:var(--text-secondary);font-size:13px;font-weight:650">${escapeHtml(dateLabel(current.date || ''))}</div>
       <div><strong>С ${escapeHtml(current.from || '')} — До ${escapeHtml(current.to || '')}</strong></div>
-      ${noteAttachmentStickers(relatedNotes)}
+      ${noteAttachmentStickers(attachedNotes)}
       ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'danger', data: 'data-user-event-delete' })}`)}
     </section>`;
     root.querySelector('[data-user-event-edit]')?.addEventListener('click', renderEdit);
     root.querySelectorAll('[data-note-attachment]').forEach((node) => node.addEventListener('click', () => {
       const noteId = String(node.dataset.noteAttachment || '');
-      const note = (Array.isArray(relatedNotes) ? relatedNotes : []).find((item) => String(item?.id || '') === noteId);
-      if (note) onOpenNote(note);
+      const note = attachedNotes.find((item) => String(item?.id || '') === noteId);
+      if (!note) return;
+      openUserNoteView(note, {
+        noteActions: accountNoteActions,
+        onSaved: renderRead,
+        onDeleted: renderRead,
+      });
     }));
     root.querySelector('[data-user-event-delete]')?.addEventListener('click', async (event) => {
       const submit = event.currentTarget;
