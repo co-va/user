@@ -1,5 +1,5 @@
 import { accountErrorMessage, updateGlobalAccount } from '../core/account/index.js';
-import { changeAccountEmail, getAccountEmailVerification, requestAccountEmailVerification } from '../core/account/email.js';
+import { changeAccountEmail, getAccountEmailVerification } from '../core/account/email.js';
 import {
   formValidationMessage,
   openNotice,
@@ -17,12 +17,10 @@ function formSignature(form) {
 
 async function syncEmailStatus(layer) {
   const status = layer?.querySelector('[data-account-email-status]');
-  const verify = layer?.querySelector('[data-account-email-verify]');
-  if (!status || !verify) return;
+  if (!status) return;
   try {
     const state = await getAccountEmailVerification();
     status.textContent = state?.verified ? 'Email подтверждён.' : 'Email не подтверждён.';
-    verify.hidden = Boolean(state?.verified);
   } catch {
     status.textContent = 'Статус email сейчас недоступен.';
   }
@@ -52,19 +50,6 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
   };
   form?.addEventListener('input', syncDirty);
   form?.addEventListener('change', syncDirty);
-
-  layer.querySelector('[data-account-email-verify]')?.addEventListener('click', async (event) => {
-    const control = event.currentTarget;
-    control.disabled = true;
-    try {
-      await requestAccountEmailVerification();
-      openNotice({ title: 'Подтверждение email', message: 'Письмо отправлено на текущий email.', action: 'Закрыть' });
-    } catch (error) {
-      openNotice({ title: 'Письмо не отправлено', message: error instanceof Error ? error.message : 'Не удалось отправить письмо', action: 'Закрыть', variant: 'technical' });
-    } finally {
-      control.disabled = false;
-    }
-  });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
