@@ -2,7 +2,8 @@ import { API_BASE } from '../environment.js';
 import { PLATFORM_PRIVACY_POLICY } from './platform-documents.js';
 
 const ACCOUNT_TOKEN_KEY = 'user.account.token';
-const ACCOUNT_EMAIL_KEY = 'user.account.email';
+const ACCOUNT_IDENTIFIER_KEY = 'user.account.identifier';
+const LEGACY_ACCOUNT_EMAIL_KEY = 'user.account.email';
 const REQUEST_TIMEOUT_MS = 12000;
 let globalAccountCacheToken = '';
 let globalAccountCache = null;
@@ -11,8 +12,14 @@ export function getAccountToken() {
   return localStorage.getItem(ACCOUNT_TOKEN_KEY) || '';
 }
 
-export function getRememberedAccountEmail() {
-  return localStorage.getItem(ACCOUNT_EMAIL_KEY) || '';
+export function getRememberedAccountIdentifier() {
+  const identifier = localStorage.getItem(ACCOUNT_IDENTIFIER_KEY) || '';
+  if (identifier) return identifier;
+  const legacyEmail = localStorage.getItem(LEGACY_ACCOUNT_EMAIL_KEY) || '';
+  if (!legacyEmail) return '';
+  localStorage.setItem(ACCOUNT_IDENTIFIER_KEY, legacyEmail);
+  localStorage.removeItem(LEGACY_ACCOUNT_EMAIL_KEY);
+  return legacyEmail;
 }
 
 export function clearAccount() {
@@ -79,9 +86,11 @@ async function jsonResponse(response, fallbackMessage) {
   return payload;
 }
 
-function storeSession(payload) {
+function storeSession(payload, identifier = '') {
   if (payload?.accessToken) localStorage.setItem(ACCOUNT_TOKEN_KEY, payload.accessToken);
-  if (payload?.account?.email) localStorage.setItem(ACCOUNT_EMAIL_KEY, payload.account.email);
+  const remembered = String(identifier || payload?.account?.email || payload?.account?.phone || '').trim();
+  if (remembered) localStorage.setItem(ACCOUNT_IDENTIFIER_KEY, remembered);
+  localStorage.removeItem(LEGACY_ACCOUNT_EMAIL_KEY);
   if (payload?.account && payload?.accessToken) {
     globalAccountCacheToken = String(payload.accessToken);
     globalAccountCache = payload.account;
@@ -119,13 +128,6 @@ export async function prepareGlobalAccount(input) {
   const body = input && typeof input === 'object' && !Array.isArray(input)
     ? input
     : { identifier: String(input || '').trim() };
-  const identifier = String(body.identifier || '').trim();
-  if (identifier) {
-    return {
-      exists: true,
-      identifierType: identifier.includes('@') ? 'EMAIL' : 'PHONE',
-    };
-  }
   return jsonResponse(
     await request('/online-booking/account/prepare', {
       method: 'POST',
@@ -143,7 +145,7 @@ export async function registerGlobalAccount(data) {
     }),
     'Не удалось создать аккаунт',
   );
-  return storeSession(payload);
+  return storeSession(payload, data?.email || data?.phone || '');
 }
 
 export async function loginGlobalAccount(identifier, password) {
@@ -154,7 +156,7 @@ export async function loginGlobalAccount(identifier, password) {
     }),
     'Не удалось войти',
   );
-  return storeSession(payload);
+  return storeSession(payload, identifier);
 }
 
 export async function getGlobalAccount() {
@@ -208,6 +210,13 @@ export async function changeGlobalAccountPassword(currentPassword, newPassword) 
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
     'Не удалось изменить пароль',
+  );
+}
+
+export async function getGlobalAccountRelationships() {
+  return jsonResponse(
+    await request('/online-booking/account/relationships', { auth: true }),
+    'Не удалось загрузить контакты',
   );
 }
 
