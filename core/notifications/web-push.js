@@ -87,7 +87,13 @@ export function webPushOptedOut() {
     if (!optedOut) return false;
 
     const source = String(localStorage.getItem(sourceKey) || '').trim();
-    if (source === 'manual' || source === 'denied') return true;
+    if (source === 'manual') return true;
+
+    if (source === 'denied') {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'denied') return true;
+      setWebPushOptOut(false);
+      return false;
+    }
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
       setWebPushOptOutSource('denied');
@@ -137,6 +143,7 @@ export function shouldOfferWebPushSetup() {
 export function webPushFailureMessage(state = {}) {
   if (!state?.supported) return 'Системные уведомления недоступны на этом устройстве.';
   if (state?.permission === 'denied') return 'Уведомления запрещены в настройках устройства.';
+  if (state?.permission !== 'granted') return 'Разрешение на уведомления на этом устройстве не выдано.';
   if (!state?.enabled) return 'Push не настроен на сервере приложения.';
   if (!state?.subscribed) return 'Разрешение получено, но Push-подписка не создана.';
   return '';
@@ -176,19 +183,20 @@ async function resolveWebPushRegistration({ register = false } = {}) {
 
 export async function getWebPushState() {
   if (!webPushSupported()) return { supported: false, enabled: false, permission: 'unsupported', subscribed: false };
-  if (!getAccountToken()) return { supported: true, enabled: false, permission: Notification.permission, subscribed: false };
+  const permission = String(Notification.permission || 'default');
+  if (!getAccountToken()) return { supported: true, enabled: false, permission, subscribed: false };
   const configuration = await getGlobalWebPushConfiguration();
   const registration = await resolveWebPushRegistration();
   const subscription = await registration?.pushManager.getSubscription();
   let subscribed = false;
-  if (subscription?.endpoint) {
+  if (permission === 'granted' && subscription?.endpoint) {
     const serverState = await getGlobalWebPushSubscriptionState(subscription.endpoint);
     subscribed = Boolean(serverState?.subscribed);
   }
   return {
     supported: true,
     enabled: Boolean(configuration?.enabled && configuration?.publicKey),
-    permission: Notification.permission,
+    permission,
     subscribed,
   };
 }
@@ -250,8 +258,12 @@ export async function enableWebPush({ strict = true } = {}) {
   let permission = Notification.permission;
   if (permission === 'default') permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    setWebPushOptOut(true);
-    setWebPushOptOutSource('denied');
+    if (permission === 'denied') {
+      setWebPushOptOut(true);
+      setWebPushOptOutSource('denied');
+    } else {
+      setWebPushOptOut(false);
+    }
     const state = { ...(await getWebPushState()), permission, subscribed: false };
     if (strict) throw new Error(webPushFailureMessage(state) || 'Не удалось включить уведомления.');
     return state;
