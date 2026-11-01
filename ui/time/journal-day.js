@@ -1,6 +1,7 @@
 import { timeToMinutes, minutesToTime } from '../../core/time/math.js';
 
 const DAY_MINUTES = 24 * 60;
+const OVERLAP_CARD_OFFSET_PX = 44;
 
 const escape = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const moneyText = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU')} ₽`;
@@ -204,11 +205,8 @@ export function journalDayTimeline({
     const lane = laneLayout.get(index);
     let horizontal = '';
     if (lane && lane.laneCount > 1) {
-      const left = (lane.lane / lane.laneCount) * 100;
-      const right = ((lane.laneCount - lane.lane - 1) / lane.laneCount) * 100;
-      const leftValue = lane.lane > 0 ? `calc(${left}% + 2px)` : '0';
-      const rightValue = lane.lane < lane.laneCount - 1 ? `calc(${right}% + 2px)` : '0';
-      horizontal = `;left:${leftValue};right:${rightValue};z-index:${lane.lane + 1}`;
+      const left = lane.lane * OVERLAP_CARD_OFFSET_PX;
+      horizontal = `;left:${left}px;right:0;z-index:${lane.lane + 1}`;
     }
     return `<div class="time-timeline__usage" style="top:${top}%;height:${height}%${horizontal}" data-time-usage="${escape(usage.sourceId || usage.id)}">${renderUsage(usage, { interactive: true }, usageRenderer)}</div>`;
   }).join('');
