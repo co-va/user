@@ -507,15 +507,6 @@ async function renderGlobalJournal(root, state, handlers) {
       context: 'account',
       initialDate: state.accountJournalDate instanceof Date ? state.accountJournalDate : undefined,
       records: () => Array.isArray(state.accountRecords) ? state.accountRecords : [],
-      resolveRecordContext: (record) => {
-        const relationship = (Array.isArray(state.relationships) ? state.relationships : [])
-          .find((item) => String(item?.tenantId || '') === String(record?.tenantId || '')) || null;
-        const workplaces = relationshipWorkplaces(relationship || {});
-        return {
-          professional: relationship ? relationshipProfile(relationship) : null,
-          workplace: workplaces.find((item) => String(item?.key || item?.id || '') === String(record?.workplaceId || '')) || null,
-        };
-      },
     }) || null;
   }
   bindWorkspaceInteraction(root, state, handlers);
