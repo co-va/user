@@ -1,6 +1,5 @@
 import { datePicker, initDatePickers } from '../ui/calendar/index.js';
 import { field, textareaField } from '../ui/inputs/index.js';
-import { timePicker, initTimePickers } from '../ui/time/index.js';
 import { colorPicker, initColorPickers } from '../ui/colors/index.js';
 import { select } from '../ui/selectors/index.js';
 import { openNotice } from '../ui/modals/index.js';
@@ -16,8 +15,6 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
   if (!owner || typeof noteActions?.create !== 'function') return null;
   const state = {
     date: String(date || '').slice(0, 10),
-    from: '',
-    to: '',
     targetType: '',
     targetId: '',
     title: '',
@@ -33,10 +30,6 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
       body: `<form class="form-grid" data-user-note-create>
         <div class="user-note-color-picker">${colorPicker({ name: 'color', value: state.color })}</div>
         ${datePicker({ label: 'Дата', name: 'date', value: state.date, required: true, allowClear: false })}
-        <div class="time-range-fields">
-          ${timePicker({ label: 'С', name: 'from', value: state.from, allowEmpty: true, minuteStep: 1 })}
-          ${timePicker({ label: 'До', name: 'to', value: state.to, allowEmpty: true, minuteStep: 1 })}
-        </div>
         ${select({ label: 'Прикрепить к', name: 'target', value: noteTargetValue(state), options: noteTargetOptions(state.date, { source: targetSource }), aria: 'Прикрепить заметку' })}
         ${field({ label: 'Наименование', name: 'title', value: state.title })}
         ${textareaField({ label: 'Текст', name: 'text', value: state.text, rows: 8, placeholder: 'Текст заметки' })}
@@ -45,7 +38,6 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
     });
     if (!view) return;
     initDatePickers(view.body);
-    initTimePickers(view.body);
     initColorPickers(view.body);
     view.action?.addEventListener('click', async (event) => {
       const form = view.body.querySelector('[data-user-note-create]');
@@ -54,8 +46,6 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
       const input = {
         context: noteContextWithTarget({ scope: 'account' }, target.targetType, target.targetId, { source: targetSource }),
         date: String(data.get('date') || state.date || '').slice(0, 10),
-        from: String(data.get('from') || '').slice(0, 5),
-        to: String(data.get('to') || '').slice(0, 5),
         targetType: target.targetType,
         targetId: target.targetId,
         title: String(data.get('title') || '').trim(),
