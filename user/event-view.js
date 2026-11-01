@@ -50,11 +50,12 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
     const root = host();
     if (!root || !current) return;
     const attachedNotes = notesForEvent(eventId);
+    const metaStyle = 'color:var(--text-secondary);font-size:13px;line-height:1.35;font-weight:650';
     root.innerHTML = `<section class="form-grid event-view">
       <h2 style="margin:0;font-size:23px;line-height:1.15">${escapeHtml(current.title || 'Событие')}</h2>
-      ${current.description ? `<div class="event-view__description" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.45">${escapeHtml(current.description)}</div>` : ''}
-      <div style="color:var(--text-secondary);font-size:13px;font-weight:650">${escapeHtml(dateLabel(current.date || ''))}</div>
-      <div><strong>С ${escapeHtml(current.from || '')} — До ${escapeHtml(current.to || '')}</strong></div>
+      ${current.description ? `<div class="event-view__description" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:18px;line-height:1.5">${escapeHtml(current.description)}</div>` : ''}
+      <div style="${metaStyle}">${escapeHtml(dateLabel(current.date || ''))}</div>
+      <div style="${metaStyle}">${escapeHtml(current.from || '')}–${escapeHtml(current.to || '')}</div>
       ${noteAttachmentStickers(attachedNotes)}
       ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'danger', data: 'data-user-event-delete' })}`)}
     </section>`;
