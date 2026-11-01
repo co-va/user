@@ -8,10 +8,18 @@ function linkRow(link = {}) {
   return `<div class="link-row" data-link-row>${select({ name:'linkType', value:link.type||'Instagram', options:LINK_TYPES })}<input class="link-row__url" name="linkUrl" value="${escapeHtml(link.url||'')}" placeholder="Ссылка"><button type="button" class="remove-button" data-remove-link aria-label="Удалить ссылку">×</button></div>`;
 }
 
-export function links({ links: values = [], name = 'links', label = '' } = {}) {
-  const rows = values.length ? values : [{ type: 'Instagram', url: '' }];
-  const content = `<div class="ui-links" data-links="${escapeHtml(name)}"><div data-links-list>${rows.map(linkRow).join('')}</div>${button('+',{className:'ui-links__add',data:`data-add-link="${escapeHtml(name)}"`,aria:'Добавить ссылку'})}</div>`;
-  return label
+export function links({ links: values = [], name = 'links', label = '', addInHeader = false } = {}) {
+  const rows = values.length ? values : (addInHeader ? [] : [{ type: 'Instagram', url: '' }]);
+  const addControl = button('+', {
+    className:'ui-links__add',
+    data:`data-add-link="${escapeHtml(name)}"`,
+    aria:'Добавить ссылку',
+  });
+  const header = addInHeader
+    ? `<div class="ui-links__header"><span class="array-label">${escapeHtml(label || 'Ссылки')}</span>${addControl}</div>`
+    : '';
+  const content = `<div class="ui-links" data-links="${escapeHtml(name)}" data-links-add-placement="${addInHeader ? 'header' : 'footer'}">${header}<div data-links-list>${rows.map(linkRow).join('')}</div>${addInHeader ? '' : addControl}</div>`;
+  return label && !addInHeader
     ? `<div class="array-group"><span class="array-label">${escapeHtml(label)}</span>${content}</div>`
     : content;
 }
