@@ -23,8 +23,6 @@ function normalize(value = {}) {
       ? { ...clone(value.context), scope: 'account' }
       : { scope: 'account' },
     date: String(value?.date || '').slice(0, 10),
-    from: String(value?.from || '').slice(0, 5),
-    to: String(value?.to || '').slice(0, 5),
     targetType,
     targetId,
     title: String(value?.title || ''),
