@@ -1,15 +1,10 @@
-import { datePicker, initDatePickers } from '../ui/calendar/index.js';
-import { field, textareaField } from '../ui/inputs/index.js';
-import { colorPicker, initColorPickers } from '../ui/colors/index.js';
-import { select } from '../ui/selectors/index.js';
 import { openNotice } from '../ui/modals/index.js';
 import { NOTE_DEFAULT_COLOR } from '../ui/note/index.js';
 import {
-  noteContextWithTarget,
-  noteTargetOptions,
-  noteTargetValue,
-  parseNoteTargetValue,
-} from './note-target.js';
+  initUserNoteEditor,
+  readUserNoteEditor,
+  userNoteEditorMarkup,
+} from './note-editor.js';
 
 export function createUserNoteFlow({ owner, date, noteActions, targetSource = null, onCreated = () => {} } = {}) {
   if (!owner || typeof noteActions?.create !== 'function') return null;
@@ -27,31 +22,21 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
     const view = owner.render({
       step: 'note',
       title: false,
-      body: `<form class="form-grid" data-user-note-create>
-        <div class="user-note-color-picker">${colorPicker({ name: 'color', value: state.color })}</div>
-        ${datePicker({ label: 'Дата', name: 'date', value: state.date, required: true, allowClear: false })}
-        ${select({ label: 'Прикрепить к', name: 'target', value: noteTargetValue(state), options: noteTargetOptions(state.date, { source: targetSource }), aria: 'Прикрепить заметку' })}
-        ${field({ label: 'Наименование', name: 'title', value: state.title })}
-        ${textareaField({ label: 'Текст', name: 'text', value: state.text, rows: 8, placeholder: 'Текст заметки' })}
-      </form>`,
+      body: userNoteEditorMarkup(state, {
+        targetSource,
+        formData: 'data-user-note-create',
+      }),
       action: { label: 'Создать', data: 'data-user-note-create-submit' },
     });
     if (!view) return;
-    initDatePickers(view.body);
-    initColorPickers(view.body);
+    initUserNoteEditor(view.body);
     view.action?.addEventListener('click', async (event) => {
       const form = view.body.querySelector('[data-user-note-create]');
-      const data = form ? new FormData(form) : new FormData();
-      const target = parseNoteTargetValue(data.get('target'));
-      const input = {
-        context: noteContextWithTarget({ scope: 'account' }, target.targetType, target.targetId, { source: targetSource }),
-        date: String(data.get('date') || state.date || '').slice(0, 10),
-        targetType: target.targetType,
-        targetId: target.targetId,
-        title: String(data.get('title') || '').trim(),
-        text: String(data.get('text') || '').trim(),
-        color: String(data.get('color') || NOTE_DEFAULT_COLOR),
-      };
+      const input = readUserNoteEditor(form, {
+        currentContext: { scope: 'account' },
+        targetSource,
+        fallbackDate: state.date,
+      });
       if (!input.date) return openNotice({ title: 'Заметка', message: 'Укажите дату заметки.' });
       if (!input.title && !input.text) return openNotice({ title: 'Заметка', message: 'Укажите наименование или текст заметки.' });
       const submit = event.currentTarget;
