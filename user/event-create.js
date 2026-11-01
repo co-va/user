@@ -31,13 +31,13 @@ export function createUserEventFlow({ owner, date, timeHint = '', eventActions, 
       step: 'event',
       title: false,
       body: `<form class="form-grid" data-user-event-create>
-        ${field({ label: 'Наименование', name: 'title', value: state.title, required: true })}
-        ${textareaField({ label: 'Описание', name: 'description', value: state.description, rows: 6 })}
+        <div class="user-event-color-picker">${colorPicker({ name: 'color', value: state.color })}</div>
         <div class="time-range-fields">
           ${timePicker({ label: 'С', name: 'from', value: state.from, minuteStep: 1 })}
           ${timePicker({ label: 'До', name: 'to', value: state.to, minuteStep: 1 })}
         </div>
-        ${colorPicker({ name: 'color', value: state.color })}
+        ${field({ label: 'Наименование', name: 'title', value: state.title, required: true })}
+        ${textareaField({ label: 'Описание', name: 'description', value: state.description, rows: 6 })}
       </form>`,
       action: { label: 'Создать', data: 'data-user-event-create-submit' },
     });
