@@ -60,4 +60,27 @@ for (const file of walk(root)) {
   }
 }
 
+const accountEntry = fs.readFileSync(path.join(root, 'user/account.js'), 'utf8');
+const userMain = fs.readFileSync(path.join(root, 'user/main.js'), 'utf8');
+const accountApi = fs.readFileSync(path.join(root, 'core/account/index.js'), 'utf8');
+
+if (/booking-targets/.test(accountEntry)) {
+  throw new Error('User Auth/Journal startup must not import Booking targets');
+}
+if (/^\s*import\s+[^\n]*booking\/entry\.js/m.test(userMain)) {
+  throw new Error('Booking runtime must not be a static User startup dependency');
+}
+if (!/import\(['"]\.\.\/booking\/entry\.js['"]\)/.test(userMain)) {
+  throw new Error('Booking runtime must remain demand-loaded from explicit User booking action');
+}
+if (!/label:\s*['"]Телефон или email['"]/.test(accountEntry)) {
+  throw new Error('User login must accept one phone-or-email identifier');
+}
+if (/getRememberedAccountEmail/.test(accountEntry) || /ACCOUNT_EMAIL_KEY/.test(accountApi)) {
+  throw new Error('User login memory must not be email-only');
+}
+if (/if\s*\(identifier\)\s*\{\s*return\s*\{\s*exists:\s*true/s.test(accountApi)) {
+  throw new Error('User account prepare must use the platform contract instead of assuming an identifier exists');
+}
+
 console.log('User boundary: PASS');
