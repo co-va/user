@@ -60,4 +60,27 @@ for (const file of walk(root)) {
   }
 }
 
+// Profile editor has one physical UI owner. User data logic may save values,
+// but it must not recreate Z/Q geometry or duplicate the form layout locally.
+const personalDataPath = path.join(root, 'user/personal-data.js');
+const sharedProfilePath = path.join(root, 'ui/profile/index.js');
+const profileCssPath = path.join(root, 'ui/profile/profile.css');
+if (!fs.existsSync(personalDataPath) || !fs.existsSync(sharedProfilePath) || !fs.existsSync(profileCssPath)) {
+  throw new Error('Canonical Profile UI owner is incomplete');
+}
+const personalData = fs.readFileSync(personalDataPath, 'utf8');
+const sharedProfile = fs.readFileSync(sharedProfilePath, 'utf8');
+if (/\bmountV2ZLayer\b|\bv2ZLayer\b/.test(personalData)) {
+  throw new Error('Profile personal data must not own Z geometry');
+}
+if (!/\bopenSharedPersonalDataEditor\b/.test(personalData)) {
+  throw new Error('Profile personal data must use the shared Profile editor');
+}
+if (!/variant:\s*['"]q['"]/.test(sharedProfile) || !/\bopenSharedPersonalDataEditor\b/.test(sharedProfile)) {
+  throw new Error('Shared Profile editor must remain a Q modal');
+}
+if (!/addInHeader:\s*true/.test(sharedProfile)) {
+  throw new Error('Shared Profile repeatable fields must keep header add controls');
+}
+
 console.log('User boundary: PASS');
