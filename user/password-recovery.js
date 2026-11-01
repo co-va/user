@@ -3,13 +3,12 @@ import {
   requestAccountPasswordReset,
 } from '../core/account/password-reset.js';
 import {
-  field,
   formValidationMessage,
   initPasswordFields,
-  openNotice,
   passwordField,
-  v2Sticker,
-} from '../ui/user-ui.js';
+} from '../ui/inputs/index.js';
+import { openNotice } from '../ui/modals/index.js';
+import { v2Sticker } from '../ui/v2/sticker.js';
 import { formError, formView } from '../ui/forms/index.js';
 
 let requestHandlerInstalled = false;
@@ -95,7 +94,7 @@ function renderInvalidReset(root, message) {
 function renderResetSuccess(root) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Пароль изменён',
-    body: '<p>Новый пароль сохранён. Теперь можно войти в User.</p>',
+    body: '<p>Новый пароль сохранён. Теперь можно войти.</p>',
     action: '<button class="ui-button" type="button" data-password-reset-login>Войти</button>',
     className: 'v2-sticker-screen--auth',
     closeData: 'data-password-reset-close',
