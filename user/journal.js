@@ -109,16 +109,44 @@ function amountDue(record = {}) {
     .reduce((sum, item) => sum + Math.max(0, Number(item?.cost ?? item?.price) || 0), 0);
 }
 
-function presentationFor(record, resolveRecordContext) {
-  const resolved = typeof resolveRecordContext === 'function' ? (resolveRecordContext(record) || {}) : {};
-  const professional = resolved?.professional && typeof resolved.professional === 'object' ? resolved.professional : {};
-  const workplace = resolved?.workplace && typeof resolved.workplace === 'object' ? resolved.workplace : {};
-  const name = [professional?.name, professional?.surname].filter(Boolean).join(' ').trim() || 'Профессионал';
+function recordObject(...values) {
+  return values.find((value) => value && typeof value === 'object' && !Array.isArray(value)) || {};
+}
+
+function presentationFor(record = {}) {
+  const snapshot = recordObject(record?.snapshot);
+  const professionalSource = recordObject(
+    snapshot?.professional,
+    record?.professionalSnapshot,
+    record?.professional,
+  );
+  const workplaceSource = recordObject(
+    snapshot?.workplace,
+    record?.workplaceSnapshot,
+    record?.workplace,
+  );
+  const professional = {
+    ...professionalSource,
+    name: String(professionalSource?.name || record?.professionalName || '').trim(),
+    surname: String(professionalSource?.surname || record?.professionalSurname || '').trim(),
+    phone: String(professionalSource?.phone || record?.professionalPhone || '').trim(),
+    uei: String(professionalSource?.uei || record?.professionalUei || '').trim(),
+  };
+  const name = [professional.name, professional.surname].filter(Boolean).join(' ').trim()
+    || String(record?.professionalLabel || '').trim()
+    || 'Профессионал';
+  const workplaceName = String(
+    workplaceSource?.name
+      || workplaceSource?.title
+      || record?.workplaceName
+      || record?.workplaceTitle
+      || 'Рабочее пространство'
+  ).trim();
   return {
     professional,
-    workplace,
+    workplace: workplaceSource,
     name,
-    workplaceName: String(workplace?.name || workplace?.title || 'Рабочее пространство'),
+    workplaceName,
   };
 }
 
@@ -129,8 +157,8 @@ function procedureRows(record = {}) {
   }));
 }
 
-function openUserRecord(record, resolveRecordContext) {
-  const presentation = presentationFor(record, resolveRecordContext);
+function openUserRecord(record) {
+  const presentation = presentationFor(record);
   const payment = paymentFor(record);
   const body = readOnlyReceipt({
     title: presentation.workplaceName,
@@ -165,8 +193,8 @@ function openUserRecord(record, resolveRecordContext) {
   return layer;
 }
 
-function recordUsage(record, resolveRecordContext) {
-  const presentation = presentationFor(record, resolveRecordContext);
+function recordUsage(record) {
+  const presentation = presentationFor(record);
   const payment = paymentFor(record);
   return {
     ...record,
@@ -212,16 +240,16 @@ function withOverlaps(values = []) {
   return usages;
 }
 
-function targetSourceFor(records, resolveRecordContext) {
+function targetSourceFor(records) {
   const allRecords = readRecords(records);
   return {
     readRecord: (id) => {
       const record = allRecords.find((item) => recordId(item) === String(id || '')) || null;
-      return record ? recordUsage(record, resolveRecordContext) : null;
+      return record ? recordUsage(record) : null;
     },
     recordsForDay: (date) => allRecords
       .filter((record) => String(record?.date || '').slice(0, 10) === String(date || '').slice(0, 10))
-      .map((record) => recordUsage(record, resolveRecordContext)),
+      .map((record) => recordUsage(record)),
     readEvent: (id) => getAccountEvent(id),
     eventsForDay: (date) => getAccountEvents()
       .filter((event) => String(event?.date || '').slice(0, 10) === String(date || '').slice(0, 10))
@@ -266,7 +294,7 @@ function openDayAction({ root, day, from, targetSource, rerender }) {
   });
 }
 
-function renderDay(root, { date, records, resolveRecordContext, navigationRoot, onChange }) {
+function renderDay(root, { date, records, navigationRoot, onChange }) {
   root.innerHTML = '<div data-user-journal-day-content><div data-user-journal-timeline></div></div>';
   if (navigationRoot) initDateNavigator(navigationRoot, { date, onChange });
   const day = dateKey(date);
@@ -275,7 +303,7 @@ function renderDay(root, { date, records, resolveRecordContext, navigationRoot, 
   const rerender = () => {
     if (disposed || !root.isConnected) return;
     dispose();
-    renderDay(root, { date, records, resolveRecordContext, navigationRoot, onChange });
+    renderDay(root, { date, records, navigationRoot, onChange });
   };
   const dispose = () => {
     disposed = true;
@@ -296,7 +324,7 @@ function renderDay(root, { date, records, resolveRecordContext, navigationRoot, 
     .filter((record) => String(record?.date || '').slice(0, 10) === day)
     .filter((record) => String(record?.status || '').toLowerCase() !== 'cancelled');
   const events = getAccountEvents().filter((event) => String(event?.date || '').slice(0, 10) === day);
-  const targetSource = targetSourceFor(records, resolveRecordContext);
+  const targetSource = targetSourceFor(records);
   const activeTime = currentTimeForDay(day);
   const notes = getAccountNotesForDay(day);
   const yRoot = setV2Y(root, noteReels(notes, {
@@ -319,7 +347,7 @@ function renderDay(root, { date, records, resolveRecordContext, navigationRoot, 
   }
 
   const usages = withOverlaps([
-    ...visible.map((record) => recordUsage(record, resolveRecordContext)),
+    ...visible.map((record) => recordUsage(record)),
     ...events.map(eventUsage),
   ]);
   const recordById = new Map(visible.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
@@ -336,7 +364,7 @@ function renderDay(root, { date, records, resolveRecordContext, navigationRoot, 
         return;
       }
       const record = recordById.get(id);
-      if (record) openUserRecord(record, resolveRecordContext);
+      if (record) openUserRecord(record);
     },
     onSlotClick: ({ from }) => openDayAction({ root, day, from, targetSource, rerender }),
   });
@@ -418,8 +446,8 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
   return () => {};
 }
 
-function listEntry(record, resolveRecordContext, { focus = false } = {}) {
-  const presentation = presentationFor(record, resolveRecordContext);
+function listEntry(record, { focus = false } = {}) {
+  const presentation = presentationFor(record);
   const payment = paymentFor(record);
   const id = recordId(record);
   return v2ListEntry({
@@ -439,15 +467,15 @@ function listEntry(record, resolveRecordContext, { focus = false } = {}) {
   });
 }
 
-function bindListRecords(root, records, resolveRecordContext) {
+function bindListRecords(root, records) {
   const byId = new Map(records.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
   root.querySelectorAll('[data-user-journal-record]').forEach((node) => node.addEventListener('click', () => {
     const record = byId.get(String(node.dataset.userJournalRecord || ''));
-    if (record) openUserRecord(record, resolveRecordContext);
+    if (record) openUserRecord(record);
   }));
 }
 
-function renderList(root, { records, resolveRecordContext, mode }) {
+function renderList(root, { records, mode }) {
   const rows = readRecords(records);
   if (!rows.length) {
     root.innerHTML = emptyState('Список', 'Записей пока нет.');
@@ -457,8 +485,8 @@ function renderList(root, { records, resolveRecordContext, mode }) {
     const ordered = [...rows].sort((a, b) => recordAppointmentTime(a, 'from') - recordAppointmentTime(b, 'from'));
     const now = Date.now();
     const focus = ordered.findIndex((record) => recordAppointmentTime(record, 'to') > now);
-    root.innerHTML = v2ListEntries(ordered.map((record, index) => listEntry(record, resolveRecordContext, { focus: index === focus })));
-    bindListRecords(root, ordered, resolveRecordContext);
+    root.innerHTML = v2ListEntries(ordered.map((record, index) => listEntry(record, { focus: index === focus })));
+    bindListRecords(root, ordered);
     return;
   }
   const prepared = rows.map((record) => {
@@ -471,8 +499,8 @@ function renderList(root, { records, resolveRecordContext, mode }) {
   const pending = prepared.filter((item) => !item.completed)
     .sort((a, b) => recordActivityTime(b.record, b.payment.activity) - recordActivityTime(a.record, a.payment.activity));
   const ordered = [...completed, ...pending].map((item) => item.record);
-  root.innerHTML = v2ListEntries(ordered.map((record) => listEntry(record, resolveRecordContext)));
-  bindListRecords(root, ordered, resolveRecordContext);
+  root.innerHTML = v2ListEntries(ordered.map((record) => listEntry(record)));
+  bindListRecords(root, ordered);
 }
 
 export function renderJournal(root, options = {}) {
@@ -483,7 +511,6 @@ export function renderJournal(root, options = {}) {
     : new Date();
   let disposeView = () => {};
   const records = options.records;
-  const resolveRecordContext = typeof options.resolveRecordContext === 'function' ? options.resolveRecordContext : () => ({});
 
   const render = () => {
     disposeView();
@@ -503,7 +530,6 @@ export function renderJournal(root, options = {}) {
       disposeView = renderDay(viewRoot, {
         date: selectedDate,
         records,
-        resolveRecordContext,
         navigationRoot,
         onChange: (nextDate) => {
           selectedDate = nextDate;
@@ -526,7 +552,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      renderList(viewRoot, { records, resolveRecordContext, mode: listMode });
+      renderList(viewRoot, { records, mode: listMode });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
