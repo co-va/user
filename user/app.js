@@ -133,7 +133,6 @@ async function loadRelationships(state) {
 function shellCallbacks(root, state) {
   return {
     onStartRecord: startRecord,
-    onLoadRelationships: () => loadRelationships(state),
     onLogout: () => {
       clearAccount();
       state.account = null;
