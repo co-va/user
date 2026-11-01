@@ -111,7 +111,6 @@ export function openSharedPersonalDataEditor({ account = {}, onClose = null } = 
 
   const layer = mountModal(document.body, modal(content, {
     variant: 'q',
-    title: 'Профиль',
     className: 'modal--profile-editor',
   }));
   if (!layer) return null;
