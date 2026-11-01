@@ -626,14 +626,14 @@ async function renderGlobalContactDetail(root, state, handlers) {
     }),
     v: { data: 'data-global-contact-settings', aria: 'Настройки контакта' },
     body: `${entityCardStack([relationshipCard(relationship, { interactive: false })])}${actionBlock(button('Записаться', {
-      data: 'data-global-contact-booking',
+      data: 'data-global-contact-record',
       aria: `Записаться к ${title}`,
     }))}`,
   });
   bindWorkspaceInteraction(root, state, handlers);
   root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
-  root.querySelector('[data-global-contact-booking]')?.addEventListener('click', () => {
-    handlers.onStartBooking?.(String(relationship.tenantId || ''), { entry: 'profile' });
+  root.querySelector('[data-global-contact-record]')?.addEventListener('click', () => {
+    handlers.onStartRecord?.(String(relationship.tenantId || ''), { entry: 'profile' });
   });
 }
 
@@ -647,7 +647,7 @@ export async function renderGlobalAccount(root, state, callbacks = {}) {
 
   const handlers = {
     render: () => renderGlobalAccount(root, state, callbacks),
-    onStartBooking: callbacks.onStartBooking,
+    onStartRecord: callbacks.onStartRecord,
     onLogout: callbacks.onLogout,
   };
 
