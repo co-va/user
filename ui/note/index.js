@@ -122,11 +122,9 @@ export function noteDetail(note = {}) {
   const date = dateLabel(note?.date);
   return `<section class="note-detail" style="--note-color:${escapeHtml(color)}">
     <article class="note-detail__paper">
-      <span class="note-detail__tape" aria-hidden="true"></span>
       ${title ? `<h2>${escapeHtml(title)}</h2>` : ''}
       ${body ? `<div class="note-detail__text">${escapeHtml(body)}</div>` : ''}
       ${date ? `<div class="note-detail__date">${escapeHtml(date)}</div>` : ''}
-      <span class="note-detail__curl" aria-hidden="true"></span>
     </article>
   </section>`;
 }
