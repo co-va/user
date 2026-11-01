@@ -44,7 +44,7 @@ async function request(path, options = {}) {
 }
 
 function syncCalendars() {
-  void request('/online-booking/account/calendar/sync', { method: 'POST' }).catch(() => {});
+  void request('/account/calendar/sync', { method: 'POST' }).catch(() => {});
 }
 
 function replaceRow(value) {
@@ -65,7 +65,7 @@ export function getAccountEvent(id) {
 export async function loadAccountEvents({ force = false } = {}) {
   if (loaded && !force) return getAccountEvents();
   if (loading && !force) return loading;
-  loading = request('/online-booking/account/events')
+  loading = request('/account/events')
     .then((payload) => {
       rows = (Array.isArray(payload) ? payload : []).map(normalize).filter((item) => item.id);
       loaded = true;
@@ -82,7 +82,7 @@ export async function createAccountEvent(input = {}) {
     ownerType: 'account',
     context: { ...(input?.context || {}), scope: 'account' },
   });
-  const saved = await request(`/online-booking/account/events/${encodeURIComponent(event.id)}`, {
+  const saved = await request(`/account/events/${encodeURIComponent(event.id)}`, {
     method: 'PUT',
     body: JSON.stringify({ event }),
   });
@@ -96,7 +96,7 @@ export async function updateAccountEvent(id, patch = {}) {
   const current = getAccountEvent(id);
   if (!current) throw new Error('Событие не найдено.');
   const event = normalize({ ...current, ...clone(patch), id: current.id, createdAt: current.createdAt });
-  const saved = await request(`/online-booking/account/events/${encodeURIComponent(current.id)}`, {
+  const saved = await request(`/account/events/${encodeURIComponent(current.id)}`, {
     method: 'PUT',
     body: JSON.stringify({ event }),
   });
@@ -109,7 +109,7 @@ export async function updateAccountEvent(id, patch = {}) {
 export async function removeAccountEvent(id) {
   const key = String(id || '');
   if (!key) return false;
-  await request(`/online-booking/account/events/${encodeURIComponent(key)}`, { method: 'DELETE' });
+  await request(`/account/events/${encodeURIComponent(key)}`, { method: 'DELETE' });
   rows = rows.filter((item) => item.id !== key);
   loaded = true;
   syncCalendars();
