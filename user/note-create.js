@@ -26,10 +26,12 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
   };
 
   const render = () => {
+    owner.setShellHeader?.('<div class="record-creation-step-title user-note-shell-title" style="position:absolute;top:0;left:52px;height:24px;display:flex;align-items:center;margin:0;font-size:20px;line-height:24px;font-weight:500">Заметка</div>');
     const view = owner.render({
       step: 'note',
       title: false,
       body: `<form class="form-grid" data-user-note-create>
+        <div class="user-note-color-picker">${colorPicker({ name: 'color', value: state.color })}</div>
         ${datePicker({ label: 'Дата', name: 'date', value: state.date, required: true, allowClear: false })}
         <div class="time-range-fields">
           ${timePicker({ label: 'С', name: 'from', value: state.from, allowEmpty: true, minuteStep: 1 })}
@@ -38,7 +40,6 @@ export function createUserNoteFlow({ owner, date, noteActions, targetSource = nu
         ${select({ label: 'Прикрепить к', name: 'target', value: noteTargetValue(state), options: noteTargetOptions(state.date, { source: targetSource }), aria: 'Прикрепить заметку' })}
         ${field({ label: 'Наименование', name: 'title', value: state.title })}
         ${textareaField({ label: 'Текст', name: 'text', value: state.text, rows: 8, placeholder: 'Текст заметки' })}
-        ${colorPicker({ name: 'color', value: state.color })}
       </form>`,
       action: { label: 'Создать', data: 'data-user-note-create-submit' },
     });
