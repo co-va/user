@@ -1,0 +1,139 @@
+name: One-time User separation cleanup
+
+on:
+  push:
+    branches: [staging]
+    paths: [.github/workflows/user-separation-migration.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+      - name: Remove professional business coupling from User
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          account = Path('user/account.js')
+          s = account.read_text()
+          old_import = '  getGlobalAccountRelationships,\n'
+          assert old_import in s
+          s = s.replace(old_import, '', 1)
+          old = """  const profileOnly = tab === 'profile' || tab === 'profile-settings';
+          const needsRelationships = tab === 'journal' || tab === 'contacts' || tab === 'contact-detail';
+          const needsRecords = tab === 'journal' || tab === 'contact-detail';
+
+          const relationshipsPromise = profileOnly
+            ? getGlobalAccountBookingTargets().catch(() => [])
+            : needsRelationships
+              ? getGlobalAccountRelationships().catch(() => [])
+              : Promise.resolve([]);
+          """
+          new = """  const needsRelationships = tab === 'profile'
+            || tab === 'profile-settings'
+            || tab === 'journal'
+            || tab === 'contacts'
+            || tab === 'contact-detail';
+          const needsRecords = tab === 'journal' || tab === 'contact-detail';
+
+          const relationshipsPromise = needsRelationships
+            ? getGlobalAccountBookingTargets().catch(() => [])
+            : Promise.resolve([]);
+          """
+          assert old in s
+          s = s.replace(old, new, 1)
+          assert 'getGlobalAccountRelationships' not in s
+          account.write_text(s)
+
+          shell = Path('user/account-shell.js')
+          s = shell.read_text()
+          old = """import {
+            accountErrorMessage,
+            getGlobalAccountRelationships,
+            updateGlobalAccount,
+            deleteGlobalAccount,
+            deleteGlobalAccountRelationship,
+            decideGlobalAccountInvestment,
+          } from '../core/account/index.js';
+          """
+          new = """import {
+            accountErrorMessage,
+            updateGlobalAccount,
+            deleteGlobalAccount,
+            deleteGlobalAccountRelationship,
+          } from '../core/account/index.js';
+          """
+          assert old in s
+          s = s.replace(old, new, 1)
+          for block in [
+            """import {
+            calculateInvestmentState,
+            investmentRoleLabel,
+            normalizeInvestmentTerms,
+          } from './investment-calculator.js';
+          """,
+            """import {
+            cashEntityCardAppearance,
+            cashEntityCardFields,
+          } from './investment-card.js';
+          """,
+          ]:
+            assert block in s
+            s = s.replace(block, '', 1)
+
+          start = s.index("function accountInvestments(state, status = '') {")
+          end = s.index('function disposeGlobalAccountJournal(root) {', start)
+          s = s[:start] + s[end:]
+
+          start = s.index("  const acceptedInvestments = accountInvestments(state, 'accepted')")
+          end_marker = "  const finance = financeCards.length ? entityCardRail(financeCards) : '';\n"
+          end = s.index(end_marker, start) + len(end_marker)
+          s = s[:start] + s[end:]
+          finance_line = "    finance ? v2Section('Инвестиции / займы', finance) : '',\n"
+          assert finance_line in s
+          s = s.replace(finance_line, '', 1)
+          bind_line = '  bindAccountInvestments(layer, root, state, handlers, acceptedInvestments, pendingInvestments, showContactHeader);\n'
+          assert bind_line in s
+          s = s.replace(bind_line, '', 1)
+          for forbidden in ['getGlobalAccountRelationships', 'decideGlobalAccountInvestment', 'Investment', 'investment']:
+            assert forbidden not in s, forbidden
+          shell.write_text(s)
+
+          api = Path('core/account/index.js')
+          s = api.read_text()
+          for start_marker, end_marker in [
+            ('export async function getGlobalAccountRelationships() {', 'export async function deleteGlobalAccountRelationship(tenantId) {'),
+            ('export async function decideGlobalAccountInvestment(tenantId, investmentId, decision) {', 'export async function getGlobalAccountRecords() {'),
+          ]:
+            start = s.index(start_marker)
+            end = s.index(end_marker, start)
+            s = s[:start] + s[end:]
+          assert 'getGlobalAccountRelationships' not in s
+          assert 'decideGlobalAccountInvestment' not in s
+          api.write_text(s)
+
+          Path('user/investment-calculator.js').unlink()
+          Path('user/investment-card.js').unlink()
+          PY
+
+          node --check user/account.js
+          node --check user/account-shell.js
+          node --check core/account/index.js
+          node scripts/check-boundary.mjs
+          node scripts/check-syntax.mjs
+          git diff --check
+
+          rm .github/workflows/user-separation-migration.yml
+          git config user.name co-tools
+          git config user.email a.volokovykh@yandex.ru
+          git add -A
+          git commit -m 'Separate User from professional business context'
+          git push origin HEAD:staging
