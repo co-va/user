@@ -27,6 +27,7 @@ export function createUserEventFlow({ owner, date, timeHint = '', eventActions, 
   };
 
   const render = () => {
+    owner.setShellHeader?.('<div class="record-creation-step-title user-event-shell-title" style="position:absolute;top:0;left:52px;height:24px;display:flex;align-items:center;margin:0;font-size:20px;line-height:24px;font-weight:500">Событие</div>');
     const view = owner.render({
       step: 'event',
       title: false,
