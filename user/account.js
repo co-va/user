@@ -8,12 +8,12 @@ import {
   getGlobalAccount,
   getGlobalAccountPlatformState,
   getGlobalAccountRecords,
-  getRememberedAccountEmail,
+  getGlobalAccountRelationships,
+  getRememberedAccountIdentifier,
   loginGlobalAccount,
   prepareGlobalAccount,
   registerGlobalAccount,
 } from '../core/account/index.js';
-import { getGlobalAccountBookingTargets } from '../core/account/booking-targets.js';
 import { button } from '../ui/buttons/index.js';
 import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
 import { field, formValidationMessage, initPasswordFields, passwordField, phoneField } from '../ui/inputs/index.js';
@@ -71,6 +71,8 @@ function globalAccountState(initial = {}) {
     accountTerms: null,
     accountTermsAccepted: false,
     relationships: [],
+    relationshipsLoaded: false,
+    relationshipsPromise: null,
     accountRecords: [],
     error: '',
     accountJournalDate: /^\d{4}-\d{2}-\d{2}$/.test(journalDate)
@@ -117,13 +119,32 @@ function bookingStart(tenantId, options = {}) {
   }));
 }
 
+async function loadRelationships(state) {
+  if (state.relationshipsLoaded) return state.relationships;
+  if (!state.relationshipsPromise) {
+    state.relationshipsPromise = getGlobalAccountRelationships()
+      .then((relationships) => {
+        state.relationships = Array.isArray(relationships) ? relationships : [];
+        state.relationshipsLoaded = true;
+        return state.relationships;
+      })
+      .finally(() => {
+        state.relationshipsPromise = null;
+      });
+  }
+  return state.relationshipsPromise;
+}
+
 function accountCallbacks(root, state) {
   return {
     onStartBooking: bookingStart,
+    onLoadRelationships: () => loadRelationships(state),
     onLogout: () => {
       clearAccount();
       state.account = null;
       state.relationships = [];
+      state.relationshipsLoaded = false;
+      state.relationshipsPromise = null;
       state.accountRecords = [];
       state.error = '';
       renderGlobalUserEntry(root, state);
@@ -140,25 +161,16 @@ async function renderGlobalUserHome(root, state) {
   state.account = account;
 
   const callbacks = accountCallbacks(root, state);
+  const tab = String(state.accountTab || 'journal');
+  if (tab === 'contacts' || tab === 'contact-detail') {
+    await loadRelationships(state).catch(() => []);
+  }
+
   await renderAccountSurface(root, state, callbacks);
 
-  const tab = String(state.accountTab || 'journal');
-  const needsRelationships = tab === 'journal'
-    || tab === 'contacts'
-    || tab === 'contact-detail';
-  const needsRecords = tab === 'journal';
-
-  const relationshipsPromise = needsRelationships
-    ? getGlobalAccountBookingTargets().catch(() => [])
-    : Promise.resolve([]);
-  const recordsPromise = needsRecords
-    ? getGlobalAccountRecords().catch(() => [])
-    : Promise.resolve([]);
-
-  const [relationships, records] = await Promise.all([relationshipsPromise, recordsPromise]);
+  if (tab !== 'journal') return;
+  const records = await getGlobalAccountRecords().catch(() => []);
   if (!root.isConnected) return;
-
-  state.relationships = Array.isArray(relationships) ? relationships : [];
   state.accountRecords = Array.isArray(records) ? records : [];
   await renderAccountSurface(root, state, callbacks);
 }
@@ -177,7 +189,8 @@ async function continueGlobalIdentity(root, state) {
 function renderGlobalUserEntry(root, state) {
   const rememberedIdentifier = state.accountDraft?.identifier
     || state.accountDraft?.email
-    || getRememberedAccountEmail()
+    || state.accountDraft?.phone
+    || getRememberedAccountIdentifier()
     || '';
 
   const form = formView(`
@@ -208,7 +221,7 @@ function renderGlobalUserEntry(root, state) {
     state.accountDraft = {
       ...(state.accountDraft || {}),
       identifier,
-      ...(identifier.includes('@') ? { email: identifier.toLowerCase() } : {}),
+      ...(identifier.includes('@') ? { email: identifier.toLowerCase() } : { phone: identifier }),
     };
     state.error = '';
     try {
