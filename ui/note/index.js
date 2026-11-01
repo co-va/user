@@ -13,10 +13,6 @@ function dateLabel(value = '') {
   return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
 }
 
-export function orderNoteReels(notes = []) {
-  return Array.isArray(notes) ? [...notes] : [];
-}
-
 function noteSticker(note = {}, {
   variant = 'compact',
   interactive = false,
@@ -62,7 +58,7 @@ export function noteCard(note = {}, { related = false, targetLabel = '' } = {}) 
 }
 
 export function noteReels(notes = [], { relatedIds = [], targetLabel = () => '' } = {}) {
-  const values = orderNoteReels(notes);
+  const values = Array.isArray(notes) ? notes : [];
   if (!values.length) return '';
   const related = new Set((Array.isArray(relatedIds) ? relatedIds : [relatedIds]).map((id) => String(id || '')).filter(Boolean));
   const cards = values.map((note) => noteCard(note, {
