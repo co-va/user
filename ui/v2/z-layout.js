@@ -12,13 +12,15 @@ const Z_HEADER_STYLE = [
   'padding:0 18px 0 0',
   'display:flex',
   'flex:0 0 auto',
-  'flex-direction:column',
+  'flex-direction:row',
+  'align-items:flex-start',
   'background:var(--v2-white,#fff)',
 ].join(';');
 
 const Z_HEADER_CONTENT_STYLE = [
   'box-sizing:border-box',
   'min-width:0',
+  'flex:1 1 auto',
   'padding-left:18px',
   'display:flex',
   'flex-direction:column',
