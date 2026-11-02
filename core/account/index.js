@@ -235,6 +235,34 @@ export async function getGlobalAccountContact(tenantId) {
   );
 }
 
+export async function getGlobalContactWorkplaceHistory(tenantId, workplaceKey) {
+  return jsonResponse(
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/workplaces/${encodeURIComponent(String(workplaceKey || ''))}/history`, { auth: true }),
+    'Не удалось загрузить историю пространства',
+  );
+}
+
+export async function getGlobalContactRecord(tenantId, recordId) {
+  return jsonResponse(
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/records/${encodeURIComponent(String(recordId || ''))}`, { auth: true }),
+    'Не удалось открыть чек',
+  );
+}
+
+export async function getGlobalContactPersonalAccount(tenantId) {
+  return jsonResponse(
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/personal-account`, { auth: true }),
+    'Не удалось открыть Личный счёт',
+  );
+}
+
+export async function getGlobalContactDeposit(tenantId, depositId) {
+  return jsonResponse(
+    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/deposits/${encodeURIComponent(String(depositId || ''))}`, { auth: true }),
+    'Не удалось открыть депозит',
+  );
+}
+
 export async function deleteGlobalAccountRelationship(tenantId) {
   return jsonResponse(
     await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}`, {
