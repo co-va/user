@@ -17,6 +17,7 @@ import {
   field,
   openNotice,
   openRecordCreationOwner,
+  recordConfirmationMiniCard,
   recordPersonList,
   v2ListEntry,
   v2ListEntries,
@@ -106,20 +107,35 @@ function procedureEntry(procedure, workplaceKey) {
   };
 }
 
-function summaryMarkup(state = {}, workplaceKey = '') {
+function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
   const procedures = Array.isArray(state.procedures) ? state.procedures : [];
+  const workplace = (Array.isArray(context?.workplaces) ? context.workplaces : [])
+    .find((item) => text(item?.key) === text(workplaceKey));
   const total = procedures.reduce((sum, procedure) => {
     const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
     return sum + Math.max(0, Number(price.minimum) || 0);
   }, 0);
-  return `<div class="record-summary">
-    ${procedures.map((procedure) => `<div>${escapeHtml(text(procedure?.name))}</div>`).join('')}
-    <dl>
-      <div><dt>Дата</dt><dd>${escapeHtml(formatDate(state.date))}</dd></div>
-      <div><dt>Начало</dt><dd>${escapeHtml(text(state.from))}</dd></div>
-      <div><dt>Стоимость</dt><dd>${escapeHtml(money(total))}</dd></div>
-    </dl>
-  </div>`;
+  const totalDuration = procedures.reduce(
+    (sum, procedure) => sum + Math.max(0, Number(procedure?.duration) || 0),
+    0,
+  );
+
+  return recordConfirmationMiniCard({
+    workplace: text(workplace?.name) || 'Рабочее пространство',
+    date: formatDate(state.date),
+    period: [text(state.from), text(state.to)].filter(Boolean).join('–'),
+    duration: totalDuration ? `${totalDuration} мин` : '',
+    total: money(total),
+    procedures: procedures.map((procedure) => {
+      const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
+      const duration = Math.max(0, Number(procedure?.duration) || 0);
+      return {
+        name: text(procedure?.name),
+        durationText: duration ? `${duration} мин` : '',
+        costText: money(Math.max(0, Number(price.minimum) || 0)),
+      };
+    }),
+  });
 }
 
 async function startUserRecord(professionalId, owner, options = {}) {
@@ -158,7 +174,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
     const confirmation = config?.step === 'confirmation' && text(config?.action?.data).includes('data-records-confirm');
     if (!confirmation) return ownerRender(config);
     const state = owner.getRecordState?.() || {};
-    return ownerRender({ ...config, body: summaryMarkup(state, activeWorkplaceKey) });
+    return ownerRender({ ...config, body: summaryMarkup(state, activeWorkplaceKey, recordContext) });
   };
 
   const provider = {
