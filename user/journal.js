@@ -112,7 +112,7 @@ function recordObject(...values) {
 
 function presentationFor(record = {}) {
   const snapshot = recordObject(record?.snapshot);
-  const professionalSource = recordObject(
+  const contactSource = recordObject(
     snapshot?.professional,
     record?.professionalSnapshot,
     record?.professional,
@@ -122,16 +122,15 @@ function presentationFor(record = {}) {
     record?.workplaceSnapshot,
     record?.workplace,
   );
-  const professional = {
-    ...professionalSource,
-    name: String(professionalSource?.name || record?.professionalName || '').trim(),
-    surname: String(professionalSource?.surname || record?.professionalSurname || '').trim(),
-    phone: String(professionalSource?.phone || record?.professionalPhone || '').trim(),
-    uei: String(professionalSource?.uei || record?.professionalUei || '').trim(),
+  const contact = {
+    ...contactSource,
+    name: String(contactSource?.name || record?.professionalName || '').trim(),
+    surname: String(contactSource?.surname || record?.professionalSurname || '').trim(),
+    phone: String(contactSource?.phone || record?.professionalPhone || '').trim(),
   };
-  const name = [professional.name, professional.surname].filter(Boolean).join(' ').trim()
+  const name = [contact.name, contact.surname].filter(Boolean).join(' ').trim()
     || String(record?.professionalLabel || '').trim()
-    || 'Профессионал';
+    || 'Специалист';
   const workplaceName = String(
     workplaceSource?.name
       || workplaceSource?.title
@@ -140,7 +139,7 @@ function presentationFor(record = {}) {
       || 'Рабочее пространство'
   ).trim();
   return {
-    professional,
+    contact,
     workplace: workplaceSource,
     name,
     workplaceName,
@@ -182,7 +181,7 @@ function openUserRecord(record) {
     layer.v2Close?.();
     window.dispatchEvent(new CustomEvent('cova:user-record-start', {
       detail: {
-        professionalId: String(record?.tenantId || ''),
+        contactId: String(record?.tenantId || ''),
         workplaceKey: String(record?.workplaceId || record?.workplaceKey || ''),
         repeatRequest: record,
       },
@@ -198,7 +197,7 @@ function recordUsage(record) {
     ...record,
     type: 'record',
     sourceId: recordId(record),
-    person: presentation.professional,
+    person: presentation.contact,
     paid: payment.paid,
     financialTotal: amountDue(record),
   };
@@ -267,7 +266,7 @@ function openDayAction({ root, day, from, targetSource, rerender }) {
   }));
   layer?.querySelector('[data-user-day-record]')?.addEventListener('click', () => {
     layer.v2Close?.();
-    window.dispatchEvent(new CustomEvent('cova:user-record-open-professionals'));
+    window.dispatchEvent(new CustomEvent('cova:user-record-open-contacts'));
   });
   layer?.querySelector('[data-user-day-event]')?.addEventListener('click', () => {
     layer.v2Close?.();
