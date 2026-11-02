@@ -27,7 +27,7 @@ import {
   entityVisualCard,
   normalizeEntityCardAppearance,
   miniCard,
-  miniCardRail,
+  miniCardStack,
   escapeHtml,
   field,
   v2ListEntries,
@@ -835,7 +835,7 @@ async function openGlobalContactWorkplaceQ(relationship, workplace) {
   if (!tenantId || !workplaceKey) return null;
   const layer = mountModal(document.body, modal('<div data-contact-workplace-q><div class="muted">Загрузка…</div></div>', {
     variant: 'q',
-    title: String(workplace?.name || 'Пространство'),
+    title: 'История',
   }));
   const host = layer?.querySelector('[data-contact-workplace-q]');
   try {
@@ -843,7 +843,7 @@ async function openGlobalContactWorkplaceQ(relationship, workplace) {
     const records = Array.isArray(rows) ? rows : [];
     if (host) {
       host.innerHTML = records.length
-        ? v2Section('История', miniCardRail(records.map((request, index) => contactHistoryMiniCard(workplace, request, index))))
+        ? miniCardStack(records.map((request, index) => contactHistoryMiniCard(workplace, request, index)))
         : emptyState('История пока пустая', 'Обслуживание в этом пространстве появится здесь.');
       host.querySelectorAll('[data-global-contact-history]').forEach((node) => node.addEventListener('click', () => {
         const request = records[Number(node.dataset.globalContactHistory)];
