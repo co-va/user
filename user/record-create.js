@@ -1,8 +1,8 @@
 import { getGlobalAccount } from '../core/account/index.js';
 import {
-  createPlatformRecord,
-  getProfessionalRecordContext,
-  getRecordTargets,
+  createContactRecord,
+  getContactRecordContext,
+  getRecordContacts,
 } from '../core/record/platform-api.js';
 import {
   getRecordProcedures,
@@ -43,44 +43,43 @@ function formatDate(value) {
   return `${Number(match[3])} ${months[Number(match[2]) - 1] || match[2]}`;
 }
 
-function professionalProfile(target = {}) {
+function contactProfile(target = {}) {
   const context = target?.context && typeof target.context === 'object' ? target.context : {};
-  const profile = context?.profile && typeof context.profile === 'object' ? context.profile : {};
-  return profile;
+  return context?.profile && typeof context.profile === 'object' ? context.profile : {};
 }
 
-function professionalTitle(target = {}) {
-  const profile = professionalProfile(target);
-  return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профессионал';
+function contactTitle(target = {}) {
+  const profile = contactProfile(target);
+  return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Специалист';
 }
 
-function professionalSearchText(target = {}) {
-  const profile = professionalProfile(target);
-  return [professionalTitle(target), profile.profession, profile.phone]
+function contactSearchText(target = {}) {
+  const profile = contactProfile(target);
+  return [contactTitle(target), profile.profession, profile.phone]
     .map((value) => text(value).toLocaleLowerCase('ru'))
     .filter(Boolean)
     .join(' ');
 }
 
-function professionalList(targets = [], query = '') {
+function contactList(targets = [], query = '') {
   const needle = text(query).toLocaleLowerCase('ru');
   const filtered = (Array.isArray(targets) ? targets : [])
     .filter((target) => text(target?.tenantId))
-    .filter((target) => !needle || professionalSearchText(target).includes(needle));
+    .filter((target) => !needle || contactSearchText(target).includes(needle));
 
   return recordPersonList(filtered.map((target) => {
-    const profile = professionalProfile(target);
-    const title = professionalTitle(target);
+    const profile = contactProfile(target);
+    const title = contactTitle(target);
     return {
       key: text(target.tenantId),
       name: title,
-      uei: text(profile.profession),
+      overline: text(profile.profession),
       phone: text(profile.phone),
       aria: `Выбрать специалиста ${title}`,
     };
   }), {
-    data: 'data-user-record-professional',
-    empty: needle ? 'Профессионал не найден.' : 'Контактов пока нет.',
+    data: 'data-user-record-contact',
+    empty: needle ? 'Специалист не найден.' : 'Контактов пока нет.',
   });
 }
 
@@ -139,8 +138,8 @@ function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
   });
 }
 
-async function startUserRecord(professionalId, owner, options = {}) {
-  const id = text(professionalId);
+async function startUserRecord(contactId, owner, options = {}) {
+  const id = text(contactId);
   if (!id || !owner?.isOpen?.()) return;
 
   const pdnReady = await ensureAccountPdnConsent(id);
@@ -148,7 +147,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
 
   let context;
   try {
-    context = await getProfessionalRecordContext(id);
+    context = await getContactRecordContext(id);
   } catch {
     openNotice({ title: 'Запись недоступна', message: 'Не удалось получить данные для записи.' });
     return;
@@ -195,7 +194,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
       step: slotStep,
     }),
     async create(state) {
-      return createPlatformRecord(id, {
+      return createContactRecord(id, {
         workplaceKey: state.workplaceId,
         date: state.date,
         from: state.from,
@@ -203,7 +202,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
       });
     },
     async onCreateError(error, state, { renderTimes, renderConfirmation }) {
-      recordContext = await getProfessionalRecordContext(id, state.workplaceId).catch(() => recordContext);
+      recordContext = await getContactRecordContext(id, state.workplaceId).catch(() => recordContext);
       const duration = state.procedures.reduce((sum, item) => sum + Math.max(0, Number(item?.duration) || 0), 0);
       const stillAvailable = getRecordSlots(recordContext, {
         workplaceKey: state.workplaceId,
@@ -283,7 +282,7 @@ async function startUserRecord(professionalId, owner, options = {}) {
   renderWorkplaces();
 }
 
-export async function openUserRecordProfessionalSelector(existingOwner = null) {
+export async function openUserRecordContactSelector(existingOwner = null) {
   const owner = existingOwner || openRecordCreationOwner();
   if (!owner) return null;
   owner.setBackHandler?.(null);
@@ -292,34 +291,34 @@ export async function openUserRecordProfessionalSelector(existingOwner = null) {
     step: 'person',
     title: 'Выбор специалиста',
     header: field({
-      name: 'userRecordProfessionalSearch',
+      name: 'userRecordContactSearch',
       type: 'search',
       placeholder: 'Телефон, имя или профессия',
       autocomplete: 'off',
-      data: 'data-user-record-professional-search',
+      data: 'data-user-record-contact-search',
     }),
-    body: '<div class="record-screen record-screen--people"><div class="record-person-list" data-user-record-professional-list><div class="muted">Загрузка…</div></div></div>',
+    body: '<div class="record-screen record-screen--people"><div class="record-person-list" data-user-record-contact-list><div class="muted">Загрузка…</div></div></div>',
   });
-  const listHost = view?.body?.querySelector('[data-user-record-professional-list]');
-  const search = view?.header?.querySelector('[data-user-record-professional-search]');
+  const listHost = view?.body?.querySelector('[data-user-record-contact-list]');
+  const search = view?.header?.querySelector('[data-user-record-contact-search]');
   if (!listHost) return owner;
 
-  let targets = [];
-  let openingTarget = false;
+  let contacts = [];
+  let openingContact = false;
   const renderList = () => {
-    listHost.innerHTML = professionalList(targets, search?.value || '');
-    listHost.querySelectorAll('[data-user-record-professional]').forEach((node) => node.addEventListener('click', () => {
-      if (openingTarget) return;
-      const professionalId = text(node.dataset.userRecordProfessional);
-      if (!professionalId) return;
-      openingTarget = true;
-      void startUserRecord(professionalId, owner).finally(() => { openingTarget = false; });
+    listHost.innerHTML = contactList(contacts, search?.value || '');
+    listHost.querySelectorAll('[data-user-record-contact]').forEach((node) => node.addEventListener('click', () => {
+      if (openingContact) return;
+      const contactId = text(node.dataset.userRecordContact);
+      if (!contactId) return;
+      openingContact = true;
+      void startUserRecord(contactId, owner).finally(() => { openingContact = false; });
     }));
   };
   search?.addEventListener('input', renderList);
 
   try {
-    targets = await getRecordTargets();
+    contacts = await getRecordContacts();
     if (owner.isOpen()) renderList();
   } catch {
     if (owner.isOpen()) listHost.innerHTML = '<div class="muted">Не удалось загрузить контакты.</div>';
@@ -329,13 +328,13 @@ export async function openUserRecordProfessionalSelector(existingOwner = null) {
 
 function startFromEvent(event) {
   const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
-  const professionalId = text(detail.professionalId);
-  if (!professionalId || opening || activeOwner?.isOpen?.()) return;
+  const contactId = text(detail.contactId);
+  if (!contactId || opening || activeOwner?.isOpen?.()) return;
   const owner = openRecordCreationOwner();
   if (!owner) return;
   activeOwner = owner;
   opening = true;
-  void startUserRecord(professionalId, owner, {
+  void startUserRecord(contactId, owner, {
     workplaceKey: text(detail.workplaceKey),
     repeatRequest: detail.repeatRequest && typeof detail.repeatRequest === 'object' ? detail.repeatRequest : null,
   }).finally(() => {
@@ -344,7 +343,7 @@ function startFromEvent(event) {
   });
 }
 
-window.addEventListener('cova:user-record-open-professionals', () => {
-  void openUserRecordProfessionalSelector();
+window.addEventListener('cova:user-record-open-contacts', () => {
+  void openUserRecordContactSelector();
 });
 window.addEventListener('cova:user-record-start', startFromEvent);
