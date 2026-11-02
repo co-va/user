@@ -20,15 +20,13 @@ export function v2ModalPortalGeometry(hostRect = {}, viewport = {}) {
   return { left, top, width, height, bottom: top + height };
 }
 
-export function v2QModalPortalGeometry(appRect = {}, viewport = {}, { edge = 16, layerOffset = 12, headerBottom = null, headerHeight = 72 } = {}) {
+export function v2QModalPortalGeometry(appRect = {}, viewport = {}, { edge = 16, headerBottom = null, headerHeight = 72 } = {}) {
   const base = v2ModalPortalGeometry(appRect, viewport);
   const safeEdge = Math.max(0, Number(edge) || 0);
-  const safeLayerOffset = Math.max(0, Number(layerOffset) || 0);
   const right = base.left + base.width;
-  // Q is always the next visual surface above the current Z, so it uses the
-  // same horizontal stack step as a nested Z layer. This keeps the lower Z
-  // visibly present and prevents Q from masquerading as the base Z surface.
-  const left = Math.min(right, base.left + safeEdge + safeLayerOffset);
+  // Q is not another Z level. It fully covers the current Z stack and therefore
+  // uses the same left edge as base Z1, without the nested Z layer offset.
+  const left = Math.min(right, base.left + safeEdge);
   const explicitHeaderBottom = headerBottom == null ? NaN : Number(headerBottom);
   const fallbackTop = base.top + Math.max(0, Number(headerHeight) || 0);
   const top = Math.min(base.bottom, Math.max(base.top, Number.isFinite(explicitHeaderBottom) ? explicitHeaderBottom : fallbackTop));
