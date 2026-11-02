@@ -237,12 +237,6 @@ async function startUserRecord(professionalId, owner, options = {}) {
       },
       onCreated: (result) => {
         window.dispatchEvent(new CustomEvent('cova:user-record-created', { detail: result || {} }));
-        const date = formatDate(result?.date);
-        const time = text(result?.from);
-        openNotice({
-          title: 'Запись подтверждена',
-          message: date && time ? `Запись на ${date} в ${time} подтверждена.` : 'Запись подтверждена.',
-        });
       },
     });
   };
