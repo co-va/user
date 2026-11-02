@@ -13,11 +13,11 @@ async function request(path, options = {}) {
 }
 
 export function getAccountEmailVerification() {
-  return request('/online-booking/account/email-verification/status');
+  return request('/account/email-verification/status');
 }
 
 async function requestCurrentAccountEmailVerification() {
-  return request('/online-booking/account/email-verification/request', { method: 'POST' });
+  return request('/account/email-verification/request', { method: 'POST' });
 }
 
 export async function ensureAccountEmailVerification() {
@@ -28,14 +28,14 @@ export async function ensureAccountEmailVerification() {
 }
 
 export function confirmAccountEmailVerification(token) {
-  return request('/online-booking/account/email-verification/confirm', {
+  return request('/account/email-verification/confirm', {
     method: 'POST',
     body: JSON.stringify({ token: String(token || '').trim() }),
   });
 }
 
 export function changeAccountEmail(email) {
-  return request('/online-booking/account/email-verification/change', {
+  return request('/account/email-verification/change', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
