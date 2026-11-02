@@ -238,10 +238,9 @@ function bindGlobalRelationships(root, state, handlers) {
     const tenantId = String(node.dataset.globalRelationship || '');
     if (!tenantId) return;
     state.accountSelectedContactTenantId = tenantId;
-    state.accountTab = 'contact-detail';
     state.accountDeckActive = 'contacts';
     state.accountDeckOpen = false;
-    void handlers.render();
+    void openGlobalContactDetailZ(root, state, handlers);
   });
 }
 
@@ -635,6 +634,12 @@ function openGlobalContactsSettings(state, handlers) {
   return openGlobalSystemSearch(state, handlers);
 }
 
+function bindGlobalContactsV(root, state, handlers) {
+  const control = setV2V(root, { data: 'data-global-contacts-settings', aria: 'Действия контактов' });
+  control?.addEventListener('click', () => openGlobalContactsSettings(state, handlers));
+  return control;
+}
+
 async function renderGlobalContacts(root, state, handlers) {
   const relationships = Array.isArray(state.relationships) ? state.relationships : [];
   const searchable = relationships.length > 15;
@@ -995,14 +1000,9 @@ function openGlobalContactSettings(state, handlers, relationship) {
   });
 }
 
-async function renderGlobalContactDetail(root, state, handlers) {
+async function openGlobalContactDetailZ(root, state, handlers) {
   let relationship = selectedGlobalRelationship(state);
-  if (!relationship) {
-    state.accountTab = 'contacts';
-    state.accountDeckActive = 'contacts';
-    await handlers.render();
-    return;
-  }
+  if (!relationship) return null;
   try {
     relationship = await loadGlobalContactDetail(state, relationship);
   } catch (error) {
@@ -1012,12 +1012,9 @@ async function renderGlobalContactDetail(root, state, handlers) {
       action: 'Закрыть',
       variant: 'technical',
     });
-    state.accountTab = 'contacts';
-    state.accountDeckActive = 'contacts';
-    await handlers.render();
-    return;
+    return null;
   }
-  const profile = relationshipProfile(relationship);
+
   const title = relationshipTitle(relationship);
   const workplaces = Array.isArray(relationship?.workplaces) ? relationship.workplaces : [];
   const programs = Array.isArray(relationship?.programs) ? relationship.programs : [];
@@ -1029,27 +1026,40 @@ async function renderGlobalContactDetail(root, state, handlers) {
     : '';
   const body = [workplaceRail, programRail].filter(Boolean).join('')
     || emptyState('Пока пусто', 'Данные взаимодействия появятся здесь.');
-  renderV2Shell(root, state, {
-    header: v2Header({
-      a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
-      b: title,
-    }),
-    v: { data: 'data-global-contact-settings', aria: 'Настройки контакта' },
-    body,
+
+  const layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-detail-z' }), {
+    stack: false,
+    dismissible: true,
+    onClose: () => {
+      state.accountSelectedContactTenantId = '';
+      bindGlobalContactsV(root, state, handlers);
+    },
   });
-  bindWorkspaceInteraction(root, state, handlers);
-  root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
-  root.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
+  if (!layer) return null;
+  layer.setAttribute('aria-label', title);
+
+  const contactV = setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки контакта' });
+  contactV?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
+
+  layer.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
     const workplace = workplaces.find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
     if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace);
   }));
-  root.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
+  layer.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
     void openGlobalContactPersonalAccountQ(relationship);
   });
-  root.querySelectorAll('[data-global-contact-deposit]').forEach((node) => node.addEventListener('click', () => {
+  layer.querySelectorAll('[data-global-contact-deposit]').forEach((node) => node.addEventListener('click', () => {
     const program = programs.find((item) => String(item?.depositId || '') === String(node.dataset.globalContactDeposit || ''));
     if (program) void openGlobalContactDepositQ(relationship, program);
   }));
+  return layer;
+}
+
+async function renderGlobalContactDetail(root, state, handlers) {
+  state.accountTab = 'contacts';
+  state.accountDeckActive = 'contacts';
+  await renderGlobalContacts(root, state, handlers);
+  return openGlobalContactDetailZ(root, state, handlers);
 }
 
 export async function renderGlobalAccount(root, state, callbacks = {}) {
