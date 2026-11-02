@@ -71,14 +71,14 @@ function normalizeContext(source = {}) {
   };
 }
 
-export async function getRecordTargets() {
+export async function getRecordContacts() {
   const payload = await request('/account/record-targets');
   return Array.isArray(payload) ? payload : [];
 }
 
-export async function getProfessionalRecordContext(professionalId, workplaceKey = '') {
-  const id = String(professionalId || '').trim();
-  if (!id) throw new Error('Профессионал не выбран');
+export async function getContactRecordContext(contactId, workplaceKey = '') {
+  const id = String(contactId || '').trim();
+  if (!id) throw new Error('Контакт не выбран');
   const params = new URLSearchParams();
   if (workplaceKey) params.set('workplace', workplaceKey);
   const suffix = params.toString() ? `?${params}` : '';
@@ -86,9 +86,9 @@ export async function getProfessionalRecordContext(professionalId, workplaceKey 
   return normalizeContext(payload);
 }
 
-export async function createPlatformRecord(professionalId, data = {}) {
-  const id = String(professionalId || '').trim();
-  if (!id) throw new Error('Профессионал не выбран');
+export async function createContactRecord(contactId, data = {}) {
+  const id = String(contactId || '').trim();
+  if (!id) throw new Error('Контакт не выбран');
   return request(`/account/professionals/${encodeURIComponent(id)}/records`, {
     method: 'POST',
     body: JSON.stringify(data),
