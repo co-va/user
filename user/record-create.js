@@ -22,7 +22,6 @@ import {
   v2ListEntry,
   v2ListEntries,
 } from '../ui/user-ui.js';
-import { ensureAccountPdnConsent } from './consent-settings.js';
 import { openRecords } from './record-flow.js';
 
 let activeOwner = null;
@@ -150,14 +149,12 @@ async function startUserRecord(contactId, owner, options = {}) {
   const contextPromise = getContactRecordContext(id)
     .then((value) => ({ value }))
     .catch((error) => ({ error }));
-  const consentPromise = ensureAccountPdnConsent(id);
 
-  const [pdnReady, contextResult, account] = await Promise.all([
-    consentPromise,
+  const [contextResult, account] = await Promise.all([
     contextPromise,
     accountPromise,
   ]);
-  if (!pdnReady || !owner.isOpen()) return;
+  if (!owner.isOpen()) return;
   if (contextResult?.error) {
     openNotice({ title: 'Запись недоступна', message: 'Не удалось получить данные для записи.' });
     return;
