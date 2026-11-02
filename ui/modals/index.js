@@ -24,11 +24,14 @@ function assertInformationalS(content = '') {
 export function modal(content, { title = '', className = '', variant = 'q', surface = '', xRole = '' } = {}) {
   const resolvedVariant = MODAL_VARIANTS.has(variant) ? variant : 'q';
   if (resolvedVariant === 's') assertInformationalS(content);
+  const resolvedTitle = resolvedVariant === 'q' && String(content || '').includes('data-contact-workplace-q')
+    ? 'История'
+    : title;
   const kind = v2Kind(resolvedVariant);
   const variantClass = `modal--${kind}`;
   const surfaceClass = MODAL_SURFACES.has(surface) ? `modal--surface-${surface}` : '';
   const classes = ['modal-sheet', className, variantClass, surfaceClass].filter(Boolean).join(' ');
-  if (resolvedVariant === 'q') content = v2QFrame(content, { header: title ? `<h2 class="v2-q-title">${escapeHtml(title)}</h2>` : '' });
+  if (resolvedVariant === 'q') content = v2QFrame(content, { header: resolvedTitle ? `<h2 class="v2-q-title">${escapeHtml(resolvedTitle)}</h2>` : '' });
   let html = v2Layer(content, {
     kind,
     title: '',
@@ -39,7 +42,7 @@ export function modal(content, { title = '', className = '', variant = 'q', surf
     const resolvedRole = X_ROLES.has(xRole) ? xRole : 'editor';
     html = html.replace('data-v2-layer ', `data-v2-layer data-v2-x-role="${resolvedRole}" `);
   }
-  if (title) html = html.replace('aria-label=""', `aria-label="${escapeHtml(title)}"`);
+  if (resolvedTitle) html = html.replace('aria-label=""', `aria-label="${escapeHtml(resolvedTitle)}"`);
   html = html
     .replace('class="v2-layer-backdrop"', 'class="v2-layer-backdrop modal-backdrop" data-modal')
     .replace('class="v2-layer__close"', 'class="v2-layer__close modal-close" data-modal-close');
