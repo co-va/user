@@ -1,8 +1,12 @@
 const RAIL_SELECTOR = '[data-v2-horizontal-rail], [data-entity-card-rail], [data-mini-card-rail]';
 
+function isHorizontallyScrollable(rail) {
+  return Boolean(rail && rail.children.length > 1 && rail.scrollWidth > rail.clientWidth + 1);
+}
+
 function syncSection(section) {
   const rails = [...section.querySelectorAll(RAIL_SELECTOR)];
-  const hasMore = rails.some((rail) => rail.children.length > 1);
+  const hasMore = rails.some(isHorizontallyScrollable);
   section.classList.toggle('has-v2-horizontal-rail', hasMore);
 }
 
