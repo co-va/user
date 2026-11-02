@@ -8,6 +8,7 @@
 .mini-card__rows{display:grid;border-top:1px solid #111}.mini-card__row{width:100%;min-width:0;min-height:28px;padding:5px 0;border:0;border-bottom:1px solid #D7D7D7;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:transparent;color:#111;font:inherit;text-align:left}.mini-card__row:last-child{border-bottom:0}.mini-card__row-label{font-size:11px;line-height:1.15}.mini-card__row-value{font-size:14px;line-height:1;font-weight:850;text-align:right}.mini-card__row--action{cursor:pointer}.mini-card__row--action:active{background:#F2F2F2}
 .mini-card-rail{--mini-card-width:238px;display:flex;align-items:stretch;gap:10px;width:100%;max-width:100%;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scroll-padding-inline:max(0px,calc((100% - var(--mini-card-width))/2));scrollbar-width:none;padding:3px max(0px,calc((100% - var(--mini-card-width))/2)) 10px;margin:0}.mini-card-rail::-webkit-scrollbar{display:none}.mini-card-rail>.mini-card{scroll-snap-align:center}
 .mini-card-stack{display:grid;gap:10px;justify-items:center;align-content:start;max-width:100%}
+[data-contact-workplace-q] .v2-section__title{display:none}
 [data-contact-workplace-q] .mini-card-rail{display:grid;grid-template-columns:1fr;justify-items:center;align-content:start;gap:10px;overflow:visible;scroll-snap-type:none;padding:3px 0 10px}
 [data-contact-workplace-q] .mini-card-rail>.mini-card{scroll-snap-align:none}
 
