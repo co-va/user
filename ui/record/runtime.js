@@ -149,7 +149,7 @@ export function recordPersonList(items = [], {
   const rows = (Array.isArray(items) ? items : []).map((item = {}) => {
     const key = String(item.key || item.id || '');
     return v2ListEntry({
-      overline: item.uei || '',
+      overline: item.overline || '',
       title: item.name || '',
       subtitle: item.phone || '',
       initial: '',
