@@ -4,6 +4,10 @@ import {
   getGlobalAccountContact,
   getGlobalAccountPlatformState,
   getGlobalAccountRelationships,
+  getGlobalContactWorkplaceHistory,
+  getGlobalContactRecord,
+  getGlobalContactPersonalAccount,
+  getGlobalContactDeposit,
   searchGlobalAccountContacts,
   submitAccountConsents,
   updateGlobalAccount,
@@ -22,6 +26,8 @@ import {
   entityCardStack,
   entityVisualCard,
   normalizeEntityCardAppearance,
+  miniCard,
+  miniCardRail,
   escapeHtml,
   field,
   v2ListEntries,
@@ -46,6 +52,7 @@ import {
   openSharedProfileSettingsMenu,
 } from '../ui/user-ui.js';
 import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
+import { readOnlyReceipt } from '../ui/receipt/index.js';
 import { notificationSettings } from '../ui/settings/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
@@ -668,6 +675,54 @@ async function loadGlobalContactDetail(state, relationship) {
   return merged;
 }
 
+function money(value) {
+  const number = Number(value || 0);
+  return `${(Number.isFinite(number) ? number : 0).toLocaleString('ru-RU').replaceAll('\u00a0', ' ')} ₽`;
+}
+
+function formatDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
+}
+
+function requestProcedures(request = {}) {
+  return Array.isArray(request.procedures) ? request.procedures : [];
+}
+
+function requestPricing(request = {}) {
+  const finance = request.finance && typeof request.finance === 'object' ? request.finance : {};
+  return {
+    subtotal: Math.max(0, Number(finance.serviceTotal || 0)),
+    discountAmount: Math.max(0, Number(finance.discountTotal || 0)),
+    total: Math.max(0, Number(finance.planTotal || 0)),
+  };
+}
+
+function requestPayment(request = {}) {
+  const payment = request.payment && typeof request.payment === 'object' ? request.payment : {};
+  return {
+    state: String(payment.state || 'unpaid'),
+    paid: Math.max(0, Number(payment.paid || 0)),
+    due: Math.max(0, Number(payment.due || 0)),
+  };
+}
+
+const ACTION_STATUS_LABELS = Object.freeze({
+  booked: 'Записался',
+  rescheduled: 'Перенёс',
+  cancelled: 'Отменил',
+});
+
+const PAYMENT_STATUS_LABELS = Object.freeze({
+  due: 'К оплате',
+  paid: 'Оплачено',
+  debt: 'Задолженность',
+});
+
+function requestStatuses(request = {}) {
+  return projectRecordStatuses(request, request.history, requestPayment(request));
+}
+
 function contactWorkplaceCard(relationship, workplace, { interactive = true } = {}) {
   const profile = relationshipProfile(relationship);
   return entityVisualCard({
@@ -681,18 +736,225 @@ function contactWorkplaceCard(relationship, workplace, { interactive = true } = 
   });
 }
 
-function openGlobalContactWorkplaceQ(relationship, workplace) {
-  const rows = [
-    workplace?.city ? { label: 'Город', value: String(workplace.city) } : null,
-    workplace?.address ? { label: 'Адрес', value: String(workplace.address) } : null,
-    workplace?.phone ? { label: 'Телефон', value: formatPhone(workplace.phone) || String(workplace.phone) } : null,
-    workplace?.about ? { label: 'Описание', value: String(workplace.about) } : null,
-  ].filter(Boolean);
-  const content = `${entityCardStack([contactWorkplaceCard(relationship, workplace, { interactive: false })])}${rows.length ? details(rows) : ''}`;
-  return mountModal(document.body, modal(content, {
+const CONTACT_PROGRAM_CARD_APPEARANCE = normalizeEntityCardAppearance({
+  lines: [
+    { field: 'title', zone: 'full', align: 'left', size: 'm', color: 'white', bold: true },
+    {}, {}, {}, {}, {},
+    { field: 'balance', zone: 'full', align: 'left', size: 'l', color: 'white', bold: true },
+    { field: 'meta', zone: 'full', align: 'left', size: 's', color: 'white' },
+    {},
+  ],
+});
+
+function contactProgramCard(program = {}) {
+  const personal = String(program.type || '') === 'personal-account';
+  const title = String(program.title || (personal ? 'Личный счёт' : 'Программа'));
+  const meta = personal && Number(program.debtTotal || 0) > 0.009
+    ? `Задолженность ${money(program.debtTotal)}`
+    : personal ? 'Программа' : String(program.status || '');
+  return entityVisualCard({
+    appearance: CONTACT_PROGRAM_CARD_APPEARANCE,
+    fields: [
+      { value: 'title', label: 'Программа', text: title },
+      { value: 'balance', label: 'Остаток', text: money(program.balance) },
+      { value: 'meta', label: 'Состояние', text: meta },
+    ],
+    interactive: true,
+    data: personal
+      ? 'data-global-contact-personal-account'
+      : `data-global-contact-deposit="${escapeHtml(String(program.depositId || ''))}"`,
+    aria: `Открыть ${title}`,
+  });
+}
+
+function contactHistoryMiniCard(workplace, request, index) {
+  const procedures = requestProcedures(request);
+  const pricing = requestPricing(request);
+  return miniCard({
+    title: String(workplace?.name || 'Пространство'),
+    value: String(procedures[0]?.name || 'Обслуживание'),
+    subtitle: [formatDate(request.date), request.from].filter(Boolean).join(' · '),
+    rows: [{ label: 'Сумма', value: money(pricing.total || pricing.subtotal) }],
+    interactive: true,
+    data: `data-global-contact-history="${index}"`,
+    aria: `Открыть чек ${formatDate(request.date)}`,
+  });
+}
+
+function contactReceiptBody(workplace, request) {
+  const pricing = requestPricing(request);
+  const payment = requestPayment(request);
+  const statuses = requestStatuses(request);
+  const totals = [
+    { label: 'Стоимость', value: money(pricing.subtotal) },
+    { label: 'Скидка', value: money(pricing.discountAmount) },
+    { label: 'Оплачено', value: money(payment.paid), strong: true },
+  ];
+  if ((statuses.payment === 'due' || statuses.payment === 'debt') && payment.due > 0.009) {
+    totals.push({ label: PAYMENT_STATUS_LABELS[statuses.payment] || 'К оплате', value: money(payment.due), strong: true });
+  }
+  return readOnlyReceipt({
+    title: String(workplace?.name || 'Пространство'),
+    status: ACTION_STATUS_LABELS[statuses.action] || '',
+    date: formatDate(request.date),
+    time: request.from || '',
+    items: requestProcedures(request).map((item) => ({
+      label: item?.name || 'Процедура',
+      value: money(item?.cost || item?.price || 0),
+    })),
+    totals,
+  });
+}
+
+async function openGlobalContactRecordQ(relationship, workplace, request) {
+  const tenantId = String(relationship?.tenantId || '');
+  const recordId = String(request?.id || '');
+  if (!tenantId || !recordId) return null;
+  const layer = mountModal(document.body, modal('<div data-contact-record-q><div class="muted">Загрузка…</div></div>', {
+    variant: 'q',
+    title: String(workplace?.name || 'Чек'),
+  }));
+  const host = layer?.querySelector('[data-contact-record-q]');
+  try {
+    const detail = await getGlobalContactRecord(tenantId, recordId);
+    if (host) host.innerHTML = contactReceiptBody(workplace, detail);
+  } catch (error) {
+    if (host) host.innerHTML = emptyState('Чек не открыт', accountErrorMessage(error, 'Не удалось открыть чек'));
+  }
+  return layer;
+}
+
+async function openGlobalContactWorkplaceQ(relationship, workplace) {
+  const tenantId = String(relationship?.tenantId || '');
+  const workplaceKey = String(workplace?.key || '');
+  if (!tenantId || !workplaceKey) return null;
+  const layer = mountModal(document.body, modal('<div data-contact-workplace-q><div class="muted">Загрузка…</div></div>', {
     variant: 'q',
     title: String(workplace?.name || 'Пространство'),
   }));
+  const host = layer?.querySelector('[data-contact-workplace-q]');
+  try {
+    const rows = await getGlobalContactWorkplaceHistory(tenantId, workplaceKey);
+    const records = Array.isArray(rows) ? rows : [];
+    if (host) {
+      host.innerHTML = records.length
+        ? v2Section('История', miniCardRail(records.map((request, index) => contactHistoryMiniCard(workplace, request, index))))
+        : emptyState('История пока пустая', 'Обслуживание в этом пространстве появится здесь.');
+      host.querySelectorAll('[data-global-contact-history]').forEach((node) => node.addEventListener('click', () => {
+        const request = records[Number(node.dataset.globalContactHistory)];
+        if (request) void openGlobalContactRecordQ(relationship, workplace, request);
+      }));
+    }
+  } catch (error) {
+    if (host) host.innerHTML = emptyState('История не открыта', accountErrorMessage(error, 'Не удалось загрузить историю пространства'));
+  }
+  return layer;
+}
+
+function contactPersonalAccountHistory(account = {}) {
+  const labels = {
+    funding: 'Пополнение',
+    withdrawal: 'Возврат',
+    payment: 'Оплата',
+    'payment-refund': 'Возврат оплаты',
+    refund: 'Возврат оплаты',
+  };
+  const rows = (Array.isArray(account.movements) ? account.movements : []).map((movement) => v2ListEntry({
+    title: labels[String(movement?.kind || '')] || 'Операция',
+    subtitle: shortDateTime(movement?.occurredAt, '—'),
+    rightTop: `${String(movement?.direction || '').toUpperCase() === 'IN' ? '+' : '−'}${money(movement?.amount)}`,
+    rightBottom: `Остаток ${money(movement?.balanceAfter)}`,
+  }));
+  return rows.length ? v2ListEntries(rows) : emptyState('Истории пока нет', 'Движения Личного счёта появятся здесь.');
+}
+
+async function openGlobalContactPersonalAccountQ(relationship) {
+  const tenantId = String(relationship?.tenantId || '');
+  if (!tenantId) return null;
+  const layer = mountModal(document.body, modal('<div data-contact-personal-account-q><div class="muted">Загрузка…</div></div>', {
+    variant: 'q',
+    title: 'Личный счёт',
+  }));
+  const host = layer?.querySelector('[data-contact-personal-account-q]');
+  try {
+    const account = await getGlobalContactPersonalAccount(tenantId);
+    const debts = (Array.isArray(account?.debts) ? account.debts : []).map((debt) => {
+      const open = String(debt?.status || '') !== 'closed' && Number(debt?.outstandingAmount || 0) > 0.009;
+      return v2ListEntry({
+        title: open ? 'Задолженность' : 'Задолженность погашена',
+        subtitle: shortDateTime(debt?.occurredAt, '—'),
+        rightTop: money(open ? debt?.outstandingAmount : debt?.originalAmount),
+        rightBottom: open ? 'К оплате' : 'Погашено',
+      });
+    });
+    if (host) host.innerHTML = page([
+      details([
+        { label: 'Личный счёт', value: money(account?.balance) },
+        { label: 'Задолженность', value: money(account?.debtTotal) },
+        { label: 'Оплата Личным счётом', value: Number(account?.spendLimitPercent ?? 100) >= 100 ? 'Без ограничений' : `До ${Number(account?.spendLimitPercent || 0)}%` },
+      ]),
+      v2Section('История', contactPersonalAccountHistory(account)),
+      debts.length ? v2Section('Задолженность', v2ListEntries(debts)) : '',
+    ]);
+  } catch (error) {
+    if (host) host.innerHTML = emptyState('Личный счёт не открыт', accountErrorMessage(error, 'Не удалось открыть Личный счёт'));
+  }
+  return layer;
+}
+
+function depositStatus(status = '') {
+  if (status === 'expired') return 'Срок завершён';
+  if (status === 'closed') return 'Закрыт';
+  return 'Активен';
+}
+
+function contactDepositHistory(deposit = {}) {
+  const labels = {
+    'deposit-funding': 'Внесение',
+    'deposit-benefit': 'Выгода',
+    'deposit-benefit-reversal': 'Отмена выгоды',
+    'deposit-withdrawal': 'Возврат остатка',
+    payment: 'Использование при оплате',
+    refund: 'Возврат оплаты',
+  };
+  const rows = (Array.isArray(deposit.history) ? deposit.history : [])
+    .slice()
+    .sort((a, b) => String(b?.occurredAt || '').localeCompare(String(a?.occurredAt || '')))
+    .map((movement) => v2ListEntry({
+      title: labels[String(movement?.kind || '')] || 'Операция',
+      subtitle: shortDateTime(movement?.occurredAt, '—'),
+      rightTop: `${String(movement?.direction || '').toUpperCase() === 'IN' ? '+' : '−'}${money(movement?.amount)}`,
+    }));
+  return rows.length ? v2ListEntries(rows) : emptyState('Истории пока нет', 'Движения программы появятся здесь.');
+}
+
+async function openGlobalContactDepositQ(relationship, program) {
+  const tenantId = String(relationship?.tenantId || '');
+  const depositId = String(program?.depositId || '');
+  if (!tenantId || !depositId) return null;
+  const title = String(program?.title || 'Депозит');
+  const layer = mountModal(document.body, modal('<div data-contact-deposit-q><div class="muted">Загрузка…</div></div>', {
+    variant: 'q',
+    title,
+  }));
+  const host = layer?.querySelector('[data-contact-deposit-q]');
+  try {
+    const deposit = await getGlobalContactDeposit(tenantId, depositId);
+    const terms = deposit?.terms && typeof deposit.terms === 'object' ? deposit.terms : {};
+    if (host) host.innerHTML = page([
+      details([
+        { label: 'Депозит', value: String(deposit?.programName || title) },
+        { label: 'Остаток', value: money(deposit?.balance) },
+        { label: 'Внесено', value: money(deposit?.fundedAmount) },
+        { label: 'Срок', value: String(terms.termRule || 'Бессрочно') },
+        { label: 'Состояние', value: depositStatus(String(deposit?.status || '')) },
+      ]),
+      v2Section('История', contactDepositHistory(deposit)),
+    ]);
+  } catch (error) {
+    if (host) host.innerHTML = emptyState('Программа не открыта', accountErrorMessage(error, 'Не удалось открыть программу'));
+  }
+  return layer;
 }
 
 function confirmDeleteGlobalContact(state, handlers, relationship) {
@@ -750,26 +1012,43 @@ async function renderGlobalContactDetail(root, state, handlers) {
       action: 'Закрыть',
       variant: 'technical',
     });
+    state.accountTab = 'contacts';
+    state.accountDeckActive = 'contacts';
+    await handlers.render();
+    return;
   }
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
   const workplaces = Array.isArray(relationship?.workplaces) ? relationship.workplaces : [];
+  const programs = Array.isArray(relationship?.programs) ? relationship.programs : [];
   const workplaceRail = workplaces.length
     ? v2Section('Пространства', entityCardRail(workplaces.map((workplace) => contactWorkplaceCard(relationship, workplace))))
     : '';
+  const programRail = programs.length
+    ? v2Section('Программы', entityCardRail(programs.map(contactProgramCard)))
+    : '';
+  const body = [workplaceRail, programRail].filter(Boolean).join('')
+    || emptyState('Пока пусто', 'Данные взаимодействия появятся здесь.');
   renderV2Shell(root, state, {
     header: v2Header({
       a: { kind: 'avatar', label: title, image: String(profile.photo || '') },
       b: title,
     }),
     v: { data: 'data-global-contact-settings', aria: 'Настройки контакта' },
-    body: `${entityCardStack([relationshipCard(relationship, { interactive: false })])}${workplaceRail}`,
+    body,
   });
   bindWorkspaceInteraction(root, state, handlers);
   root.querySelector('[data-global-contact-settings]')?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship));
   root.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
     const workplace = workplaces.find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
-    if (workplace) openGlobalContactWorkplaceQ(relationship, workplace);
+    if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace);
+  }));
+  root.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
+    void openGlobalContactPersonalAccountQ(relationship);
+  });
+  root.querySelectorAll('[data-global-contact-deposit]').forEach((node) => node.addEventListener('click', () => {
+    const program = programs.find((item) => String(item?.depositId || '') === String(node.dataset.globalContactDeposit || ''));
+    if (program) void openGlobalContactDepositQ(relationship, program);
   }));
 }
 
