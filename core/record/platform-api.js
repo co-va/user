@@ -72,7 +72,7 @@ function normalizeContext(source = {}) {
 }
 
 export async function getRecordTargets() {
-  const payload = await request('/online-booking/account/booking-targets');
+  const payload = await request('/account/record-targets');
   return Array.isArray(payload) ? payload : [];
 }
 
@@ -82,14 +82,14 @@ export async function getProfessionalRecordContext(professionalId, workplaceKey 
   const params = new URLSearchParams();
   if (workplaceKey) params.set('workplace', workplaceKey);
   const suffix = params.toString() ? `?${params}` : '';
-  const payload = await request(`/online-booking/${encodeURIComponent(id)}/context${suffix}`);
+  const payload = await request(`/account/professionals/${encodeURIComponent(id)}/record-context${suffix}`);
   return normalizeContext(payload);
 }
 
 export async function createPlatformRecord(professionalId, data = {}) {
   const id = String(professionalId || '').trim();
   if (!id) throw new Error('Профессионал не выбран');
-  return request(`/online-booking/${encodeURIComponent(id)}/requests`, {
+  return request(`/account/professionals/${encodeURIComponent(id)}/records`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
