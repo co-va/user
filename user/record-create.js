@@ -142,25 +142,32 @@ async function startUserRecord(contactId, owner, options = {}) {
   const id = text(contactId);
   if (!id || !owner?.isOpen?.()) return;
 
-  const pdnReady = await ensureAccountPdnConsent(id);
-  if (!pdnReady || !owner.isOpen()) return;
+  const userRoot = document.querySelector('#user-content[data-user-runtime]');
+  const cachedAccount = userRoot?.userRelationshipState?.account || null;
+  const accountPromise = cachedAccount
+    ? Promise.resolve(cachedAccount)
+    : getGlobalAccount().catch(() => null);
+  const contextPromise = getContactRecordContext(id)
+    .then((value) => ({ value }))
+    .catch((error) => ({ error }));
+  const consentPromise = ensureAccountPdnConsent(id);
 
-  let context;
-  try {
-    context = await getContactRecordContext(id);
-  } catch {
+  const [pdnReady, contextResult, account] = await Promise.all([
+    consentPromise,
+    contextPromise,
+    accountPromise,
+  ]);
+  if (!pdnReady || !owner.isOpen()) return;
+  if (contextResult?.error) {
     openNotice({ title: 'Запись недоступна', message: 'Не удалось получить данные для записи.' });
     return;
   }
-  if (!owner.isOpen()) return;
-
-  const account = await getGlobalAccount().catch(() => null);
   if (!account) {
     openNotice({ title: 'Запись недоступна', message: 'Не удалось определить пользователя.' });
     return;
   }
 
-  let recordContext = context && typeof context === 'object' ? context : {};
+  let recordContext = contextResult?.value && typeof contextResult.value === 'object' ? contextResult.value : {};
   const workplaces = Array.isArray(recordContext.workplaces) ? recordContext.workplaces : [];
   if (!workplaces.length) {
     openNotice({ title: 'Запись недоступна', message: 'Рабочие пространства не настроены.' });
