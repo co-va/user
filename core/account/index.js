@@ -100,14 +100,14 @@ function storeSession(payload, identifier = '') {
 
 export async function getAccountTerms() {
   return jsonResponse(
-    await request('/online-booking/account-terms'),
+    await request('/account/terms'),
     'Не удалось загрузить Условия использования учетной записи',
   );
 }
 
 export async function getGlobalAccountPlatformState() {
   const state = await jsonResponse(
-    await request('/online-booking/account/platform-state', { auth: true }),
+    await request('/account/platform-state', { auth: true }),
     'Не удалось проверить Условия использования учетной записи',
   );
   return { ...state, privacyPolicy: PLATFORM_PRIVACY_POLICY };
@@ -115,7 +115,7 @@ export async function getGlobalAccountPlatformState() {
 
 export async function acceptGlobalAccountTerms(accountTerms) {
   return jsonResponse(
-    await request('/online-booking/account/platform-terms', {
+    await request('/account/platform-terms', {
       auth: true,
       method: 'POST',
       body: JSON.stringify({ accountTerms }),
@@ -129,7 +129,7 @@ export async function prepareGlobalAccount(input) {
     ? input
     : { identifier: String(input || '').trim() };
   return jsonResponse(
-    await request('/online-booking/account/prepare', {
+    await request('/account/prepare', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -139,7 +139,7 @@ export async function prepareGlobalAccount(input) {
 
 export async function registerGlobalAccount(data) {
   const payload = await jsonResponse(
-    await request('/online-booking/account/register', {
+    await request('/account/register', {
       method: 'POST',
       body: JSON.stringify(data || {}),
     }),
@@ -150,7 +150,7 @@ export async function registerGlobalAccount(data) {
 
 export async function loginGlobalAccount(identifier, password) {
   const payload = await jsonResponse(
-    await request('/online-booking/account/login', {
+    await request('/account/login', {
       method: 'POST',
       body: JSON.stringify({ identifier, password }),
     }),
@@ -164,7 +164,7 @@ export async function getGlobalAccount() {
   if (!token) return null;
   if (globalAccountCache && globalAccountCacheToken === token) return globalAccountCache;
 
-  const response = await request('/online-booking/account/me', { auth: true });
+  const response = await request('/account/me', { auth: true });
   if (response.status === 401) {
     clearAccount();
     return null;
@@ -178,7 +178,7 @@ export async function getGlobalAccount() {
 
 export async function updateGlobalAccount(data) {
   const account = await jsonResponse(
-    await request('/online-booking/account/me', {
+    await request('/account/me', {
       auth: true,
       method: 'PUT',
       body: JSON.stringify(data || {}),
@@ -192,7 +192,7 @@ export async function updateGlobalAccount(data) {
 
 export async function deleteGlobalAccount() {
   const result = await jsonResponse(
-    await request('/online-booking/account/me', {
+    await request('/account/me', {
       auth: true,
       method: 'DELETE',
     }),
@@ -204,7 +204,7 @@ export async function deleteGlobalAccount() {
 
 export async function changeGlobalAccountPassword(currentPassword, newPassword) {
   return jsonResponse(
-    await request('/online-booking/account/password', {
+    await request('/account/password', {
       auth: true,
       method: 'PUT',
       body: JSON.stringify({ currentPassword, newPassword }),
