@@ -94,8 +94,8 @@ function termsFact(state) {
   };
 }
 
-function startRecord(professionalId, options = {}) {
-  const id = String(professionalId || '').trim();
+function startRecord(contactId, options = {}) {
+  const id = String(contactId || '').trim();
   if (!id) return;
   const repeatRequest = options?.repeatRequest && typeof options.repeatRequest === 'object'
     ? options.repeatRequest
@@ -108,7 +108,7 @@ function startRecord(professionalId, options = {}) {
   ).trim();
   window.dispatchEvent(new CustomEvent('cova:user-record-start', {
     detail: {
-      professionalId: id,
+      contactId: id,
       workplaceKey,
       repeatRequest,
     },
