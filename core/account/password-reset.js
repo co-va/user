@@ -13,7 +13,7 @@ async function post(path, body, fallbackMessage) {
 
 export function requestAccountPasswordReset(identifier) {
   return post(
-    '/online-booking/account/password-reset/request',
+    '/account/password-reset/request',
     { identifier: String(identifier || '').trim() },
     'Не удалось отправить ссылку восстановления',
   );
@@ -21,7 +21,7 @@ export function requestAccountPasswordReset(identifier) {
 
 export function confirmAccountPasswordReset(token, newPassword) {
   return post(
-    '/online-booking/account/password-reset/confirm',
+    '/account/password-reset/confirm',
     {
       token: String(token || '').trim(),
       newPassword: String(newPassword || ''),
