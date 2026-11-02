@@ -35,7 +35,7 @@ function installRecordRuntimeLoader() {
   let runtimePromise = null;
 
   const removeLoaders = () => {
-    window.removeEventListener('cova:user-record-open-professionals', loadAndReplay);
+    window.removeEventListener('cova:user-record-open-contacts', loadAndReplay);
     window.removeEventListener('cova:user-record-start', loadAndReplay);
   };
 
@@ -53,7 +53,7 @@ function installRecordRuntimeLoader() {
     }
   };
 
-  window.addEventListener('cova:user-record-open-professionals', loadAndReplay);
+  window.addEventListener('cova:user-record-open-contacts', loadAndReplay);
   window.addEventListener('cova:user-record-start', loadAndReplay);
 }
 
