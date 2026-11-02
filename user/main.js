@@ -39,22 +39,36 @@ function installRecordRuntimeLoader() {
     window.removeEventListener('cova:user-record-start', loadAndReplay);
   };
 
+  const loadRuntime = () => {
+    if (!runtimePromise) {
+      runtimePromise = import('./record-create.js')
+        .then((module) => {
+          removeLoaders();
+          return module;
+        })
+        .catch((error) => {
+          runtimePromise = null;
+          throw error;
+        });
+    }
+    return runtimePromise;
+  };
+
   const loadAndReplay = async (event) => {
     const type = String(event?.type || '');
     if (!type) return;
     const detail = event?.detail && typeof event.detail === 'object' ? event.detail : undefined;
     try {
-      if (!runtimePromise) runtimePromise = import('./record-create.js');
-      await runtimePromise;
-      removeLoaders();
+      await loadRuntime();
       window.dispatchEvent(new CustomEvent(type, { detail }));
     } catch {
-      runtimePromise = null;
+      // Следующий пользовательский клик повторит загрузку runtime.
     }
   };
 
   window.addEventListener('cova:user-record-open-contacts', loadAndReplay);
   window.addEventListener('cova:user-record-start', loadAndReplay);
+  void loadRuntime().catch(() => {});
 }
 
 function installRecordRefreshTriggers() {
