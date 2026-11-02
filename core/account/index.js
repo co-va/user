@@ -275,7 +275,7 @@ export async function deleteGlobalAccountRelationship(tenantId) {
 
 export async function getGlobalAccountRecords() {
   return jsonResponse(
-    await request('/online-booking/account/records', { auth: true }),
+    await request('/account/records', { auth: true }),
     'Не удалось загрузить историю аккаунта',
   );
 }
