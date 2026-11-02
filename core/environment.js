@@ -6,6 +6,7 @@ export const PLATFORM_APP_ORIGIN = APP_ORIGIN;
 export const ACCOUNT_APP_ORIGIN = USER_ORIGIN;
 export const LOCAL_STAGING_API_BASE = 'http://localhost:3000';
 export const CODESPACES_STAGING_API_BASE = '/api';
+export const AMVERA_PREVIEW_API_BASE = '/api';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const PRODUCTION_HOSTS = new Set([
@@ -28,7 +29,7 @@ export function resolveApiBase({ hostname = '', override = '' } = {}) {
   const host = String(hostname || '').trim().toLowerCase();
   if (LOCAL_HOSTS.has(host)) return LOCAL_STAGING_API_BASE;
   if (host.endsWith(CODESPACES_SUFFIX)) return CODESPACES_STAGING_API_BASE;
-  if (host.endsWith(AMVERA_SUFFIX)) return PRODUCTION_API_BASE;
+  if (host.endsWith(AMVERA_SUFFIX)) return AMVERA_PREVIEW_API_BASE;
   if (PRODUCTION_HOSTS.has(host)) return PRODUCTION_API_BASE;
 
   return '';
@@ -36,8 +37,8 @@ export function resolveApiBase({ hostname = '', override = '' } = {}) {
 
 export function resolveRuntimeEnvironment({ hostname = '', override = '' } = {}) {
   const host = String(hostname || '').trim().toLowerCase();
+  if (host.endsWith(AMVERA_SUFFIX)) return 'staging';
   const base = resolveApiBase({ hostname: host, override });
-  if (host.endsWith(AMVERA_SUFFIX)) return 'production';
   return base === PRODUCTION_API_BASE ? 'production' : 'staging';
 }
 
