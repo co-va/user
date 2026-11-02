@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Запись",
+  "short_name": "Запись",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#2F3338",
+  "theme_color": "#2F3338",
+  "icons": [
+    {
+      "src": "/user-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

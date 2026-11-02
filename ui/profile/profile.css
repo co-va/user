@@ -1,0 +1,24 @@
+.modal--profile-editor .profile-editor-form{display:grid;gap:0;min-height:0}
+.modal--profile-editor [data-v2-q-body]{padding-top:6px}
+.profile-editor{display:grid;gap:26px;padding-bottom:8px}
+.profile-editor__section{display:grid;gap:12px;margin:0}
+.profile-editor__section-title{margin:0;color:#111;font-size:16px;line-height:1.2;font-weight:800}
+.profile-editor__section-body{display:grid;gap:12px;min-width:0}
+.profile-editor__personal-grid,.profile-editor__contacts-grid{display:grid;gap:14px;min-width:0}
+.profile-editor .field>span,.profile-editor .array-label{color:var(--text-secondary);font-size:13px;font-weight:500}
+.profile-editor .array-group{display:grid;gap:7px;margin:0;min-width:0}
+.profile-editor .array-group__header,.profile-editor .ui-links__header{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+.profile-editor .array-group__lead{min-width:0}
+.profile-editor .array-group__lead>.phone-input,.profile-editor .array-group__lead>.profile-editor__primary-input{width:100%}
+.profile-editor__primary-input{width:100%;min-width:0;min-height:46px;border:1px solid var(--border);border-radius:0;padding:10px 12px;background:var(--white);color:var(--text);outline:none;font-size:16px}
+.profile-editor__primary-input:focus{border-color:var(--text-secondary)}
+.profile-editor .array-group__header .array-row__add,.profile-editor .ui-links__header .ui-links__add{width:28px;min-width:28px;max-width:28px;height:28px;min-height:28px;max-height:28px;border:0;border-radius:0;padding:0;display:grid;place-items:center;background:transparent;color:#111;font-size:26px;font-weight:400;line-height:1;box-shadow:none}
+.profile-editor .array-group__header .array-row__add:active,.profile-editor .ui-links__header .ui-links__add:active{transform:none;opacity:.55}
+.profile-editor [data-repeated-list],.profile-editor [data-links-list]{display:grid;gap:7px;min-width:0}
+.profile-editor .array-row{margin:0}
+.profile-editor .ui-links{display:grid;gap:7px;min-width:0}
+.profile-editor__verification-row{min-height:24px;margin-top:-4px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--text-secondary);font-size:12px}
+.profile-editor__text-action{border:0;padding:2px 0;background:transparent;color:#111;font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.profile-editor__text-action[hidden]{display:none}
+.modal--profile-editor .modal-actions{left:36px;right:36px}
+@media(max-width:360px){.modal--profile-editor .modal-actions{left:32px;right:32px}}

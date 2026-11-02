@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2F3338">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Запись">
+  <title>Запись</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#2F3338}
+    body,#app{min-height:100dvh}
+    #app{background:#2F3338}
+    .app-bootstrap{min-height:100dvh;display:grid;place-items:center;color:#fff;font:500 16px system-ui,-apple-system,sans-serif;padding:24px;box-sizing:border-box;text-align:center}
+    .app-bootstrap__error{max-width:720px;display:grid;gap:12px}
+    .app-bootstrap__error small{opacity:.72;overflow-wrap:anywhere}
+    .app-bootstrap__error button{justify-self:center;border:0;border-radius:12px;padding:12px 18px;font:600 15px system-ui,-apple-system,sans-serif;cursor:pointer}
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/user-icon.svg">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="ui/page/page.css">
+  <link rel="stylesheet" href="ui/accordion/accordion.css">
+  <link rel="stylesheet" href="ui/buttons/buttons.css">
+  <link rel="stylesheet" href="ui/inputs/inputs.css">
+  <link rel="stylesheet" href="ui/cost/cost.css">
+  <link rel="stylesheet" href="ui/duration/duration.css">
+  <link rel="stylesheet" href="ui/colors/colors.css">
+  <link rel="stylesheet" href="ui/note/note.css">
+  <link rel="stylesheet" href="ui/calendar/calendar.css">
+  <link rel="stylesheet" href="ui/cards/entity-card-constructor.css">
+  <link rel="stylesheet" href="ui/cards/entity-card-details.css">
+  <link rel="stylesheet" href="ui/cards/mini-card.css">
+  <link rel="stylesheet" href="ui/cards/folder-card.css">
+  <link rel="stylesheet" href="ui/header/header.css">
+  <link rel="stylesheet" href="ui/layout/layout.css">
+  <link rel="stylesheet" href="ui/time/time.css">
+  <link rel="stylesheet" href="ui/workplaces/workplaces.css">
+  <link rel="stylesheet" href="ui/record/record.css">
+  <link rel="stylesheet" href="ui/payment/payment.css">
+  <link rel="stylesheet" href="ui/lists/list-entry.css">
+  <link rel="stylesheet" href="ui/lists/list.css">
+  <link rel="stylesheet" href="ui/selection/check-list.css">
+  <link rel="stylesheet" href="ui/selection/segment-control.css">
+  <link rel="stylesheet" href="ui/states/state-view.css">
+  <link rel="stylesheet" href="ui/info/info.css">
+  <link rel="stylesheet" href="ui/modals/modal.css">
+  <link rel="stylesheet" href="ui/selectors/selectors.css">
+  <link rel="stylesheet" href="ui/tags/tags.css">
+  <link rel="stylesheet" href="ui/auth/auth.css">
+  <link rel="stylesheet" href="ui/settings/settings.css">
+  <link rel="stylesheet" href="ui/profile/profile.css">
+  <link rel="stylesheet" href="ui/receipt/receipt.css">
+  <link rel="stylesheet" href="ui/documents/document.css">
+  <link rel="stylesheet" href="ui/forms/forms.css">
+  <link rel="stylesheet" href="ui/v2/v2.css">
+  <link rel="stylesheet" href="ui/v2/v.css">
+  <link rel="stylesheet" href="ui/v2/surface-header.css">
+  <link rel="stylesheet" href="ui/v2/horizontal-affordance.css">
+  <link rel="stylesheet" href="ui/inputs/keyboard.css">
+</head>
+<body>
+  <div id="app" class="app-shell"><div class="app-bootstrap" role="status">Загрузка…</div></div>
+  <script type="module">
+    const app = document.querySelector('#app');
+
+    async function diagnoseModuleFailure() {
+      const urls = [...new Set(
+        performance.getEntriesByType('resource')
+          .map((entry) => entry?.name)
+          .filter((value) => typeof value === 'string' && /\.m?js(?:$|[?#])/.test(value))
+      )];
+      for (const url of urls.reverse()) {
+        try {
+          const response = await fetch(url, { cache: 'no-store' });
+          const type = String(response.headers.get('content-type') || '').toLowerCase();
+          if (!response.ok || type.includes('text/html')) {
+            const parsed = new URL(url, location.href);
+            return `${parsed.pathname} → HTTP ${response.status}, ${type || 'без Content-Type'}`;
+          }
+        } catch (error) {
+          const parsed = new URL(url, location.href);
+          return `${parsed.pathname} → ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+      return '';
+    }
+
+    const showBootFailure = async (message) => {
+      if (!app || app.querySelector('[data-user-runtime]')) return;
+      const diagnostic = await diagnoseModuleFailure();
+      const detail = diagnostic ? `${String(message || 'Неизвестная ошибка')}\n${diagnostic}` : String(message || 'Неизвестная ошибка');
+      app.innerHTML = `<div class="app-bootstrap" role="alert"><div class="app-bootstrap__error"><strong>Не удалось запустить приложение</strong><small>${detail.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\n','<br>')}</small><button type="button" data-user-reload>Повторить</button></div></div>`;
+      app.querySelector('[data-user-reload]')?.addEventListener('click', () => location.reload());
+    };
+
+    const watchdog = window.setTimeout(() => {
+      if (app?.querySelector('.app-bootstrap')) void showBootFailure('Запуск приложения не завершён.');
+    }, 8000);
+
+    try {
+      const isolatedAuthRoute = location.pathname === '/reset-password.html' || location.pathname === '/verify-email.html';
+      await import('./user/main.js');
+      window.clearTimeout(watchdog);
+      if (!isolatedAuthRoute) {
+        void import('./ui/inputs/keyboard-runtime.js');
+        void import('./user/account-runtime.js');
+      }
+    } catch (error) {
+      window.clearTimeout(watchdog);
+      console.error('User boot failed', error);
+      void showBootFailure(error instanceof Error ? error.message : String(error));
+    }
+  </script>
+</body>
+</html>
