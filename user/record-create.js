@@ -22,6 +22,7 @@ import {
   v2ListEntry,
   v2ListEntries,
 } from '../ui/user-ui.js';
+import { ensureAccountPdnConsent } from './consent-settings.js';
 import { openRecords } from './record-flow.js';
 
 let activeOwner = null;
@@ -141,6 +142,9 @@ function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
 async function startUserRecord(professionalId, owner, options = {}) {
   const id = text(professionalId);
   if (!id || !owner?.isOpen?.()) return;
+
+  const pdnReady = await ensureAccountPdnConsent(id);
+  if (!pdnReady || !owner.isOpen()) return;
 
   let context;
   try {
