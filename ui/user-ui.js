@@ -2,7 +2,7 @@ export { button, copyTextToClipboard } from './buttons/index.js';
 export { datePicker, initCalendar, initDateNavigator, initDatePickers } from './calendar/index.js';
 export { entityVisualCard, normalizeEntityCardAppearance } from './cards/entity-card-constructor.js';
 export { entityCardRail, entityCardStack } from './cards/index.js';
-export { miniCard, miniCardRail } from './cards/mini-card.js';
+export { miniCard, miniCardRail, miniCardStack } from './cards/mini-card.js';
 export { documentTile, documentTiles, openDocumentViewer } from './documents/index.js';
 export { durationText } from './duration/index.js';
 export { workspaceHeaderContext } from './header/index.js';
