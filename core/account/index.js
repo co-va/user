@@ -236,10 +236,35 @@ export async function getGlobalAccountContact(tenantId) {
 }
 
 export async function getGlobalContactWorkplaceHistory(tenantId, workplaceKey) {
-  return jsonResponse(
-    await request(`/account/contacts/${encodeURIComponent(String(tenantId || ''))}/workplaces/${encodeURIComponent(String(workplaceKey || ''))}/history`, { auth: true }),
-    'Не удалось загрузить историю пространства',
-  );
+  const tenant = String(tenantId || '').trim();
+  const workplace = String(workplaceKey || '').trim();
+  const [history, accountRecords] = await Promise.all([
+    jsonResponse(
+      await request(`/account/contacts/${encodeURIComponent(tenant)}/workplaces/${encodeURIComponent(workplace)}/history`, { auth: true }),
+      'Не удалось загрузить историю пространства',
+    ),
+    getGlobalAccountRecords().catch(() => []),
+  ]);
+
+  const merged = new Map();
+  for (const record of Array.isArray(history) ? history : []) {
+    const id = String(record?.id || '').trim();
+    if (id) merged.set(id, record);
+  }
+  for (const record of Array.isArray(accountRecords) ? accountRecords : []) {
+    const id = String(record?.id || record?.sourceId || '').trim();
+    if (!id) continue;
+    if (String(record?.tenantId || '').trim() !== tenant) continue;
+    if (String(record?.workplaceId || record?.workplaceKey || '').trim() !== workplace) continue;
+    if (String(record?.status || '').trim().toLowerCase() === 'cancelled') continue;
+    merged.set(id, record);
+  }
+
+  return [...merged.values()].sort((left, right) => {
+    const a = `${String(left?.date || '').slice(0, 10)}T${String(left?.from || '')}`;
+    const b = `${String(right?.date || '').slice(0, 10)}T${String(right?.from || '')}`;
+    return b.localeCompare(a);
+  });
 }
 
 export async function getGlobalContactRecord(tenantId, recordId) {
