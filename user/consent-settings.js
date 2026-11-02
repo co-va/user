@@ -60,6 +60,91 @@ function confirmRevoke(consent, onConfirm) {
   });
 }
 
+export async function ensureAccountPdnConsent(tenantId) {
+  const scopeTenantId = String(tenantId || '').trim();
+  if (!scopeTenantId) return false;
+
+  let consentState;
+  try {
+    consentState = await getAccountConsentState(scopeTenantId);
+  } catch (error) {
+    openNotice({
+      title: 'Запись недоступна',
+      message: accountErrorMessage(error, 'Не удалось проверить согласие на обработку персональных данных'),
+    });
+    return false;
+  }
+  if (consentState?.pdnActive) return true;
+
+  const consents = Array.isArray(consentState?.consents) ? consentState.consents : [];
+  const pdn = consents.find((item) => String(item?.documentId || '') === 'pdn-consent');
+  if (!pdn) {
+    openNotice({
+      title: 'Запись недоступна',
+      message: 'Согласие на обработку персональных данных сейчас недоступно.',
+    });
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    const tile = documentTile({
+      title: pdn.title || 'Согласие на обработку персональных данных',
+      version: pdn.displayVersion || pdn.documentVersion || 1,
+      openData: 'data-record-pdn-document',
+      aria: 'Открыть согласие на обработку персональных данных',
+    });
+    const content = `<div class="form-grid" data-record-pdn-gate>
+      ${documentTiles([tile], { layout: 'rail' })}
+      ${button('Подтвердить', { data: 'data-record-pdn-confirm' })}
+    </div>`;
+    const layer = mountModal(document.body, modal(content, {
+      variant: 'q',
+      title: 'Персональные данные',
+    }));
+    if (!layer) {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(Boolean(value));
+    };
+    const close = layer.v2Close?.bind(layer);
+    if (close) {
+      layer.v2Close = (...args) => {
+        finish(false);
+        return close(...args);
+      };
+    }
+
+    layer.querySelector('[data-record-pdn-document]')?.addEventListener('click', () => openConsentDocument(pdn));
+    layer.querySelector('[data-record-pdn-confirm]')?.addEventListener('click', async (event) => {
+      const control = event.currentTarget;
+      control.disabled = true;
+      try {
+        await submitAccountConsents(scopeTenantId, [{
+          documentId: pdn.documentId,
+          documentVersion: Math.max(1, Number(pdn.documentVersion || 1)),
+          accepted: true,
+          acceptedAt: new Date().toISOString(),
+        }]);
+        settled = true;
+        resolve(true);
+        close?.();
+      } catch (error) {
+        control.disabled = false;
+        openNotice({
+          title: 'Согласие не сохранено',
+          message: accountErrorMessage(error, 'Не удалось сохранить согласие'),
+        });
+      }
+    });
+  });
+}
+
 export async function openAccountConsentSettings(state, { tenantId = state?.tenantId, onChanged } = {}) {
   const scopeTenantId = String(tenantId || '');
   if (!scopeTenantId) {
