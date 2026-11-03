@@ -1,0 +1,42 @@
+# CI scope: record
+name: User / Record
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+    paths:
+      - 'user/record-create.js'
+      - 'user/record-flow.js'
+      - 'core/record/**'
+      - 'core/account/index.js'
+      - 'scripts/ci/guard-record.mjs'
+      - 'scripts/ci/guard-lib.mjs'
+      - '.github/workflows/check-user-record.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'user/record-create.js'
+      - 'user/record-flow.js'
+      - 'core/record/**'
+      - 'core/account/index.js'
+      - 'scripts/ci/guard-record.mjs'
+      - 'scripts/ci/guard-lib.mjs'
+      - '.github/workflows/check-user-record.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record contract
+        run: node scripts/ci/guard-record.mjs

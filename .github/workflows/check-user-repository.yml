@@ -1,0 +1,32 @@
+# CI scope: repository
+name: User / Repository
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Repository contract
+        run: node scripts/ci/guard-repository.mjs
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          find core user ui scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 \
+            | xargs -0 -n1 node --check
+          node --check service-worker.js

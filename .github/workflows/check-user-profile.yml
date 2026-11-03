@@ -1,0 +1,44 @@
+# CI scope: profile
+name: User / Profile
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+    paths:
+      - 'user/account-shell.js'
+      - 'user/personal-data.js'
+      - 'core/profile/**'
+      - 'core/account/index.js'
+      - 'core/account/email.js'
+      - 'scripts/ci/guard-profile.mjs'
+      - 'scripts/ci/guard-lib.mjs'
+      - '.github/workflows/check-user-profile.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'user/account-shell.js'
+      - 'user/personal-data.js'
+      - 'core/profile/**'
+      - 'core/account/index.js'
+      - 'core/account/email.js'
+      - 'scripts/ci/guard-profile.mjs'
+      - 'scripts/ci/guard-lib.mjs'
+      - '.github/workflows/check-user-profile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Approved Profile contract
+        run: node scripts/ci/guard-profile.mjs

@@ -33,8 +33,8 @@ assert(entity.includes('aspect-ratio:338/213'), 'Entity card aspect ratio must r
 assert(entity.includes('grid-template-rows:repeat(9,minmax(0,1fr))'), 'Entity card must keep 9 rows');
 assert(rootSelectorCount(entity, '.entity-visual-card') === 1, 'Entity card geometry must have one owner');
 
-assert(mini.includes('--mini-card-width:238px'), 'Mini card width must remain 238px');
-assert(mini.includes('--mini-card-height:144px'), 'Mini card height must remain 144px');
+// Mini-card geometry is intentionally not frozen yet: it is pending product correction.
+// CI only protects the single-owner rule so a second mini-card implementation cannot appear.
 assert(rootSelectorCount(mini, '.mini-card') === 1, 'Mini card geometry must have one owner');
 
 assert(list.includes('min-height:78px'), 'List entry geometry changed');
