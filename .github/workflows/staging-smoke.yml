@@ -1,0 +1,56 @@
+name: User / Staging Smoke
+
+on:
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: user-staging-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify live Amvera staging preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://user-volokovykh.msk1.amvera.tech'
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 3 \
+            -D "$tmp/index.headers" "$base/" -o "$tmp/index.html"
+          grep -qi '^x-co-va-preview: staging' "$tmp/index.headers"
+          grep -q 'user/main.js' "$tmp/index.html"
+
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 3 \
+            -D "$tmp/js.headers" "$base/user/main.js" -o "$tmp/main.js"
+          grep -qi '^x-co-va-preview: staging' "$tmp/js.headers"
+          grep -qi '^content-type:.*javascript' "$tmp/js.headers"
+
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 3 \
+            -D "$tmp/css.headers" "$base/ui/v2/v2.css" -o "$tmp/v2.css"
+          grep -qi '^x-co-va-preview: staging' "$tmp/css.headers"
+          grep -qi '^content-type:.*text/css' "$tmp/css.headers"
+
+          status="$(curl --silent --show-error --retry 5 --retry-delay 3 \
+            -D "$tmp/api.headers" -o "$tmp/api.body" \
+            -H 'Authorization: Bearer ci-invalid-user-token' \
+            -w '%{http_code}' "$base/api/account/me")"
+          test "$status" = '401' -o "$status" = '403'
+          grep -qi '^x-co-va-preview: staging' "$tmp/api.headers"
+
+          write_status="$(curl --silent --show-error \
+            -o /dev/null -w '%{http_code}' \
+            -X POST "$base/api/account/prepare")"
+          test "$write_status" = '405'
