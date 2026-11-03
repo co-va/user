@@ -889,12 +889,10 @@ function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, 
   const pricing = requestPricing(request);
   const procedureLines = procedures.map((procedure) => ({
     value: String(procedure?.name || 'Процедура'),
-    variant: 'muted',
   }));
-  while (procedureLines.length < 4) procedureLines.push({ value: '', variant: 'muted' });
+  while (procedureLines.length < 4) procedureLines.push({ value: '' });
   return miniCard({
     lines: [
-      { value: String(workplace?.name || 'Пространство'), variant: 'title' },
       { value: [formatDate(request.date), request.from].filter(Boolean).join(' · '), variant: 'primary' },
       ...procedureLines,
     ],
