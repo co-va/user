@@ -38,7 +38,6 @@ import {
   v2V,
   setV2V,
   clearV2V,
-  setV2ZHeaderRows,
   modal,
   openNotice,
   page,
@@ -1233,7 +1232,6 @@ async function openGlobalContactDetailZ(root, state, handlers) {
     restoreContactsHeader(root, state);
     return null;
   }
-  setV2ZHeaderRows(layer, ['<h2 class="v2-q-title">Профиль</h2>']);
   layer.setAttribute('aria-label', title);
 
   const contactV = setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки контакта' });
