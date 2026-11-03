@@ -1,0 +1,6 @@
+# One exact marker per line. Once retired, it must never return to product code.
+client.va-tools.ru
+/online-booking/
+booking-targets
+bookingPrice
+__noop__

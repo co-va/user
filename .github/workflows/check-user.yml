@@ -1,0 +1,64 @@
+name: Check User
+
+on:
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository:
+    name: User / Repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Repository contract
+        run: node scripts/ci/guard-repository.mjs
+      - name: JavaScript syntax
+        shell: bash
+        run: |
+          find core user ui scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 \
+            | xargs -0 -n1 node --check
+          node --check service-worker.js
+
+  shared-ui:
+    name: User / Shared UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Shared User + Professional UI contract
+        run: node scripts/ci/guard-shared-ui.mjs
+
+  profile:
+    name: User / Profile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Approved Profile contract
+        run: node scripts/ci/guard-profile.mjs
+
+  record:
+    name: User / Record
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record contract
+        run: node scripts/ci/guard-record.mjs
