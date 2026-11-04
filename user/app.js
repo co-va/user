@@ -38,6 +38,18 @@ function renderLoading(root) {
   root.innerHTML = '<div class="app-bootstrap" role="status">Загрузка…</div>';
 }
 
+function renderProfileUnavailable(root, initial = {}) {
+  root.innerHTML = `<section class="user-account">${v2Sticker({
+    title: 'Не удалось загрузить профиль',
+    body: 'Проверьте соединение и повторите попытку.',
+    action: '<button class="ui-button" type="button" data-user-profile-retry>Повторить</button>',
+    className: 'v2-sticker-screen--auth',
+  })}</section>`;
+  root.querySelector('[data-user-profile-retry]')?.addEventListener('click', () => {
+    void renderUser(root, initial);
+  });
+}
+
 function userError(error, fallbackMessage) {
   const message = accountErrorMessage(error, fallbackMessage);
   if (!isAccountSystemError(error)) return message;
@@ -265,13 +277,19 @@ function renderEntry(root, state) {
     const submit = authForm.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
 
+    let loginSucceeded = false;
     try {
       const payload = await loginGlobalAccount(identifier, password);
+      loginSucceeded = true;
       state.account = payload.account;
       state.error = '';
       void ensureAccountEmailVerification().catch(() => {});
       await continueIdentity(root, state);
     } catch (error) {
+      if (loginSucceeded) {
+        if (root.isConnected) renderProfileUnavailable(root);
+        return;
+      }
       state.error = userError(error, 'Не удалось войти');
       renderEntry(root, state);
     }
@@ -465,9 +483,12 @@ export async function renderUser(root, initial = {}) {
       return;
     }
     await renderHome(root, state);
-  } catch (error) {
+  } catch {
     if (!root.isConnected) return;
-    state.error = userError(error, 'Не удалось открыть профиль');
-    renderEntry(root, state);
+    if (!getAccountToken()) {
+      renderEntry(root, state);
+      return;
+    }
+    renderProfileUnavailable(root, initial);
   }
 }
