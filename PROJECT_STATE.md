@@ -24,49 +24,49 @@
 
 Следующий исполнитель НЕ создаёт новый план и НЕ начинает анализ заново. Он читает этот файл и продолжает с первого незавершённого этапа.
 
-### Этап 1 — User Gate и preview — ACTIVE
+### Этап 1 — User Gate и preview — DONE
 
-- Починить технический `*.amvera.tech` preview: сейчас страница открывается, но зависает на `Загрузка…`.
-- Добавить обязательный runtime smoke User.
-- Собрать единый `User Gate`, который учитывает только применимые контурные CI и всегда требует Repository + smoke перед `main`.
+- Технический Amvera preview запускает User: проверен экран входа в Chromium; зависание на «Загрузка…» при недействительной сессии исправлено PR #2.
+- Browser runtime smoke включён в обязательный User / Check и проверяет загрузку UI и истёкшую сессию.
+- Защита `main` требует `check` и `staging-smoke`; `check` проверяет Repository, Shared UI, Profile, Record, синтаксис и Chromium smoke.
 - Не менять продуктовые контуры ради прохождения Gate.
 
-### Этап 2 — защита `main` — TODO
+### Этап 2 — защита `main` — DONE
 
-- GitHub branch protection/ruleset для `main`.
-- Только PR из `staging`.
-- Запрет direct push, force push и удаления `main`.
-- Required checks: User Gate.
-- Merge только после зелёного Gate и допуска владельца.
+- Активный GitHub ruleset `Protect main` проверен.
+- `check` для PR блокирует ветки кроме `staging`; PR #2 и #3 слиты из `staging`.
+- Ruleset требует PR, запрещает удаление и non-fast-forward `main`.
+- Required checks: `check` (включает Chromium smoke) и `staging-smoke`.
+- Требование допуска владельца и зелёных проверок сохраняется; PR #2/#3 прошли обязательные проверки до merge.
 
-### Этап 3 — архитектурная граница User/Core — TODO
+### Этап 3 — архитектурная граница User/Core — PARTIAL
 
-- Зафиксировать guard-правила: End User App существует только в `co-va/user`.
-- Запретить CI возврат User frontend/runtime/routes/UI в `co-va/core`.
-- Core может содержать только API/server/DB части, которыми пользуется User.
+- Архитектурное разделение закреплено в документах User и Core.
+- В Core есть `scripts/check-user-core-boundary.mjs`, но по проверенному `core/main` он ещё не включён в обязательный `npm run check`; нужно подключить к CI Core.
+- Core хранит API/DB для User; пока отдельно сохраняет Professional и Public Booking до завершения их выделения.
 
-### Этап 4 — удалить приложение User из Core — TODO
+### Этап 4 — удалить приложение User из Core — DONE
 
-- Сначала составить фактическую карту User frontend/runtime в `co-va/core`.
-- Удалить приложение конечного пользователя из Core полностью, без второго UI и без compatibility-слоя.
-- Не удалять backend/API/Prisma/DB, необходимые `co-va/user`.
-- Professional и другие продуктовые контуры этим этапом не переписывать.
+- Проведена фактическая проверка User frontend/runtime в Core перед удалением.
+- Удалены User HTML, Account Shell, клиентский runtime, CSS и User PWA assets; Core PR #831 слит.
+- API, сервер, Prisma и PostgreSQL сохранены в Core; его обязательный CI прошёл.
+- Professional и отдельный гостевой Public Booking сохранены в Core.
 
-### Этап 5 — финальная проверка — TODO
+### Этап 5 — финальная проверка — PARTIAL
 
-- `user.va-tools.ru` работает из `co-va/user/main`.
-- User runtime smoke проходит.
-- User API работает через Core.
-- В Core отсутствует User frontend/runtime.
-- `main` обоих репозиториев защищён по их правилам.
-- После проверки обновить статусы этапов в этом файле; не создавать параллельный план.
+- В Chromium подтверждён экран входа `user.va-tools.ru`; рабочий `user/app.js` побайтно совпал с кодом `user/main` после PR #2.
+- User browser smoke, production availability и Core API smoke прошли 2026-11-04.
+- Проверена доступность `api.va-tools.ru` и отрицательный ответ `401/403` без авторизации. Полный авторизованный путь (вход → Журнал → запись) автоматикой пока не доказан.
+- Подтверждено отсутствие удалённого User frontend/runtime в Core после PR #831.
+- Активные GitHub rulesets User и Core запрещают удаление/force-push и требуют PR и CI.
+- Статусы обновлены по фактам 2026-11-04; оставшиеся пункты — Core guard в обязательном CI и сквозная проверка авторизованного User (а также стабильность Amvera HTTPS).
 
 ## Текущее состояние
 
-- `main` и `staging` User были выровнены на `f457cc1e2d73537d105989a1e54bb4782803fda9` перед созданием этого файла.
+- По состоянию 2026-11-04 `main` и `staging` User выровнены на `ab29dcc3700b41d9bfb21394b2e5034d563d5d70` (PR #2 и #3).
 - Архитектурная очистка User от старых Booking/online-booking/bookingPrice/UEI/professional/client.va-tools.ru хвостов завершена.
 - Постоянные CI: Repository / Shared UI / Profile / Record.
-- Технический Amvera preview ещё не считается рабочим: зависает на `Загрузка…`.
+- Технический Amvera preview прошёл Chromium smoke на запуск экрана входа и сценарий истёкшей сессии. Сквозная авторизованная проверка остаётся отдельным незакрытым пунктом.
 
 
 ## Фактическая проверка User после инцидента 2026-11-04
