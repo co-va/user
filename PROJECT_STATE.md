@@ -39,10 +39,10 @@
 - Required checks: `check` (включает Chromium smoke) и `staging-smoke`.
 - Требование допуска владельца и зелёных проверок сохраняется; PR #2/#3 прошли обязательные проверки до merge.
 
-### Этап 3 — архитектурная граница User/Core — PARTIAL
+### Этап 3 — архитектурная граница User/Core — DONE
 
 - Архитектурное разделение закреплено в документах User и Core.
-- В Core есть `scripts/check-user-core-boundary.mjs`, но по проверенному `core/main` он ещё не включён в обязательный `npm run check`; нужно подключить к CI Core.
+- Guard `scripts/check-user-core-boundary.mjs` подключён в обязательный `npm run check` Core; PR #832 слит в `core/main` на `8ccdc9cc1bb02ebfbb0dc6987eeb81eceac0c960`, Check Book и staging-smoke — PASS.
 - Core хранит API/DB для User; пока отдельно сохраняет Professional и Public Booking до завершения их выделения.
 
 ### Этап 4 — удалить приложение User из Core — DONE
@@ -59,7 +59,7 @@
 - Проверена доступность `api.va-tools.ru` и отрицательный ответ `401/403` без авторизации. Полный авторизованный путь (вход → Журнал → запись) автоматикой пока не доказан.
 - Подтверждено отсутствие удалённого User frontend/runtime в Core после PR #831.
 - Активные GitHub rulesets User и Core запрещают удаление/force-push и требуют PR и CI.
-- Статусы обновлены по фактам 2026-11-04; оставшиеся пункты — Core guard в обязательном CI и сквозная проверка авторизованного User (а также стабильность Amvera HTTPS).
+- Статусы обновлены по фактам 2026-11-04. Этапы 1–4 — DONE. Остались проверки этапа 5: сквозной авторизованный путь User и стабильность HTTPS Amvera в реальной эксплуатации.
 
 ## Текущее состояние
 
