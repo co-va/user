@@ -451,7 +451,11 @@ export async function renderUser(root, initial = {}) {
       getGlobalAccount(),
       getGlobalAccountPlatformState(),
     ]);
-    if (!root.isConnected || !account) return;
+    if (!root.isConnected) return;
+    if (!account) {
+      renderEntry(root, state);
+      return;
+    }
 
     state.account = account;
     state.accountTerms = platformState?.document || state.accountTerms;

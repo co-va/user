@@ -1,0 +1,76 @@
+name: User / Production Availability
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/15 * * * *'
+    - cron: '5 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: user-production-availability
+  cancel-in-progress: true
+
+jobs:
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify HTTPS, production entry, JS and Core API
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          for url in 'https://user.va-tools.ru/' 'https://user.va-tools.ru/user/main.js'; do
+            echo "Checking $url"
+            failed=0
+            for attempt in 1 2 3 4 5; do
+              if curl --fail --silent --show-error --location --connect-timeout 5 --max-time 12 \
+                -o "$tmp/response" -w 'HTTP %{http_code}, TLS verify %{ssl_verify_result}, time %{time_total}s\n' "$url"; then
+                if [[ "$url" == */user/main.js ]]; then
+                  grep -q 'renderUser' "$tmp/response" || failed=$((failed + 1))
+                else
+                  grep -q 'user/main.js' "$tmp/response" || failed=$((failed + 1))
+                fi
+              else
+                failed=$((failed + 1))
+              fi
+              sleep 1
+            done
+            echo "Failures: $failed/5"
+            if (( failed >= 2 )); then
+              echo "::error::User production is unstable: $failed/5 failed requests to $url"
+              exit 1
+            fi
+          done
+
+          status="$(curl --silent --show-error --location --connect-timeout 5 --max-time 12 \
+            -o /dev/null -w '%{http_code}' 'https://api.va-tools.ru/account/me')"
+          if [[ "$status" != 401 && "$status" != 403 ]]; then
+            echo "::error::Core API unauthenticated account endpoint returned $status (expected 401/403)"
+            exit 1
+          fi
+          echo 'PASS: User production static entry and Core API boundary'
+  runtime:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.schedule == '5 */6 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify real production User UI
+        env:
+          USER_RUNTIME_BASE: https://user.va-tools.ru/
+        run: node scripts/ci/user-runtime-smoke.mjs
