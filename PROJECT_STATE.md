@@ -67,3 +67,13 @@
 - Архитектурная очистка User от старых Booking/online-booking/bookingPrice/UEI/professional/client.va-tools.ru хвостов завершена.
 - Постоянные CI: Repository / Shared UI / Profile / Record.
 - Технический Amvera preview ещё не считается рабочим: зависает на `Загрузка…`.
+
+
+## Фактическая проверка User после инцидента 2026-11-04
+
+- PR #2 в co-va/user исправил зависание на «Загрузка…»: если учётная запись отсутствует после проверки сохранённой сессии, открывается вход, а не остаётся loader.
+- Обязательный User / Check включает Chromium smoke на Amvera preview, включая 401 account/me + успешный platform-state: ожидается возврат к входу.
+- User / Production Availability на main проверяет боевой HTTPS/HTML/JS и доступность Core API каждые 15 минут, а запуск интерфейса в Chromium — после push в main и каждые 6 часов.
+- Внешним браузером подтверждён экран входа на user.va-tools.ru и техническом preview. После PR #2 проверено побайтовое совпадение реального https://user.va-tools.ru/user/app.js с текущим файлом в user/main.
+- **Открытый инфраструктурный риск:** в ходе диагностики зафиксированы периодические TLS-обрывы user.va-tools.ru (SSL_ERROR_SYSCALL); при последующей повторной проверке HTTPS/сертификат и UI были доступны. Нельзя считать поведение Amvera edge гарантированно исправленным; требуется отдельно подтвердить привязку и стабильность custom domain в Amvera. Это не повод возвращать User frontend в Core.
+- Core продолжает быть единственным владельцем API/Prisma/PostgreSQL. Изменения этого этапа не переносили серверную логику или данные в User.
