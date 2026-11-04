@@ -1,0 +1,44 @@
+name: Diagnose User production once
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-user:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe production and preview safely
+        shell: bash
+        run: |
+          set +e
+          for host in user.va-tools.ru api.va-tools.ru user-volokovykh.msk1.amvera.tech; do
+            echo "=== DNS $host ==="
+            getent ahostsv4 "$host" | head -3 || true
+          done
+          for url in \
+            'https://user.va-tools.ru/' \
+            'https://user.va-tools.ru/user/main.js' \
+            'https://user.va-tools.ru/css/style.css' \
+            'https://user.va-tools.ru/manifest.webmanifest' \
+            'https://user.va-tools.ru/api/account/me' \
+            'https://user-volokovykh.msk1.amvera.tech/' \
+            'https://user-volokovykh.msk1.amvera.tech/user/main.js' \
+            'https://api.va-tools.ru/'; do
+            echo "=== PROBE $url ==="
+            file="$(mktemp)"
+            curl -k --max-time 20 -L -sS -D /tmp/headers-user-probe -o "$file" -w 'HTTP=%{http_code} IP=%{remote_ip} CONTENT_TYPE=%{content_type} BYTES=%{size_download} REDIRECT=%{redirect_url}\n' "$url"
+            sed -n '1,24p' /tmp/headers-user-probe | tr -d '\r'
+            if [[ "$url" == *'/user/main.js' || "$url" == *'/' ]]; then
+              head -c 450 "$file" | tr -cd '\11\12\15\40-\176' | head -c 450
+              echo
+            fi
+            rm -f "$file"
+          done
+          echo '=== Browser bootstrap markers (production vs preview) ==='
+          for base in 'https://user.va-tools.ru' 'https://user-volokovykh.msk1.amvera.tech'; do
+            echo "$base"
+            curl -k --max-time 15 -sSL "$base/" | grep -Eio 'user/main\.js|data-user-runtime|app-bootstrap|<title>[^<]*</title>|<body[^>]*>' | head -8 || true
+          done
