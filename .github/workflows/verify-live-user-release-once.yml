@@ -1,0 +1,32 @@
+name: Verify User live deploy content once
+on:
+  push:
+    branches: [staging]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify live app.js matches current User main
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            curl --fail --silent --show-error --location --connect-timeout 5 --max-time 15 \
+              -H 'Cache-Control: no-cache' \
+              "https://user.va-tools.ru/user/app.js?check=$i" -o /tmp/live-user-app.js || true
+            if test -f /tmp/live-user-app.js && cmp -s user/app.js /tmp/live-user-app.js; then
+              echo 'PASS: live User JavaScript bytes equal current staged/main code'
+              exit 0
+            fi
+            echo "Attempt $i: deployed User app.js does not match code"; sleep 5
+          done
+          echo 'Expected repository digest:'
+          sha256sum user/app.js
+          echo 'Actual production digest:'
+          sha256sum /tmp/live-user-app.js || true
+          echo 'Deployed User version is not current'
+          exit 1
