@@ -38,6 +38,18 @@ function renderLoading(root) {
   root.innerHTML = '<div class="app-bootstrap" role="status">Загрузка…</div>';
 }
 
+function renderProfileUnavailable(root, initial = {}) {
+  root.innerHTML = `<section class="user-account">${v2Sticker({
+    title: 'Не удалось загрузить профиль',
+    body: 'Проверьте соединение и повторите попытку.',
+    action: '<button class="ui-button" type="button" data-user-profile-retry>Повторить</button>',
+    className: 'v2-sticker-screen--auth',
+  })}</section>`;
+  root.querySelector('[data-user-profile-retry]')?.addEventListener('click', () => {
+    void renderUser(root, initial);
+  });
+}
+
 function userError(error, fallbackMessage) {
   const message = accountErrorMessage(error, fallbackMessage);
   if (!isAccountSystemError(error)) return message;
@@ -465,9 +477,12 @@ export async function renderUser(root, initial = {}) {
       return;
     }
     await renderHome(root, state);
-  } catch (error) {
+  } catch {
     if (!root.isConnected) return;
-    state.error = userError(error, 'Не удалось открыть профиль');
-    renderEntry(root, state);
+    if (!getAccountToken()) {
+      renderEntry(root, state);
+      return;
+    }
+    renderProfileUnavailable(root, initial);
   }
 }
