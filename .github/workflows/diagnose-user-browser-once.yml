@@ -1,0 +1,58 @@
+name: Diagnose User browser once
+on:
+  push:
+    branches: [staging]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup Chromium browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test actual production User UI and staging preview
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({headless:true,args:['--no-sandbox']});
+          for (const url of ['https://user.va-tools.ru/','https://user-volokovykh.msk1.amvera.tech/']) {
+            const page = await browser.newPage({ignoreHTTPSErrors:false});
+            const errors=[];
+            page.on('pageerror', e=>errors.push('pageerror: '+e.message));
+            page.on('console', e=>{if(e.type()==='error')errors.push('console: '+e.text())});
+            page.on('requestfailed', r=>errors.push('failed: '+new URL(r.url()).pathname+' '+r.failure()?.errorText));
+            let responseStatus='no response';
+            try {
+              const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+              responseStatus=response?.status()??'null response';
+              await page.waitForTimeout(12500);
+            } catch(e){errors.push('navigation: '+e.message)}
+            const snap=await page.evaluate(()=>({
+              title:document.title,
+              bodyText:document.body?.innerText?.slice(0,800)||'',
+              bg:getComputedStyle(document.body).backgroundColor,
+              appExists:!!document.querySelector('#app'),
+              runtime:!!document.querySelector('[data-user-runtime]'),
+              login:!!document.querySelector('[data-global-account-entry]'),
+              hasError:!!document.querySelector('.app-bootstrap__error'),
+              loader:!!document.querySelector('.app-bootstrap'),
+            })).catch(e=>({evaluateError:e.message}));
+            console.log('RESULT '+JSON.stringify({url,responseStatus,...snap,errors:errors.slice(0,15)}));
+            await page.screenshot({path:url.includes('amvera.tech')?'preview-user.png':'production-user.png',fullPage:false}).catch(()=>{});
+            await page.close();
+          }
+          await browser.close();
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: user-browser-diagnostic
+          path: '*-user.png'
