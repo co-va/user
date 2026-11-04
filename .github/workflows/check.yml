@@ -52,3 +52,10 @@ jobs:
           find core user ui scripts -type f \( -name '*.js' -o -name '*.mjs' \) -print0 \
             | xargs -0 -n1 node --check
           node --check service-worker.js
+
+      - name: Browser runtime smoke (User entry and invalid session)
+        shell: bash
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node scripts/ci/user-runtime-smoke.mjs
