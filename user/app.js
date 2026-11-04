@@ -277,13 +277,19 @@ function renderEntry(root, state) {
     const submit = authForm.querySelector('button[type="submit"]');
     if (submit) submit.disabled = true;
 
+    let loginSucceeded = false;
     try {
       const payload = await loginGlobalAccount(identifier, password);
+      loginSucceeded = true;
       state.account = payload.account;
       state.error = '';
       void ensureAccountEmailVerification().catch(() => {});
       await continueIdentity(root, state);
     } catch (error) {
+      if (loginSucceeded) {
+        if (root.isConnected) renderProfileUnavailable(root);
+        return;
+      }
       state.error = userError(error, 'Не удалось войти');
       renderEntry(root, state);
     }
