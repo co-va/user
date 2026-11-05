@@ -629,6 +629,21 @@ function renderList(root, { records, mode }) {
 }
 
 
+function markOpenedJournalDaySeen(date, records) {
+  if (typeof document === 'undefined' || document.hidden) return;
+  const day = dateKey(date);
+  const displayedRecordIds = new Set(readRecords(records)
+    .filter((record) => String(record?.date || '').slice(0, 10) === day)
+    .filter((record) => String(record?.status || '').toLowerCase() !== 'cancelled')
+    .map(recordId)
+    .filter(Boolean));
+  const seenIds = getServiceUnseenState().items
+    .filter((item) => item.date === day
+      || item.recordIds.some((id) => displayedRecordIds.has(id)))
+    .flatMap((item) => item.recordIds);
+  if (seenIds.length) void markRecordsSeen(seenIds);
+}
+
 const RECORD_NOTICE_LABELS = {
   'booking.created': 'Запись создана',
   'booking.rescheduled': 'Запись перенесена',
@@ -715,6 +730,7 @@ export function renderJournal(root, options = {}) {
     if (!viewRoot) return;
 
     if (activeView === 'day') {
+      markOpenedJournalDaySeen(selectedDate, records);
       const navigationRoot = secondaryRoot?.querySelector('[data-user-journal-period-navigation]') || secondaryRoot;
       disposeView = renderDay(viewRoot, {
         date: selectedDate,
@@ -769,15 +785,22 @@ export function renderJournal(root, options = {}) {
   };
   root.userJournalRefresh = refresh;
   const onServiceUnseen = () => {
-    if (root.isConnected) renderJournalNotices(root);
+    if (!root.isConnected) return;
+    renderJournalNotices(root);
+    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
   };
   window.addEventListener('va-tools:service-unseen', onServiceUnseen);
+  const onJournalFocus = () => {
+    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
+  };
+  document.addEventListener('visibilitychange', onJournalFocus);
 
   render();
   return () => {
     if (root.userJournalRefresh === refresh) delete root.userJournalRefresh;
     disposeView();
     window.removeEventListener('va-tools:service-unseen', onServiceUnseen);
+    document.removeEventListener('visibilitychange', onJournalFocus);
     clearV2ZHeaderRows(root);
     clearV2Y(root);
   };
