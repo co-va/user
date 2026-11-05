@@ -13,6 +13,6 @@
 .list-entry__content:has(.list-entry__reorder-handle){grid-template-columns:36px minmax(0,1fr) auto auto auto}
 .list-entry--columns .list-entry__content:has(.list-entry__reorder-handle){grid-template-columns:36px minmax(0,1fr) auto auto}
 .list-entry--columns .list-entry__columns{grid-column:auto}
-.journal-list-record--deleted.list-entry{outline:2px solid #ff1111;outline-offset:-2px}
+.journal-list-record--deleted{outline:2px solid #ff1111;outline-offset:-2px}
 .journal-list-record--deleted .list-entry__content{background:#fff}
 .journal-list-record--deleted .list-entry__right small{color:#ba1010;font-weight:750}
