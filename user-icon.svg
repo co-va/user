@@ -16,7 +16,7 @@
     </filter>
   </defs>
 
-  <rect x="2" y="2" width="224" height="224" rx="31" fill="url(#c4-bg)" stroke="url(#c4-edge)" stroke-width="1.35"/>
+  <rect x="0" y="0" width="228" height="228" rx="31" fill="url(#c4-bg)"/>
 
   <ellipse cx="113.5" cy="110.5" rx="90.5" ry="90.5" fill="none" stroke="#D59A00" stroke-opacity="0.34" stroke-width="7" filter="url(#c4-ring-glow)"/>
   <ellipse cx="113.5" cy="110.5" rx="90.5" ry="90.5" fill="none" stroke="#FFD400" stroke-width="4"/>
