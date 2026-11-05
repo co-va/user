@@ -123,11 +123,11 @@ function removeSeenLocally(ids) {
   }
 }
 
-export async function markRecordsSeen(ids) {
+export async function markRecordsSeen(ids, { force = false } = {}) {
   const values = recordIds(ids);
   if (!values.length) return true;
   const items = getServiceUnseenState().items.filter((item) => item.recordIds.some((id) => values.includes(id)));
-  if (!items.length) return true;
+  if (!items.length && !force) return true;
   try {
     await accountRequest('/account/service-unseen/seen', {
       auth: true,
