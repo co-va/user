@@ -40,7 +40,7 @@ function renderLoading(root) {
 
 function renderProfileUnavailable(root, initial = {}) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
-    title: 'Продолжим?'
+    title: 'Продолжим?',
     body: 'Не все данные загрузились с первого раза. Нажмите «Продолжить».',
     action: '<button class="ui-button" type="button" data-user-profile-retry>Продолжить</button>',
     className: 'v2-sticker-screen--auth',
