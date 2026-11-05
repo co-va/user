@@ -27,6 +27,11 @@ function afterRollout(value) {
   return Number.isFinite(stamp) && stamp >= SERVICE_UNSEEN_ROLLOUT_AT;
 }
 
+export async function loadDeletedRecordHistory() {
+  const payload = await accountRequest('/account/deleted-record-history', { auth: true }, 'Не удалось загрузить историю удалённых записей');
+  return Array.isArray(payload?.items) ? payload.items : [];
+}
+
 export function getServiceUnseenState() {
   if (typeof globalThis === 'undefined') return { total: 0, items: [] };
   const state = globalThis[SERVICE_UNSEEN_KEY];
