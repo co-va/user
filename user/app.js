@@ -40,9 +40,9 @@ function renderLoading(root) {
 
 function renderProfileUnavailable(root, initial = {}) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
-    title: 'Не удалось загрузить профиль',
-    body: 'Проверьте соединение и повторите попытку.',
-    action: '<button class="ui-button" type="button" data-user-profile-retry>Повторить</button>',
+    title: 'Продолжим?',
+    body: 'Не все данные загрузились с первого раза. Нажмите «Продолжить».',
+    action: '<button class="ui-button" type="button" data-user-profile-retry>Продолжить</button>',
     className: 'v2-sticker-screen--auth',
   })}</section>`;
   root.querySelector('[data-user-profile-retry]')?.addEventListener('click', () => {
