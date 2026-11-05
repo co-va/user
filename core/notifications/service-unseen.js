@@ -1,4 +1,5 @@
 import { accountRequest, getAccountToken } from '../account/index.js';
+import { publishServiceUnseen } from './app-badge.js';
 
 const SERVICE_UNSEEN_KEY = '__VA_TOOLS_SERVICE_UNSEEN__';
 const SERVICE_UNSEEN_ROLLOUT_AT = Date.parse('2026-10-29T17:20:31.000Z');
@@ -32,25 +33,6 @@ export function getServiceUnseenState() {
   return state && typeof state === 'object'
     ? { total: count(state.total), items: Array.isArray(state.items) ? state.items : [] }
     : { total: 0, items: [] };
-}
-
-function syncApplicationBadge() {
-  const total = getServiceUnseenState().total;
-  if (typeof navigator === 'undefined') return total;
-  if (total > 0 && typeof navigator.setAppBadge === 'function') {
-    void navigator.setAppBadge(total).catch(() => {});
-  } else if (total === 0 && typeof navigator.clearAppBadge === 'function') {
-    void navigator.clearAppBadge().catch(() => {});
-  }
-  return total;
-}
-
-function publishServiceUnseen(items = []) {
-  const values = Array.isArray(items) ? items : [];
-  const state = { total: values.length, items: values };
-  if (typeof globalThis !== 'undefined') globalThis[SERVICE_UNSEEN_KEY] = state;
-  syncApplicationBadge();
-  return state;
 }
 
 function normalizeAccountItems(payload) {
