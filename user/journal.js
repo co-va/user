@@ -15,7 +15,7 @@ import {
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
-import { getServiceUnseenState, markRecordsSeen } from '../core/notifications/service-unseen.js';
+import { getServiceUnseenState, loadDeletedRecordHistory, markRecordsSeen } from '../core/notifications/service-unseen.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { readOnlyReceipt } from '../ui/receipt/index.js';
@@ -539,7 +539,24 @@ function eventListEntry(event) {
   });
 }
 
+function deletedNoticeEntry(notice = {}) {
+  const scheduled = [shortDate(notice.date, ''), String(notice.from || '')].filter(Boolean).join(' · ');
+  return v2ListEntry({
+    overline: 'Запись',
+    title: 'Удалена',
+    subtitle: String(notice.body || 'Запись удалена специалистом'),
+    rightTop: scheduled,
+    rightBottom: 'Удалена',
+    className: 'journal-list-record--deleted',
+    initial: 'З',
+  });
+}
+
 function listItemAppointmentTime(item, edge = 'from') {
+  if (item?.type === 'deleted-notice') {
+    const scheduled = eventAppointmentTime(item.value, edge);
+    return Number.isFinite(scheduled) ? scheduled : Date.parse(String(item.value?.removedAt || ''));
+  }
   const value = item?.type === 'event'
     ? eventAppointmentTime(item.value, edge)
     : recordAppointmentTime(item?.value, edge);
@@ -547,6 +564,7 @@ function listItemAppointmentTime(item, edge = 'from') {
 }
 
 function listItemEntry(item) {
+  if (item?.type === 'deleted-notice') return deletedNoticeEntry(item.value);
   return item?.type === 'event'
     ? eventListEntry(item.value)
     : listEntry(item?.value);
@@ -568,14 +586,22 @@ function bindListItems(root, records, events, rerender) {
 
 function renderList(root, { records, mode }) {
   let disposed = false;
+  let deletedNotices = [];
+  let deletionHistoryError = false;
 
   const draw = () => {
     if (disposed || !root.isConnected) return;
     const recordRows = readRecords(records);
     const eventRows = getAccountEvents();
+    const currentKeys = new Set(recordRows.map((row) => JSON.stringify([
+      String(row.tenantId || ''), recordId(row),
+    ])));
+    const deletedRows = deletedNotices.filter((notice) =>
+      !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')])));
     const items = [
       ...recordRows.map((value) => ({ type: 'record', value })),
       ...eventRows.map((value) => ({ type: 'event', value })),
+      ...deletedRows.map((value) => ({ type: 'deleted-notice', value })),
     ];
 
     if (!items.length) {
@@ -598,6 +624,13 @@ function renderList(root, { records, mode }) {
 
     const now = Date.now();
     const prepared = items.map((item) => {
+      if (item.type === 'deleted-notice') {
+        return {
+          ...item,
+          completed: true,
+          activity: Date.parse(String(item.value?.removedAt || '')) || 0,
+        };
+      }
       if (item.type === 'event') {
         const end = eventAppointmentTime(item.value, 'to');
         return {
@@ -624,6 +657,25 @@ function renderList(root, { records, mode }) {
   };
 
   draw();
+  void loadDeletedRecordHistory().then((items) => {
+    if (disposed) return;
+    deletedNotices = items;
+    draw();
+    // These cards are now displayed in Journal List; read state changes but history remains.
+    const ids = [...new Set(items.filter((notice) => !notice.read)
+      .map((notice) => String(notice.recordId || '')).filter(Boolean))];
+    for (let i = 0; i < ids.length; i += 100) {
+      void markRecordsSeen(ids.slice(i, i + 100), { force: true });
+    }
+  }).catch(() => {
+    deletionHistoryError = true;
+    if (!disposed && root.isConnected) {
+      const error = document.createElement('div');
+      error.className = 'muted';
+      error.textContent = 'Историю удалённых записей не удалось загрузить.';
+      root.prepend(error);
+    }
+  });
   if (!accountEventsLoaded()) void loadAccountEvents().then(draw).catch(() => {});
   return () => { disposed = true; };
 }
