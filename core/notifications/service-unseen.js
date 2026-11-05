@@ -26,7 +26,7 @@ function afterRollout(value) {
   return Number.isFinite(stamp) && stamp >= SERVICE_UNSEEN_ROLLOUT_AT;
 }
 
-function getServiceUnseenState() {
+export function getServiceUnseenState() {
   if (typeof globalThis === 'undefined') return { total: 0, items: [] };
   const state = globalThis[SERVICE_UNSEEN_KEY];
   return state && typeof state === 'object'
@@ -86,13 +86,13 @@ function syncMarkers() {
   const unseen = unseenRecordIds();
 
   document.querySelectorAll('[data-service-unseen-marker]').forEach((marker) => {
-    const owner = marker.closest('[data-journal-list-record],[data-time-usage]');
-    const id = text(owner?.dataset?.journalListRecord || owner?.dataset?.timeUsage);
+    const owner = marker.closest('[data-journal-list-record],[data-user-journal-record],[data-time-usage]');
+    const id = text(owner?.dataset?.journalListRecord || owner?.dataset?.userJournalRecord || owner?.dataset?.timeUsage);
     if (!id || !unseen.has(id)) marker.remove();
   });
 
-  document.querySelectorAll('[data-journal-list-record]').forEach((row) => {
-    const id = text(row.dataset.journalListRecord);
+  document.querySelectorAll('[data-journal-list-record],[data-user-journal-record]').forEach((row) => {
+    const id = text(row.dataset.journalListRecord || row.dataset.userJournalRecord);
     if (!id || !unseen.has(id) || row.querySelector('[data-service-unseen-marker]')) return;
     const target = row.querySelector('.list-entry__right') || row;
     target.prepend(markerNode());
@@ -136,11 +136,11 @@ function removeSeenLocally(ids) {
   }
 }
 
-async function markRecordsSeen(ids) {
+export async function markRecordsSeen(ids) {
   const values = recordIds(ids);
-  if (!values.length) return;
+  if (!values.length) return true;
   const items = getServiceUnseenState().items.filter((item) => item.recordIds.some((id) => values.includes(id)));
-  if (!items.length) return;
+  if (!items.length) return true;
   try {
     await accountRequest('/account/service-unseen/seen', {
       auth: true,
@@ -148,8 +148,10 @@ async function markRecordsSeen(ids) {
       body: JSON.stringify({ recordIds: values }),
     }, 'Не удалось отметить уведомления прочитанными');
     removeSeenLocally(values);
+    return true;
   } catch {
     // Keep the indicator visible for a later retry.
+    return false;
   }
 }
 
@@ -209,8 +211,8 @@ export function startServiceUnseenRuntime() {
     if (!document.hidden) void refreshServiceUnseen();
   };
   const onClick = (event) => {
-    const row = event.target.closest?.('[data-journal-list-record]');
-    const id = text(row?.dataset?.journalListRecord);
+    const row = event.target.closest?.('[data-journal-list-record],[data-user-journal-record]');
+    const id = text(row?.dataset?.journalListRecord || row?.dataset?.userJournalRecord);
     if (id && unseenRecordIds().has(id)) void markRecordsSeen([id]);
   };
 

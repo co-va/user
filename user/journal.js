@@ -15,6 +15,7 @@ import {
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
+import { getServiceUnseenState, markRecordsSeen } from '../core/notifications/service-unseen.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { readOnlyReceipt } from '../ui/receipt/index.js';
@@ -627,6 +628,69 @@ function renderList(root, { records, mode }) {
   return () => { disposed = true; };
 }
 
+
+const RECORD_NOTICE_LABELS = {
+  'booking.created': 'Запись создана',
+  'booking.rescheduled': 'Запись перенесена',
+  'booking.cancelled': 'Запись отменена',
+  'booking.deleted': 'Запись удалена',
+  'booking.confirmed': 'Запись подтверждена',
+  'booking.no-show': 'Запись не состоялась',
+  'booking.reminder': 'Напоминание о записи',
+};
+
+function openJournalNotices(root) {
+  const items = getServiceUnseenState().items;
+  if (!items.length) return;
+  const rows = items.map((item) => {
+    const date = String(item.date || '').slice(0, 10);
+    const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(`${date}T12:00:00`).toLocaleDateString('ru-RU')
+      : 'Дата записи не указана';
+    return v2ListEntry({
+      title: RECORD_NOTICE_LABELS[item.type] || 'Изменение записи',
+      subtitle: dateLabel,
+      initial: 'З',
+    });
+  });
+  const layer = mountModal(document.body, modal(
+    `<h2>Изменения в записях</h2>${v2ListEntries(rows)}
+    <div class="modal-actions">${button('Отметить просмотренными', { data: 'data-journal-notices-seen' })}</div>
+    <div class="muted" data-journal-notices-error aria-live="polite"></div>`,
+    { variant: 'x', xRole: 'action', surface: 'app' },
+  ));
+  layer?.querySelector('[data-journal-notices-seen]')?.addEventListener('click', async (event) => {
+    const control = event.currentTarget;
+    control.disabled = true;
+    const success = await markRecordsSeen(items.flatMap((item) => item.recordIds));
+    if (success) {
+      layer.v2Close?.();
+      root.querySelector('[data-user-journal-notices-host]')?.replaceChildren();
+    } else {
+      control.disabled = false;
+      const error = layer.querySelector('[data-journal-notices-error]');
+      if (error) error.textContent = 'Не удалось отметить изменения. Повторите попытку.';
+    }
+  });
+}
+
+function renderJournalNotices(root) {
+  const host = root.querySelector('[data-user-journal-notices-host]');
+  if (!host) return;
+  const { total } = getServiceUnseenState();
+  host.innerHTML = total > 0
+    ? v2ListEntries([v2ListEntry({
+      title: `Изменения в записях: ${total}`,
+      subtitle: 'Открыть и отметить просмотренными',
+      initial: '!',
+      interactive: true,
+      data: 'data-user-journal-notices',
+      aria: 'Просмотреть изменения записей',
+    })])
+    : '';
+  host.querySelector('[data-user-journal-notices]')?.addEventListener('click', () => openJournalNotices(root));
+}
+
 export function renderJournal(root, options = {}) {
   let activeView = VIEWS.some((view) => view.id === options.initialView) ? options.initialView : 'day';
   let listMode = 'flow';
@@ -645,7 +709,8 @@ export function renderJournal(root, options = {}) {
     const rows = setV2ZHeaderRows(root, [viewNavigation({ views: VIEWS, activeView }), secondary]);
     const primaryRoot = rows[0] || null;
     const secondaryRoot = rows[1] || null;
-    root.innerHTML = '<div data-user-journal-view></div>';
+    root.innerHTML = '<div data-user-journal-notices-host></div><div data-user-journal-view></div>';
+    renderJournalNotices(root);
     const viewRoot = root.querySelector('[data-user-journal-view]');
     if (!viewRoot) return;
 
@@ -703,11 +768,16 @@ export function renderJournal(root, options = {}) {
     render();
   };
   root.userJournalRefresh = refresh;
+  const onServiceUnseen = () => {
+    if (root.isConnected) renderJournalNotices(root);
+  };
+  window.addEventListener('va-tools:service-unseen', onServiceUnseen);
 
   render();
   return () => {
     if (root.userJournalRefresh === refresh) delete root.userJournalRefresh;
     disposeView();
+    window.removeEventListener('va-tools:service-unseen', onServiceUnseen);
     clearV2ZHeaderRows(root);
     clearV2Y(root);
   };
