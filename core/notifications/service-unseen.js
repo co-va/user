@@ -26,7 +26,7 @@ function afterRollout(value) {
   return Number.isFinite(stamp) && stamp >= SERVICE_UNSEEN_ROLLOUT_AT;
 }
 
-function getServiceUnseenState() {
+export function getServiceUnseenState() {
   if (typeof globalThis === 'undefined') return { total: 0, items: [] };
   const state = globalThis[SERVICE_UNSEEN_KEY];
   return state && typeof state === 'object'
@@ -136,11 +136,11 @@ function removeSeenLocally(ids) {
   }
 }
 
-async function markRecordsSeen(ids) {
+export async function markRecordsSeen(ids) {
   const values = recordIds(ids);
-  if (!values.length) return;
+  if (!values.length) return true;
   const items = getServiceUnseenState().items.filter((item) => item.recordIds.some((id) => values.includes(id)));
-  if (!items.length) return;
+  if (!items.length) return true;
   try {
     await accountRequest('/account/service-unseen/seen', {
       auth: true,
@@ -148,8 +148,10 @@ async function markRecordsSeen(ids) {
       body: JSON.stringify({ recordIds: values }),
     }, 'Не удалось отметить уведомления прочитанными');
     removeSeenLocally(values);
+    return true;
   } catch {
     // Keep the indicator visible for a later retry.
+    return false;
   }
 }
 
