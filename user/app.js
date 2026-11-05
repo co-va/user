@@ -35,7 +35,7 @@ async function renderShell(root, state, callbacks) {
 }
 
 function renderLoading(root) {
-  root.innerHTML = '<div class="app-bootstrap" role="status">Загрузка…</div>';
+  root.innerHTML = '<div class="app-bootstrap" role="status" aria-label="Загрузка"></div>';
 }
 
 function renderProfileUnavailable(root, initial = {}) {
