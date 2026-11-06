@@ -201,10 +201,17 @@ try {
         if (!surface || !scroller || !action) throw new Error(name + ': missing surface, work area or action');
         const modalPortal = mode === 'z' || layer.v2Portal?.parentElement === app;
         const nestedOverflow = nested ? getComputedStyle(nested).overflowY : 'none';
-        const before = { top: surface.getBoundingClientRect().top, header: app.querySelector('[data-v2-header]').getBoundingClientRect().top };
+        // Measure the settled X frame, not the one-time entrance animation.
+        surface.style.animation = 'none';
+        const geometry = () => {
+          const rect = surface.getBoundingClientRect();
+          return { top: rect.top, bottom: rect.bottom, height: rect.height,
+            header: app.querySelector('[data-v2-header]').getBoundingClientRect().top };
+        };
+        const before = geometry();
         html.classList.add('keyboard-open');
         html.style.setProperty('--ui-keyboard-inset', '360px');
-        const after = { top: surface.getBoundingClientRect().top, header: app.querySelector('[data-v2-header]').getBoundingClientRect().top };
+        const after = geometry();
         const scrollCapacity = scroller.scrollHeight - scroller.clientHeight;
         const initial = scroller.scrollTop;
         scroller.scrollTop = scroller.scrollHeight + 500;
@@ -278,7 +285,13 @@ try {
     assert.equal(item.modalPortal, true, item.name + ': modal must share application root');
     assert.equal(item.nestedOverflow, item.nestedOverflow === 'none' ? 'none' : 'visible',
       item.name + ': no second nested scrolling controller');
-    near(item.before.top, item.after.top, item.name + ': Z/Q surface must not shift with keyboard');
+    if (item.mode === 'x') {
+      near(item.after.bottom, item.before.bottom - 360, item.name + ': X must rise with keyboard');
+      assert.ok(item.after.top >= 0, item.name + ': X must stay below top stop');
+      assert.ok(item.after.height <= item.before.height + 1, item.name + ': X must never stretch');
+    } else {
+      near(item.before.top, item.after.top, item.name + ': Z/Q surface must not shift with keyboard');
+    }
     near(item.before.header, item.after.header, item.name + ': ABCD must remain stationary');
     assert.ok(item.scrollCapacity >= 0, item.name + ': work area scroll geometry is invalid');
     assert.ok(item.end <= item.scrollCapacity + 1, item.name + ': scrolling must stop at content');
