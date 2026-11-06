@@ -58,7 +58,9 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
-          node scripts/ci/user-runtime-smoke.mjs
+          # Validate the checked-out UI first; an intermittent external
+          # Amvera connection must not prevent reporting local regressions.
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
+          node scripts/ci/user-runtime-smoke.mjs
