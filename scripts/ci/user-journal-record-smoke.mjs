@@ -25,6 +25,10 @@ const deleted = {
   body: 'Запись на 2026-11-06 в 16:00 удалена.',
   removedAt: '2026-11-06T17:00:00Z', read: true,
 };
+const accountEvents = [
+  { id: 'event-gray', date: '2026-10-26', from: '11:00', to: '18:30', title: 'Рабочее событие', color: '#777A7D' },
+  { id: 'event-yellow', date: '2026-10-27', from: '09:30', to: '10:00', title: 'Консультация', color: '#FFFF00' },
+];
 const sendJson = (res, data) => {
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(data));
@@ -37,6 +41,7 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (path === '/account/deleted-record-history') return sendJson(res, { items: [deleted] });
+  if (path === '/account/events') return sendJson(res, accountEvents);
   if (path === '/account/journal-hidden-records' && req.method === 'GET') {
     return sendJson(res, { items: [...hidden].map((key) => {
       const [tenantId, recordId] = JSON.parse(key);
@@ -118,6 +123,8 @@ try {
   console.log('JOURNAL FIXTURE: rendered active records');
   await page.locator('.journal-list-record--deleted').waitFor({ timeout: 6_000 });
   console.log('JOURNAL FIXTURE: rendered deleted record');
+  await page.locator('.journal-list-event').first().waitFor({ timeout: 6_000 });
+  console.log('JOURNAL FIXTURE: rendered colored events');
   // The shared Z Header must keep the first list row clear of its controls.
   const navGap = await page.evaluate(() => {
     const tabs = document.querySelector('[data-v2-z-header-row="1"] [data-view-navigation]');
@@ -153,6 +160,30 @@ try {
         text: deleted?.textContent || '',
         bg: getComputedStyle(deleted.querySelector('.list-entry__content')).backgroundColor,
       },
+      events: ['event-gray', 'event-yellow'].map((id) => {
+        const node = document.querySelector('.journal-list-event[data-user-journal-event="' + id + '"]');
+        const reference = normal?.getBoundingClientRect();
+        const label = node?.querySelector('.journal-record-label')?.getBoundingClientRect();
+        const date = node?.querySelector('.journal-record-date')?.getBoundingClientRect();
+        const rightDuration = node?.querySelector('.journal-record-total')?.getBoundingClientRect();
+        return {
+          id,
+          label: get(node, '.journal-record-label'),
+          title: get(node, '.journal-record-procedures'),
+          date: get(node, '.journal-record-date'),
+          duration: get(node, '.journal-record-total'),
+          swatchCount: node?.querySelectorAll('.list-entry__swatch').length,
+          background: node ? getComputedStyle(node.querySelector('.list-entry__content')).backgroundColor : '',
+          columns: node?.querySelectorAll('.list-entry__column').length,
+          rowCount: node?.querySelectorAll('.list-entry__column-line').length,
+          labelOffset: label && node ? Math.round(label.top - node.getBoundingClientRect().top) : null,
+          dateOffset: date && node ? Math.round(date.top - node.getBoundingClientRect().top) : null,
+          durationOffset: rightDuration && node ? Math.round(rightDuration.top - node.getBoundingClientRect().top) : null,
+          referenceLabelOffset: normal ? Math.round(normal.querySelector('.journal-record-label').getBoundingClientRect().top - reference.top) : null,
+          referenceDateOffset: normal ? Math.round(normal.querySelector('.journal-record-date').getBoundingClientRect().top - reference.top) : null,
+          referenceAmountOffset: normal ? Math.round(normal.querySelector('.journal-record-total').getBoundingClientRect().top - reference.top) : null,
+        };
+      }),
       paid: get(document.querySelector('.journal-list-record--paid'), '.journal-record-status--paid'),
       debt: get(document.querySelector('.journal-record-status--debt')?.closest('.journal-list-record'), '.journal-record-status--debt'),
     };
@@ -163,6 +194,17 @@ try {
   assert.equal(actual.normal.length, '3 ч');
   assert.match(actual.normal.amount, /21\s?000\s?₽/);
   assert.equal(actual.normal.status, 'К оплате');
+  assert.equal(actual.events.length, 2);
+  assert.deepEqual(actual.events.map((event) => event.label), ['Событие', 'Событие']);
+  assert.deepEqual(actual.events.map((event) => event.date), ['26.10.26 · 11:00', '27.10.26 · 09:30']);
+  assert.deepEqual(actual.events.map((event) => event.title), ['Рабочее событие', 'Консультация']);
+  assert.deepEqual(actual.events.map((event) => event.duration), ['7 ч 30 мин', '30 мин']);
+  assert.deepEqual(actual.events.map((event) => event.swatchCount), [0, 0]);
+  assert.deepEqual(actual.events.map((event) => event.background), ['rgb(218, 219, 220)', 'rgb(255, 255, 186)']);
+  assert.ok(actual.events.every((event) => event.columns === 2 && event.rowCount === actual.normal.rows));
+  assert.ok(actual.events.every((event) => event.labelOffset === event.referenceLabelOffset
+    && event.dateOffset === event.referenceDateOffset
+    && event.durationOffset === event.referenceAmountOffset), 'Record and Event positions must match');
   assert.equal(actual.paid, 'Оплачено');
   assert.equal(actual.debt, 'Задолженность');
   assert.equal(actual.deleted.title, 'Запись');
@@ -201,7 +243,7 @@ try {
   await page.waitForTimeout(800);
   assert.equal(await page.locator('.journal-list-record--deleted').count(), 0,
     'Dismissed record must remain hidden after a reload');
-  console.log('PASS: same card, date and duration, price/status, deleted no sum, repeat, persistent hide');
+  console.log('PASS: shared Record/Event layout and full-card event tints; deleted no sum, repeat, persistent hide');
 } finally {
   console.log('JOURNAL FIXTURE: closing browser and local server');
   server.closeAllConnections();
