@@ -57,7 +57,7 @@ assert(v2.includes('.v2-header__slot--d .v2-header__control--chat'), 'Shared D c
 // Shared keyboard contract: layout is stationary; all Q/Z/X editors use one
 // visual inset and one measured action stack. Per-editor/variant overrides
 // must not return as compatibility fixes.
-assert(keyboard.includes("root.style.setProperty('--ui-keyboard-inset'"), 'Shared keyboard viewport owner missing');
+assert(keyboard.includes("setRootPixel('--ui-keyboard-inset', inset)"), 'Shared keyboard viewport owner missing');
 assert(keyboard.includes("area.style.setProperty('--ui-action-height'"), 'Shared action measurement owner missing');
 assert(keyboardStyles.includes('--ui-keyboard-inset:0px'), 'Shared keyboard inset CSS missing');
 assert(!userMain.includes('function syncViewport()'), 'Duplicate User viewport controller returned');
