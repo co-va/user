@@ -1,4 +1,4 @@
-.record-screen{width:100%;min-height:100%;padding:0 18px 28px}.record-screen--state-view{padding-top:8px;display:grid;gap:8px}.record-screen--record-view{display:flex;flex-direction:column;gap:8px}.record-screen--time{display:flex;flex-direction:column;justify-content:flex-start}.record-screen--procedures,.record-screen--people{display:flex;flex-direction:column}.record-screen--people{height:100%;min-height:0;padding-top:12px}.record-screen--people .record-contact-list{min-height:0;overflow:auto}.record-time-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.record-time-toolbar strong{font-size:23px}.record-contact-list{display:grid;gap:10px}@media (max-width:360px){.record-screen{padding-left:14px;padding-right:14px}}
+.record-screen{width:100%;min-height:100%;padding:0 18px 28px}.record-screen--state-view{padding-top:8px;display:grid;gap:8px}.record-screen--record-view{display:flex;flex-direction:column;gap:8px}.record-screen--time{display:flex;flex-direction:column;justify-content:flex-start}.record-screen--procedures,.record-screen--people{display:flex;flex-direction:column}.record-screen--people{min-height:0;padding-top:12px}.record-screen--people .record-contact-list{min-height:0;overflow:visible}.record-time-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.record-time-toolbar strong{font-size:23px}.record-contact-list{display:grid;gap:10px}@media (max-width:360px){.record-screen{padding-left:14px;padding-right:14px}}
 
 .record-confirmation-view{display:grid;gap:20px;width:100%;min-width:0}
 .record-confirmation-view__card{display:flex;justify-content:center;width:100%;min-width:0}
@@ -37,8 +37,9 @@
 
 .record-status-controls{display:grid;gap:8px}.record-status-controls .segment-control{margin-bottom:0}
 
-.record-creation-flow{height:100%;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:12px}
-.record-creation-flow__title{margin:0}.record-creation-flow__title h2{margin:0;font-size:20px;line-height:1.2;font-weight:650;letter-spacing:0}.record-creation-flow__body{min-height:0;overflow:auto;overscroll-behavior:contain}.record-creation-flow__action:empty{display:none}
+/* Record, event and note creation use the same Z/Q work-area scroller.
+   Never introduce a second fixed-height or independently scrolling editor. */
+.record-creation-flow{min-height:0;display:grid;grid-template-rows:auto auto auto;gap:12px}
+.record-creation-flow__title{margin:0}.record-creation-flow__title h2{margin:0;font-size:20px;line-height:1.2;font-weight:650;letter-spacing:0}.record-creation-flow__body{min-height:0;overflow:visible}.record-creation-flow__action:empty{display:none}
 .record-creation-time-rows{display:grid;gap:14px}.record-creation-time-row{display:grid;gap:8px}
-[data-record-creation-step="date"] .record-creation-flow__body{overflow:hidden}
 .record-creation-flow .record-screen{padding-left:0;padding-right:0;padding-bottom:0}
