@@ -100,10 +100,12 @@ try {
   near(scroll.scrollTop, scroll.max, 'X scroll must stop at its content end');
   assert.ok(scroll.saveBottom <= scroll.bottom, 'Final action must stay within X bounds');
 
+  // Safari visualViewport panning must never change application geometry.
   await page.evaluate(() => document.documentElement.style.setProperty('--ui-visual-top', '47px'));
   const moved = await snapshot();
-  near(moved.h.top - after.h.top, 47, 'H follows only visual viewport origin');
-  near(moved.z.top - after.z.top, 47, 'Z follows only visual viewport origin');
+  near(moved.h.top, after.h.top, 'H must ignore visual viewport scroll');
+  near(moved.z.top, after.z.top, 'Z must ignore visual viewport scroll');
+  near(moved.q.top, after.q.top, 'Q must ignore visual viewport scroll');
 
   console.log('PASS: fixed H/Z/Q, bounded X and terminal action in Shared CSS');
   await page.close();
