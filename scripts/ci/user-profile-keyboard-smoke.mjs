@@ -164,6 +164,117 @@ try {
     `Save must be visible without scrolling when keyboard closes: ${JSON.stringify(result.afterClose.save)}`);
 
   console.log('PASS: local staging profile has app-owned Q, stable Save, and fixed visual viewport anchors');
+  // Real editor matrix: use the actual event, note, and record creation
+  // modules. All surfaces must use the shared Q/Z/X work area, never an
+  // independently scrolling form specific to one editor.
+  const editorCases = await Promise.race([
+    page.evaluate(async () => {
+      const [{ openUserEventView }, { openUserNoteView }, { openRecordCreationOwner },
+        { createUserEventFlow }, { createUserNoteFlow }, { openSharedPasswordAction }] = await Promise.all([
+        import('/user/event-view.js'),
+        import('/user/note-view.js'),
+        import('/ui/record/creation-flow.js'),
+        import('/user/event-create.js'),
+        import('/user/note-create.js'),
+        import('/ui/profile/index.js'),
+      ]);
+      const app = document.querySelector('[data-v2-app]');
+      const z = app?.querySelector('[data-v2-front] > [data-v2-z]');
+      const zBody = z?.querySelector(':scope > [data-v2-z-body]');
+      if (!app || !zBody) throw new Error('Shared Z editor fixture missing');
+      const html = document.documentElement;
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+      const results = [];
+      const record = (name, mode, layer, actionSelector, nestedSelector = '') => {
+        const surface = mode === 'x' ? layer.querySelector('.v2-layer--bottom')
+          : mode === 'q' ? layer.querySelector('.v2-layer--standard') : z;
+        const scroller = mode === 'x' ? surface : mode === 'q'
+          ? layer.querySelector('[data-v2-q-body]') : zBody;
+        const action = layer.querySelector(actionSelector);
+        const nested = nestedSelector ? layer.querySelector(nestedSelector) : null;
+        if (!surface || !scroller || !action) throw new Error(name + ': missing surface, work area or action');
+        const modalPortal = mode === 'z' || layer.v2Portal?.parentElement === app;
+        const nestedOverflow = nested ? getComputedStyle(nested).overflowY : 'none';
+        const before = { top: surface.getBoundingClientRect().top, header: app.querySelector('[data-v2-header]').getBoundingClientRect().top };
+        html.classList.add('keyboard-open');
+        html.style.setProperty('--ui-keyboard-inset', '360px');
+        const after = { top: surface.getBoundingClientRect().top, header: app.querySelector('[data-v2-header]').getBoundingClientRect().top };
+        const scrollCapacity = scroller.scrollHeight - scroller.clientHeight;
+        const initial = scroller.scrollTop;
+        scroller.scrollTop = scroller.scrollHeight + 500;
+        const end = scroller.scrollTop;
+        html.classList.remove('keyboard-open');
+        html.style.setProperty('--ui-keyboard-inset', '0px');
+        const save = action.getBoundingClientRect();
+        const visible = save.height > 0 && save.top >= 0 && save.bottom <= 844;
+        const result = { name, mode, modalPortal, nestedOverflow, before, after,
+          scrollCapacity, initial, end, saveVisibleAfterClose: visible,
+          scrollElement: scroller.getAttribute('data-v2-q-body') !== null ? 'Q'
+            : scroller.getAttribute('data-v2-z-body') !== null ? 'Z' : 'X' };
+        results.push(result);
+      };
+      const event = { id: 'editor-test-event', date: '2026-11-06',
+        from: '11:00', to: '12:30', title: 'Событие', description: 'Проверка описания' };
+      const eventActions = { read: () => event, update: async () => event, remove: async () => true, create: async () => event };
+      const eventLayer = openUserEventView(event, { eventActions });
+      if (!eventLayer) throw new Error('Real event editor did not open');
+      eventLayer.querySelector('[data-user-event-edit]')?.click();
+      record('Изменение события', 'q', eventLayer, '[type="submit"]');
+      eventLayer.v2Close?.();
+
+      const note = { id: 'editor-test-note', date: '2026-11-06', title: 'Заметка',
+        text: 'Проверка содержимого', context: { scope: 'account' } };
+      const noteActions = { read: () => note, update: async () => note, remove: async () => true, create: async () => note };
+      const noteLayer = openUserNoteView(note, { noteActions });
+      if (!noteLayer) throw new Error('Real note editor did not open');
+      noteLayer.querySelector('[data-user-note-edit]')?.click();
+      record('Изменение заметки', 'q', noteLayer, '[data-user-note-save]');
+      noteLayer.v2Close?.();
+
+      const inlineEvent = openRecordCreationOwner({ surfaceRoot: z, bodyRoot: zBody });
+      if (!inlineEvent) throw new Error('Inline event creation did not open');
+      createUserEventFlow({ owner: inlineEvent, date: '2026-11-06', eventActions });
+      record('Создание события в Журнале', 'z', inlineEvent.layer,
+        '[data-user-event-create-submit]', '.record-creation-flow__body');
+      inlineEvent.close();
+
+      const inlineNote = openRecordCreationOwner({ surfaceRoot: z, bodyRoot: zBody });
+      if (!inlineNote) throw new Error('Inline note creation did not open');
+      createUserNoteFlow({ owner: inlineNote, date: '2026-11-06', noteActions });
+      record('Создание заметки в Журнале', 'z', inlineNote.layer,
+        '[data-user-note-create-submit]', '.record-creation-flow__body');
+      inlineNote.close();
+
+      const qOwner = openRecordCreationOwner();
+      if (!qOwner) throw new Error('Q creation owner did not open');
+      createUserEventFlow({ owner: qOwner, date: '2026-11-06', eventActions });
+      record('Создание события через Q', 'q', qOwner.layer,
+        '[data-user-event-create-submit]', '.record-creation-flow__body');
+      qOwner.close();
+
+      const passwordLayer = openSharedPasswordAction({ onSubmit: async () => {} });
+      if (!passwordLayer) throw new Error('Real password X editor did not open');
+      record('Изменение пароля', 'x', passwordLayer, '[type="submit"]');
+      passwordLayer.v2Close?.();
+      await frame();
+      return results;
+    }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Editor matrix did not finish in 25s')), 25_000)),
+  ]);
+
+  for (const item of editorCases) {
+    assert.equal(item.modalPortal, true, item.name + ': modal must share application root');
+    assert.equal(item.nestedOverflow, item.nestedOverflow === 'none' ? 'none' : 'visible',
+      item.name + ': no second nested scrolling controller');
+    near(item.before.top, item.after.top, item.name + ': Z/Q surface must not shift with keyboard');
+    near(item.before.header, item.after.header, item.name + ': ABCD must remain stationary');
+    assert.ok(item.scrollCapacity >= 0, item.name + ': work area scroll geometry is invalid');
+    assert.ok(item.end <= item.scrollCapacity + 1, item.name + ': scrolling must stop at content');
+    assert.equal(item.saveVisibleAfterClose, true, item.name + ': action must be visible after keyboard closes');
+  }
+  assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
+  console.log('PASS: all six real User editor flows use the same stationary Z/Q/X keyboard contract');
+
 } finally {
   await browser.close();
   server.closeAllConnections();
