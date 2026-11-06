@@ -2,6 +2,7 @@ import { v2ZDismissAffordance } from './z-affordance.js';
 
 const Z_VIEWPORT_OVERSCAN = '24px';
 const Q_HEADER_BODY_GAP = '18px';
+const Z_HEADER_BODY_GAP = '14px';
 
 const Z_HEADER_STYLE = [
   'position:relative',
@@ -61,7 +62,10 @@ function surfaceHeader(content = '', { kind = 'z', dismiss = true } = {}) {
   const data = kind === 'q' ? 'data-v2-q-header' : 'data-v2-z-header';
   const contentData = kind === 'q' ? 'data-v2-q-header-content' : 'data-v2-z-header-content';
   const contentStyle = visibleWorkAreaStyle(Z_HEADER_CONTENT_STYLE, kind);
-  return `<div ${data} style="${Z_HEADER_STYLE}">${dismiss ? v2ZDismissAffordance() : ''}<div ${contentData} style="${contentStyle}">${content}</div></div>`;
+  // Reserve a persistent gap below Z navigation, even while its body scrolls.
+  // Empty Z headers remain compact via surface-header.css.
+  const headerStyle = kind === 'z' ? `${Z_HEADER_STYLE};padding-bottom:${Z_HEADER_BODY_GAP}` : Z_HEADER_STYLE;
+  return `<div ${data} style="${headerStyle}">${dismiss ? v2ZDismissAffordance() : ''}<div ${contentData} style="${contentStyle}">${content}</div></div>`;
 }
 
 function surfaceBody(content = '', { kind = 'z', topGap = false } = {}) {

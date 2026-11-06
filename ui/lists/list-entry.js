@@ -28,6 +28,7 @@ export function v2ListEntry({
   image = '',
   initial = '?',
   leadingSwatch = '',
+  fillColor = '',
   interactive = true,
   data = '',
   className = '',
@@ -52,7 +53,9 @@ export function v2ListEntry({
   const attrs = interactive
     ? `type="button" ${data} aria-pressed="${selected ? 'true' : 'false'}" ${aria ? `aria-label="${escapeHtml(aria)}"` : ''}`
     : '';
-  const style = image ? ` style="--list-entry-image:url('${escapeHtml(image)}')"` : '';
+  const fill = /^#[0-9A-Fa-f]{6}$/.test(String(fillColor || '')) ? String(fillColor) : '';
+  const styleValues = [image ? `--list-entry-image:url('${escapeHtml(image)}')` : '', fill ? `--list-entry-fill:${fill}` : ''].filter(Boolean);
+  const style = styleValues.length ? ` style="${styleValues.join(';')}"` : '';
   const secondLine = subtitle || '\u00a0';
   const swatch = leadingSwatch ? `<span class="list-entry__swatch" style="--list-entry-swatch:${escapeHtml(leadingSwatch)}" aria-hidden="true"></span>` : '';
   const right = rightTop || rightBottom
@@ -74,7 +77,7 @@ export function v2ListEntry({
     ? `<span class="list-entry__selector" aria-hidden="true"></span>`
     : '';
   const firstLine = overline ? `<strong>${escapeHtml(overline)}</strong>` : '';
-  const classes = ['list-entry', image ? 'has-image' : '', columnMode ? 'list-entry--columns' : '', selectable ? 'is-selectable' : '', selected ? 'is-selected' : '', className].filter(Boolean).join(' ');
+  const classes = ['list-entry', image ? 'has-image' : '', columnMode ? 'list-entry--columns' : '', fill ? 'has-fill' : '', selectable ? 'is-selectable' : '', selected ? 'is-selected' : '', className].filter(Boolean).join(' ');
 
   if (columnMode) {
     return `<${tag} class="${classes}"${attrs}${style}>

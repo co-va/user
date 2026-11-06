@@ -134,6 +134,18 @@ try {
       header: box(header), q: box(q),
       compensation: getComputedStyle(document.documentElement).getPropertyValue('--ui-visual-top').trim(),
     };
+    // WebKit may blur the final input while the keyboard is still visible.
+    // Its temporary viewport height must NOT become the new Z/Q height.
+    const baseline = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
+    input.blur();
+    await frame();
+    await frame();
+    const afterBlur = {
+      stableHeight: getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim(),
+      inset: getComputedStyle(document.documentElement).getPropertyValue('--ui-keyboard-inset').trim(),
+      keyboardOpen: document.documentElement.classList.contains('keyboard-open'),
+      header: box(header), q: box(q),
+    };
     delete vv.height;
     delete vv.offsetTop;
     vv.dispatchEvent(new Event('resize'));
@@ -143,7 +155,7 @@ try {
     return {
       initiallyHidden, visibleAfterEdit, portalSharesApp,
       beforeSave, afterSave, scrollAfterSave,
-      atRest, whileTyping, afterClose, pan, panBy,
+      atRest, whileTyping, afterClose, pan, panBy, afterBlur, baseline,
     };
   }),
     new Promise((_, reject) => setTimeout(() => reject(new Error('Local profile browser fixture timed out after 25s')), 25_000)),
@@ -165,6 +177,10 @@ try {
   assert.equal(result.pan.compensation, `${result.panBy}px`, 'Viewport offset must be compensated at app root');
   near(result.pan.header.top - result.panBy, result.afterClose.header.top, 'H stays fixed in visual viewport');
   near(result.pan.q.top - result.panBy, result.afterClose.q.top, 'Q stays fixed in visual viewport');
+  assert.equal(result.afterBlur.stableHeight, result.baseline, 'Blur while keyboard remains cannot shrink app shell');
+  assert.equal(result.afterBlur.keyboardOpen, true, 'Keep keyboard geometry until visible viewport recovers');
+  assert.equal(result.afterBlur.inset, '300px', 'Keep keyboard work-area inset after blur');
+  near(result.afterBlur.q.bottom, result.pan.q.bottom, 'Q bottom stays anchored through final-field blur');
   assert.ok(result.afterClose.save.top >= 0 && result.afterClose.save.bottom <= 844,
     `Save must be visible without scrolling when keyboard closes: ${JSON.stringify(result.afterClose.save)}`);
 
@@ -286,9 +302,9 @@ try {
     assert.equal(item.nestedOverflow, item.nestedOverflow === 'none' ? 'none' : 'visible',
       item.name + ': no second nested scrolling controller');
     if (item.mode === 'x') {
-      near(item.after.bottom, item.before.bottom - 360, item.name + ': X must rise with keyboard');
+      near(item.after.bottom, item.before.bottom, item.name + ': X white surface must stay attached to bottom');
       assert.ok(item.after.top >= 0, item.name + ': X must stay below top stop');
-      assert.ok(item.after.height <= item.before.height + 1, item.name + ': X must never stretch');
+      assert.ok(item.after.height >= item.before.height, item.name + ': X white surface extends beneath keyboard');
     } else {
       near(item.before.top, item.after.top, item.name + ': Z/Q surface must not shift with keyboard');
     }
@@ -298,7 +314,7 @@ try {
     assert.equal(item.saveVisibleAfterClose, true, item.name + ': action must be visible after keyboard closes');
   }
   assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
-  console.log('PASS: all six real User editor flows use the same stationary Z/Q/X keyboard contract');
+  console.log('PASS: all six real User editor flows keep Z/Q fixed and X white to bottom during keyboard');
 
 } finally {
   await browser.close();

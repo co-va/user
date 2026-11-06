@@ -9,13 +9,14 @@ import {
   journalDayTimeline,
   modal,
   mountModal,
+  openNotice,
   openRecordCreationOwner,
   shortDate,
   v2ListEntries,
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
-import { getServiceUnseenState, loadDeletedRecordHistory, markRecordsSeen } from '../core/notifications/service-unseen.js';
+import { getServiceUnseenState, loadDeletedRecordHistory, loadJournalHiddenRecords, hideJournalRecord, markRecordsSeen } from '../core/notifications/service-unseen.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { readOnlyReceipt } from '../ui/receipt/index.js';
@@ -79,7 +80,33 @@ function readRecords(source) {
 }
 
 function recordId(record = {}) {
-  return String(record?.id || record?.sourceId || '');
+  return String(record?.id || record?.sourceId || record?.recordId || '');
+}
+
+function recordKey(record = {}) {
+  return JSON.stringify([String(record?.tenantId || ''), recordId(record)]);
+}
+
+function recordDurationLabel(record = {}) {
+  const start = usageMinutes(record?.from);
+  const end = usageMinutes(record?.to);
+  const elapsed = start != null && end != null && end !== start
+    ? (end - start + 1440) % 1440
+    : (Array.isArray(record?.procedures) ? record.procedures : [])
+      .reduce((sum, p) => sum + Math.max(0, Number(p?.duration) || 0), 0);
+  if (!elapsed) return '';
+  const hours = Math.floor(elapsed / 60);
+  const minutes = elapsed % 60;
+  return [hours ? `${hours} ч` : '', minutes ? `${minutes} мин` : ''].filter(Boolean).join(' ');
+}
+
+function recordPaymentLabel(record, payment) {
+  const state = String(record?.payment?.state || '').toLowerCase();
+  if (state === 'debt' || (payment.due > 0.009 && record?.attendance === 'arrived')) {
+    return { label: 'Задолженность', key: 'debt' };
+  }
+  if (state === 'paid' || payment.paid) return { label: 'Оплачено', key: 'paid' };
+  return { label: 'К оплате', key: 'due' };
 }
 
 function paymentFor(record = {}) {
@@ -115,20 +142,27 @@ function procedureRows(record = {}) {
 }
 
 function openUserRecord(record) {
-  const payment = paymentFor(record);
+  const deleted = record?.deleted === true;
+  const payment = deleted ? null : paymentFor(record);
   const body = readOnlyReceipt({
-    status: String(record?.status || '').toLowerCase() === 'cancelled' ? 'Отменено' : '',
+    status: deleted ? 'Удалена' : String(record?.status || '').toLowerCase() === 'cancelled' ? 'Отменена' : '',
     date: shortDate(record?.date, ''),
     time: String(record?.from || ''),
-    items: procedureRows(record),
-    totals: [
+    items: deleted
+      ? (Array.isArray(record?.procedures) ? record.procedures : []).map((item) => ({ label: String(item?.name || 'Процедура'), value: '' }))
+      : procedureRows(record),
+    totals: deleted ? [] : [
       { label: 'Стоимость', value: money(amountDue(record)) },
       payment.paidAmount > 0.009 ? { label: 'Оплачено', value: money(payment.paidAmount), strong: true } : null,
       !payment.paid && payment.due > 0.009 ? { label: 'К оплате', value: money(payment.due), strong: true } : null,
     ].filter(Boolean),
   });
-  const actions = (Array.isArray(record?.procedures) && record.procedures.length && String(record?.tenantId || ''))
-    ? `<div class="modal-actions">${button('Повторить', { data: 'data-user-record-repeat' })}</div>`
+  const canAct = Boolean(recordId(record) && String(record?.tenantId || ''));
+  const actions = canAct
+    ? `<div class="modal-actions">
+        ${button('Повторить', { data: 'data-user-record-repeat' })}
+        ${button('Удалить', { variant: 'danger', data: 'data-user-record-hide' })}
+      </div>`
     : '';
   const layer = mountModal(document.body, modal(`${body}${actions}`, {
     variant: 'x',
@@ -141,13 +175,25 @@ function openUserRecord(record) {
       detail: {
         contactId: String(record?.tenantId || ''),
         workplaceKey: String(record?.workplaceId || record?.workplaceKey || ''),
-        repeatRequest: record,
+        ...(deleted ? {} : { repeatRequest: record }),
       },
     }));
   });
+  layer?.querySelector('[data-user-record-hide]')?.addEventListener('click', async (event) => {
+    const control = event.currentTarget;
+    control.disabled = true;
+    try {
+      // User-only dismissal: never cancel or delete the underlying Record.
+      const hidden = await hideJournalRecord(record?.tenantId, recordId(record));
+      layer.v2Close?.();
+      window.dispatchEvent(new CustomEvent('cova:user-record-hidden', { detail: hidden }));
+    } catch (error) {
+      control.disabled = false;
+      openNotice({ title: 'Не удалось удалить из списка', message: String(error?.message || 'Повторите попытку.') });
+    }
+  });
   return layer;
 }
-
 function recordUsage(record) {
   const payment = paymentFor(record);
   return {
@@ -447,27 +493,56 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
   return () => { disposed = true; };
 }
 
-function listEntry(record) {
-  const payment = paymentFor(record);
-  const id = recordId(record);
-  const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
-    .map((item) => String(item?.name || '').trim())
-    .filter(Boolean);
-  const procedureTitle = procedures.join(' · ') || 'Запись';
+// Presentation composition belongs to Journal, not to the generic List Entry.
+// Records and Events use the same positions, typography and fill mechanism.
+function journalListCard({ label, title, date, from, duration = '', amount = '', amountClass = 'journal-record-total', status = '', statusClass = '', fillColor, className, data, aria }) {
   return v2ListEntry({
-    overline: 'Запись',
-    title: procedureTitle,
-    subtitle: '',
-    rightTop: [shortDate(record?.date, ''), String(record?.from || '')].filter(Boolean).join(' · '),
-    rightBottom: money(amountDue(record)),
-    interactive: Boolean(id),
-    data: id ? `data-user-journal-record="${escapeHtml(id)}"` : '',
-    aria: id ? `Открыть запись ${procedureTitle}` : '',
-    className: `journal-list-record--${recordVisualState(record, { paid: payment.paid })}`,
-    initial: 'З',
+    columns: [
+      [
+        { value: label, strong: true, className: 'journal-record-label' },
+        { value: title, muted: true, className: 'journal-record-procedures' },
+        { value: duration, muted: true, className: 'journal-record-duration' },
+      ],
+      [
+        { value: [shortDate(date, ''), String(from || '')].filter(Boolean).join(' · '), strong: true, className: 'journal-record-date' },
+        { value: amount, strong: true, className: amountClass },
+        { value: status, className: statusClass },
+      ],
+    ],
+    fillColor,
+    interactive: Boolean(data),
+    data,
+    aria,
+    className: `journal-list-item ${className}`,
   });
 }
 
+function listEntry(record) {
+  const deleted = record?.deleted === true;
+  const payment = deleted ? null : paymentFor(record);
+  const status = deleted ? null : recordPaymentLabel(record, payment);
+  const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
+    .map((item) => String(item?.name || '').trim())
+    .filter(Boolean).join(' · ');
+  const visual = deleted ? 'deleted' : recordVisualState(record, { paid: payment.paid });
+  const fillColor = deleted ? '#FFFFFF' : visual === 'paid' ? PAID_COLOR : visual === 'no-show' ? NO_SHOW_COLOR : RECORD_COLOR;
+  const id = recordId(record);
+  return journalListCard({
+    label: 'Запись',
+    title: procedures,
+    date: record?.date,
+    from: record?.from,
+    duration: recordDurationLabel(record),
+    amount: deleted ? 'Удалена' : money(amountDue(record)),
+    amountClass: deleted ? 'journal-record-status--deleted' : 'journal-record-total',
+    status: deleted ? '' : status.label,
+    statusClass: deleted ? '' : `journal-record-status--${status.key}`,
+    fillColor,
+    className: `journal-list-record journal-list-record--${visual}`,
+    data: id ? `data-user-journal-record="${escapeHtml(recordKey(record))}"` : '',
+    aria: `Открыть запись ${[procedures, record?.date, record?.from].filter(Boolean).join(' ')}`,
+  });
+}
 function eventId(event = {}) {
   return String(event?.id || '');
 }
@@ -489,67 +564,34 @@ function eventActivityTime(event = {}) {
   return Number.isFinite(activity) ? activity : eventAppointmentTime(event, 'from');
 }
 
-function russianCount(value, one, few, many) {
-  const number = Math.abs(Number(value) || 0);
-  const mod100 = number % 100;
-  const mod10 = number % 10;
-  if (mod100 >= 11 && mod100 <= 14) return many;
-  if (mod10 === 1) return one;
-  if (mod10 >= 2 && mod10 <= 4) return few;
-  return many;
-}
-
-function eventDurationLabel(event = {}) {
-  const from = usageMinutes(event?.from);
-  const to = usageMinutes(event?.to);
-  if (from == null || to == null || from === to) return '';
-  let duration = to - from;
-  if (duration < 0) duration += 24 * 60;
-  const hours = Math.floor(duration / 60);
-  const minutes = duration % 60;
-  const parts = [];
-  if (hours) parts.push(`${hours} ${russianCount(hours, 'час', 'часа', 'часов')}`);
-  if (minutes) parts.push(`${minutes} ${russianCount(minutes, 'минута', 'минуты', 'минут')}`);
-  return parts.join(' ');
+function lightEventFill(event = {}) {
+  // Stored Event colors are saturated; in a list they become a pale full-card tint.
+  const color = monthEventColor(event);
+  const result = [1, 3, 5].map((start) => {
+    const channel = parseInt(color.slice(start, start + 2), 16);
+    return Math.round(255 - (255 - channel) * 0.27).toString(16).padStart(2, '0');
+  }).join('');
+  const fill = `#${result.toUpperCase()}`;
+  return fill === '#FFFFFF' ? '#F3F3F3' : fill;
 }
 
 function eventListEntry(event) {
   const id = eventId(event);
   const title = String(event?.title || '').trim() || 'Событие';
-  const from = String(event?.from || '').trim();
-  return v2ListEntry({
-    columns: [
-      [
-        { value: 'Событие', muted: true },
-        { value: title, strong: true },
-      ],
-      [],
-      [
-        { value: shortDate(event?.date, ''), strong: true },
-        { value: from },
-        { value: eventDurationLabel(event), muted: true },
-      ],
-    ],
-    leadingSwatch: monthEventColor(event),
-    interactive: Boolean(id),
+  return journalListCard({
+    label: 'Событие',
+    title,
+    date: event?.date,
+    from: event?.from,
+    amount: recordDurationLabel(event),
+    fillColor: lightEventFill(event),
+    className: 'journal-list-event',
     data: id ? `data-user-journal-event="${escapeHtml(id)}"` : '',
     aria: id ? `Открыть событие ${title}` : '',
-    className: 'journal-list-event',
-    initial: 'С',
   });
 }
-
 function deletedNoticeEntry(notice = {}) {
-  const scheduled = [shortDate(notice.date, ''), String(notice.from || '')].filter(Boolean).join(' · ');
-  return v2ListEntry({
-    overline: 'Запись',
-    title: 'Удалена',
-    subtitle: String(notice.body || 'Запись удалена специалистом'),
-    rightTop: scheduled,
-    rightBottom: 'Удалена',
-    className: 'journal-list-record--deleted',
-    initial: 'З',
-  });
+  return listEntry({ ...notice, id: notice.recordId, deleted: true });
 }
 
 function listItemAppointmentTime(item, edge = 'from') {
@@ -570,8 +612,12 @@ function listItemEntry(item) {
     : listEntry(item?.value);
 }
 
-function bindListItems(root, records, events, rerender) {
-  const recordById = new Map(records.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
+function bindListItems(root, records, events, deletedNotices, rerender) {
+  const allRecords = [
+    ...records,
+    ...deletedNotices.map((notice) => ({ ...notice, id: notice.recordId, deleted: true })),
+  ];
+  const recordById = new Map(allRecords.map((record) => [recordKey(record), record]).filter(([, record]) => Boolean(recordId(record))));
   root.querySelectorAll('[data-user-journal-record]').forEach((node) => node.addEventListener('click', () => {
     const record = recordById.get(String(node.dataset.userJournalRecord || ''));
     if (record) openUserRecord(record);
@@ -584,7 +630,7 @@ function bindListItems(root, records, events, rerender) {
   }));
 }
 
-function renderList(root, { records, mode }) {
+function renderList(root, { records, mode, hiddenKeys }) {
   let disposed = false;
   let deletedNotices = [];
   let deletionHistoryError = false;
@@ -597,7 +643,8 @@ function renderList(root, { records, mode }) {
       String(row.tenantId || ''), recordId(row),
     ])));
     const deletedRows = deletedNotices.filter((notice) =>
-      !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')])));
+      !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')]))
+      && !hiddenKeys.has(recordKey({ tenantId: notice.tenantId, id: notice.recordId })));
     const items = [
       ...recordRows.map((value) => ({ type: 'record', value })),
       ...eventRows.map((value) => ({ type: 'event', value })),
@@ -618,7 +665,7 @@ function renderList(root, { records, mode }) {
         return left - right;
       });
       root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
-      bindListItems(root, recordRows, eventRows, draw);
+      bindListItems(root, recordRows, eventRows, deletedRows, draw);
       return;
     }
 
@@ -653,7 +700,7 @@ function renderList(root, { records, mode }) {
       .sort((a, b) => (Number.isFinite(b.activity) ? b.activity : 0) - (Number.isFinite(a.activity) ? a.activity : 0));
     const ordered = [...completed, ...pending];
     root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
-    bindListItems(root, recordRows, eventRows, draw);
+    bindListItems(root, recordRows, eventRows, deletedRows, draw);
   };
 
   draw();
@@ -766,6 +813,8 @@ export function renderJournal(root, options = {}) {
     : new Date();
   let disposeView = () => {};
   const records = options.records;
+  const hiddenKeys = new Set();
+  const visibleRecords = () => readRecords(records).filter((record) => !hiddenKeys.has(recordKey(record)));
 
   const render = () => {
     disposeView();
@@ -782,11 +831,11 @@ export function renderJournal(root, options = {}) {
     if (!viewRoot) return;
 
     if (activeView === 'day') {
-      markOpenedJournalDaySeen(selectedDate, records);
+      markOpenedJournalDaySeen(selectedDate, visibleRecords);
       const navigationRoot = secondaryRoot?.querySelector('[data-user-journal-period-navigation]') || secondaryRoot;
       disposeView = renderDay(viewRoot, {
         date: selectedDate,
-        records,
+        records: visibleRecords,
         navigationRoot,
         onChange: (nextDate) => {
           selectedDate = nextDate;
@@ -796,7 +845,7 @@ export function renderJournal(root, options = {}) {
     } else if (activeView === 'month') {
       disposeView = renderMonth(viewRoot, {
         month: selectedDate,
-        records,
+        records: visibleRecords,
         onMonthChange: (nextMonth) => {
           const day = Math.min(selectedDate.getDate(), new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate());
           selectedDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), day);
@@ -809,7 +858,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      disposeView = renderList(viewRoot, { records, mode: listMode });
+      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
@@ -836,14 +885,34 @@ export function renderJournal(root, options = {}) {
     render();
   };
   root.userJournalRefresh = refresh;
+  const onRecordHidden = (event) => {
+    const detail = event?.detail || {};
+    if (!detail.tenantId || !detail.recordId) return;
+    hiddenKeys.add(recordKey({ tenantId: detail.tenantId, id: detail.recordId }));
+    refresh();
+  };
+  window.addEventListener('cova:user-record-hidden', onRecordHidden);
+  // One account-scoped visibility read, not one request per deleted Record.
+  void loadJournalHiddenRecords().then((items) => {
+    if (!root.isConnected) return;
+    let changed = false;
+    for (const item of items) {
+      const key = recordKey(item);
+      if (!hiddenKeys.has(key)) { hiddenKeys.add(key); changed = true; }
+    }
+    if (changed) refresh();
+  }).catch(() => {
+    // Journal remains usable if the new Account visibility API is not yet deployed.
+    // A requested deletion reports a clear error if persistence fails.
+  });
   const onServiceUnseen = () => {
     if (!root.isConnected) return;
     renderJournalNotices(root);
-    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
+    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
   };
   window.addEventListener('va-tools:service-unseen', onServiceUnseen);
   const onJournalFocus = () => {
-    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
+    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
   };
   document.addEventListener('visibilitychange', onJournalFocus);
 
@@ -852,6 +921,7 @@ export function renderJournal(root, options = {}) {
     if (root.userJournalRefresh === refresh) delete root.userJournalRefresh;
     disposeView();
     window.removeEventListener('va-tools:service-unseen', onServiceUnseen);
+    window.removeEventListener('cova:user-record-hidden', onRecordHidden);
     document.removeEventListener('visibilitychange', onJournalFocus);
     clearV2ZHeaderRows(root);
     clearV2Y(root);

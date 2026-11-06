@@ -61,7 +61,7 @@ try {
   const snapshot = () => page.evaluate(() => {
     const rect = (selector) => {
       const box = document.querySelector(selector).getBoundingClientRect();
-      return { top: box.top, bottom: box.bottom, height: box.height };
+      return { top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height };
     };
     return {
       h: rect('#h'), z: rect('#z'), q: rect('#q'),
@@ -86,9 +86,15 @@ try {
   near(after.q.top, before.q.top, 'Q top must stay fixed');
   assert.ok(after.zBody.height < before.zBody.height, 'Z only shrinks its scrollable interior');
   assert.ok(after.qBody.height < before.qBody.height, 'Q only shrinks its scrollable interior');
-  near(after.x.bottom, 844 - 390, 'X bottom must meet keyboard top');
+  near(after.z.bottom, before.z.bottom, 'Z white surface must keep its bottom');
+  near(after.q.bottom, before.q.bottom, 'Q white surface must keep its bottom');
+  near(after.z.right, before.z.right, 'Z white surface must keep its right edge');
+  near(after.q.right, before.q.right, 'Q white surface must keep its right edge');
+  near(after.x.bottom, before.x.bottom, 'X white background must remain attached to bottom under keyboard');
+  near(after.x.right, before.x.right, 'X white background must keep right edge');
   assert.ok(after.x.top >= 11, 'X may not cross its upper stop');
-  assert.ok(after.x.height <= before.x.height + 1, 'X must not stretch on focus');
+  assert.ok(after.x.height > before.x.height, 'X white background extends under keyboard without moving its bottom');
+  assert.ok(after.x.height <= before.x.height + 390 + 1, 'X may grow only by keyboard inset');
 
   const scroll = await page.evaluate(() => {
     const sheet = document.querySelector('#x');
@@ -99,17 +105,24 @@ try {
       saveBottom: save.bottom, bottom };
   });
   near(scroll.scrollTop, scroll.max, 'X scroll must stop at its content end');
-  assert.ok(scroll.saveBottom <= scroll.bottom, 'Final action must stay within X bounds');
+  assert.ok(scroll.saveBottom <= 844 - 390 - 16,
+    'Final action must stay above keyboard while white background stays anchored');
 
   // Safari pans the *visible* viewport. A compensating change of layout
   // position must retain the SAME on-screen H/Z/Q coordinates.
-  await page.evaluate(() => document.documentElement.style.setProperty('--ui-visual-top', '47px'));
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--ui-visual-top', '47px');
+    document.documentElement.style.setProperty('--ui-visual-left', '19px');
+  });
   const moved = await snapshot();
   near(moved.h.top - 47, after.h.top, 'H fixed in visual viewport coordinates');
   near(moved.z.top - 47, after.z.top, 'Z fixed in visual viewport coordinates');
   near(moved.q.top - 47, after.q.top, 'Q fixed in visual viewport coordinates');
+  near(moved.z.right - 19, after.z.right, 'Z anchored through horizontal Safari pan');
+  near(moved.q.right - 19, after.q.right, 'Q anchored through horizontal Safari pan');
+  near(moved.x.right - 19, after.x.right, 'X anchored through horizontal Safari pan');
 
-  console.log('PASS: fixed H/Z/Q, bounded X and terminal action in Shared CSS');
+  console.log('PASS: fixed H/Z/Q right and bottom; X white background extends under keyboard');
   await page.close();
 } finally {
   await browser.close();
