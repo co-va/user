@@ -90,7 +90,7 @@ function syncActionHeights() {
     || app.querySelector('[data-v2-front] > [data-v2-z]');
   const active = q || z;
   const action = measurableAction(active);
-  const value = `${action && !action.hidden ? Math.ceil(action.getBoundingClientRect().height) : 0}px`;
+  const value = `${action && !action.hidden && !action.hasAttribute('data-ui-action-hidden') ? Math.ceil(action.getBoundingClientRect().height) : 0}px`;
   if (app.style.getPropertyValue('--ui-active-action-height') !== value) {
     app.style.setProperty('--ui-active-action-height', value);
   }
