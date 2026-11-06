@@ -1,5 +1,5 @@
 import { text } from './html.js';
-import { v2ModalPortalGeometry, v2QModalPortalGeometry, currentVisualViewport } from './geometry.js';
+import { v2ModalPortalGeometry, v2QModalPortalGeometry } from './geometry.js';
 import {
   activeV2ModalSurface,
   lockV2ModalSurface,
@@ -25,60 +25,63 @@ function mountV2ModalPortal(host, app = null) {
   if (!host) return null;
 
   const portal = document.createElement('div');
-  portal.className = 'v2-layer-portal v2-layer-portal--viewport';
+  // Every app modal must share the same containing block as H and Z.
+  // A separate fixed body portal follows iOS VisualViewport panning on
+  // its own timeline and moves Q/X independently of the application.
+  const owner = app || document.body;
+  const inApp = Boolean(app);
+  portal.className = inApp
+    ? 'v2-layer-portal v2-layer-portal--workspace'
+    : 'v2-layer-portal v2-layer-portal--viewport';
   portal.dataset.v2LayerPortal = '';
-  document.body.appendChild(portal);
+  owner.appendChild(portal);
   let qLayer = false;
 
   const sync = () => {
     if (!portal.isConnected || !host.isConnected) return;
-    const viewport = currentVisualViewport();
-    const standardGeometry = v2ModalPortalGeometry(host.getBoundingClientRect(), viewport);
-    let geometry = standardGeometry;
+    // Portal and app share the same stable coordinate space. Never clip
+    // modal geometry to a shrinking visual viewport or its transient origin.
+    const hostRect = host.getBoundingClientRect();
+    const appRect = app?.getBoundingClientRect() || hostRect;
+    const layoutViewport = {
+      offsetLeft: appRect.left,
+      offsetTop: appRect.top,
+      width: appRect.width,
+      height: appRect.height,
+    };
+    let geometry = v2ModalPortalGeometry(hostRect, layoutViewport);
     if (qLayer && app) {
-      const appRect = app.getBoundingClientRect();
-      geometry = { left: appRect.left, top: appRect.top, width: appRect.width, height: appRect.height, bottom: appRect.bottom };
+      geometry = v2ModalPortalGeometry(appRect, layoutViewport);
       const headerBottom = app.querySelector?.('[data-v2-header]')?.getBoundingClientRect?.().bottom;
-      const qGeometry = v2QModalPortalGeometry(appRect, {
-        offsetLeft: appRect.left,
-        offsetTop: appRect.top,
-        width: appRect.width,
-        height: appRect.height,
-      }, { headerBottom });
+      const qGeometry = v2QModalPortalGeometry(appRect, layoutViewport, { headerBottom });
       portal.style.setProperty('--v2-q-top', `${Math.max(0, qGeometry.top - geometry.top)}px`);
       portal.style.setProperty('--v2-q-left', `${Math.max(0, qGeometry.left - geometry.left)}px`);
     } else {
       portal.style.removeProperty('--v2-q-top');
       portal.style.removeProperty('--v2-q-left');
     }
-    portal.style.left = `${geometry.left}px`;
-    portal.style.top = `${geometry.top}px`;
+    portal.style.left = `${geometry.left - (inApp ? appRect.left : 0)}px`;
+    portal.style.top = `${geometry.top - (inApp ? appRect.top : 0)}px`;
     portal.style.width = `${geometry.width}px`;
     portal.style.height = `${geometry.height}px`;
   };
 
-  let settleTimers = [];
+  let settleFrame = 0;
   const settle = () => {
-    sync();
-    requestAnimationFrame(sync);
-    requestAnimationFrame(() => requestAnimationFrame(sync));
-    settleTimers.forEach((timer) => window.clearTimeout(timer));
-    settleTimers = [
-      window.setTimeout(sync, 80),
-      window.setTimeout(sync, 180),
-      window.setTimeout(sync, 360),
-    ];
+    if (settleFrame) return;
+    settleFrame = requestAnimationFrame(() => {
+      settleFrame = 0;
+      sync();
+    });
   };
 
-  settle();
-
+  sync();
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(settle) : null;
   resizeObserver?.observe(host);
+  if (app && host !== app) resizeObserver?.observe(app);
   window.addEventListener('resize', settle);
-  window.visualViewport?.addEventListener('resize', settle);
-  window.visualViewport?.addEventListener('scroll', settle);
-  document.addEventListener('focusin', settle, true);
-  document.addEventListener('focusout', settle, true);
+  if (!inApp) window.visualViewport?.addEventListener('resize', settle);
+  // Keyboard focus and visual viewport panning do not change portal geometry.
 
   return {
     portal,
@@ -86,17 +89,16 @@ function mountV2ModalPortal(host, app = null) {
     setQLayer(value) {
       qLayer = Boolean(value);
       portal.classList.toggle('is-q', qLayer);
+      sync();
       settle();
     },
     dispose() {
       resizeObserver?.disconnect();
-      settleTimers.forEach((timer) => window.clearTimeout(timer));
-      settleTimers = [];
+      if (settleFrame) cancelAnimationFrame(settleFrame);
+      settleFrame = 0;
       window.removeEventListener('resize', settle);
-      window.visualViewport?.removeEventListener('resize', settle);
-      window.visualViewport?.removeEventListener('scroll', settle);
-      document.removeEventListener('focusin', settle, true);
-      document.removeEventListener('focusout', settle, true);
+      if (!inApp) window.visualViewport?.removeEventListener('resize', settle);
+      // No focus/scroll geometry listeners to dispose.
       if (portal.isConnected) portal.remove();
     },
   };

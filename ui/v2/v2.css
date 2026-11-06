@@ -236,6 +236,7 @@
 .v2-layer-backdrop{z-index:1200;background:rgba(47,51,56,.42);pointer-events:auto}
 .v2-z.has-v2-layer{overflow:hidden}
 .v2-layer-portal{z-index:1200;overflow:hidden;pointer-events:none;border-radius:var(--v2-z-radius) 0 0 0}
+.v2-layer-portal--workspace{position:absolute;right:auto;bottom:auto}
 .v2-layer-portal--viewport{position:fixed;right:auto;bottom:auto}
 .v2-layer-portal.is-q{border-radius:0}
 .v2-layer-portal.is-q>.v2-layer-backdrop[data-v2-q="true"]>.v2-layer--standard{top:var(--v2-q-top,72px);left:var(--v2-q-left,16px);right:0;bottom:0}
