@@ -1,5 +1,5 @@
 import { text } from './html.js';
-import { v2ModalPortalGeometry, v2QModalPortalGeometry, currentVisualViewport } from './geometry.js';
+import { v2ModalPortalGeometry, v2QModalPortalGeometry } from './geometry.js';
 import {
   activeV2ModalSurface,
   lockV2ModalSurface,
@@ -32,29 +32,19 @@ function mountV2ModalPortal(host, app = null) {
 
   const sync = () => {
     if (!portal.isConnected || !host.isConnected) return;
-    // Use the stable application viewport. A keyboard changes only the shared
-    // visible-work-area inset, never the position or height of the Q/X portal.
-    const visual = currentVisualViewport();
-    const stableHeight = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh'),
-    ) || window.innerHeight;
-    const stableWidth = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vw'),
-    ) || window.innerWidth;
-    const layoutViewport = {
-      offsetLeft: 0,
-      offsetTop: 0,
-      width: Math.max(stableWidth, visual.width),
-      height: stableHeight,
-    };
+    // Portal and app share the same stable coordinate space. Never clip
+    // modal geometry to a shrinking visual viewport or its transient origin.
     const hostRect = host.getBoundingClientRect();
+    const appRect = app?.getBoundingClientRect() || hostRect;
+    const layoutViewport = {
+      offsetLeft: appRect.left,
+      offsetTop: appRect.top,
+      width: appRect.width,
+      height: appRect.height,
+    };
     let geometry = v2ModalPortalGeometry(hostRect, layoutViewport);
     if (qLayer && app) {
-      const appRect = app.getBoundingClientRect();
-      geometry = {
-        left: appRect.left, top: appRect.top,
-        width: appRect.width, height: appRect.height, bottom: appRect.bottom,
-      };
+      geometry = v2ModalPortalGeometry(appRect, layoutViewport);
       const headerBottom = app.querySelector?.('[data-v2-header]')?.getBoundingClientRect?.().bottom;
       const qGeometry = v2QModalPortalGeometry(appRect, layoutViewport, { headerBottom });
       portal.style.setProperty('--v2-q-top', `${Math.max(0, qGeometry.top - geometry.top)}px`);
