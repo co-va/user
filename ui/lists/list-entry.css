@@ -13,6 +13,27 @@
 .list-entry__content:has(.list-entry__reorder-handle){grid-template-columns:36px minmax(0,1fr) auto auto auto}
 .list-entry--columns .list-entry__content:has(.list-entry__reorder-handle){grid-template-columns:36px minmax(0,1fr) auto auto}
 .list-entry--columns .list-entry__columns{grid-column:auto}
-.journal-list-record--deleted{outline:2px solid #ff1111;outline-offset:-2px}
+/* One shared Journal Record card: same three rows for every state.
+   The header aligns "Запись" with date/time; services and total share row 2;
+   duration and payment status share row 3. Deleted replaces total with status. */
+.journal-list-record .list-entry__content{min-height:112px;padding:15px 14px}
+.journal-list-record .list-entry__columns{grid-template-columns:minmax(0,1fr) max-content;gap:10px;align-items:start}
+.journal-list-record .list-entry__column{grid-template-rows:26px 26px 20px;gap:5px;min-width:0}
+.journal-list-record .list-entry__column--2{text-align:right}
+.journal-list-record .list-entry__column-line{font-size:14px;line-height:1.25}
+.journal-list-record .list-entry__column-line.journal-record-label{font-size:18px;font-weight:800}
+.journal-list-record .list-entry__column-line.journal-record-procedures{font-size:14px;color:#74777A;font-weight:500}
+.journal-list-record .list-entry__column-line.journal-record-duration{font-size:13px;color:#85878A}
+.journal-list-record .list-entry__column-line.journal-record-date{font-size:14px;font-weight:750}
+.journal-list-record .list-entry__column-line.journal-record-total{font-size:18px;font-weight:800}
+.journal-list-record .list-entry__column-line.journal-record-status--due{color:#245EB9;font-weight:750}
+.journal-list-record .list-entry__column-line.journal-record-status--paid{color:#287C3E;font-weight:750}
+.journal-list-record .list-entry__column-line.journal-record-status--debt,
+.journal-list-record .list-entry__column-line.journal-record-status--deleted{color:#B42318;font-weight:800}
 .journal-list-record--deleted .list-entry__content{background:#fff}
-.journal-list-record--deleted .list-entry__right small{color:#ba1010;font-weight:750}
+@media(max-width:360px){
+  .journal-list-record .list-entry__content{padding-left:10px;padding-right:10px}
+  .journal-list-record .list-entry__columns{grid-template-columns:minmax(0,1fr) max-content;gap:6px}
+  .journal-list-record .list-entry__column-line.journal-record-date{font-size:12px}
+  .journal-list-record .list-entry__column-line.journal-record-total{font-size:16px}
+}
