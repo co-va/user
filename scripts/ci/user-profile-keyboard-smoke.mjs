@@ -34,9 +34,25 @@ try {
     if (!input || !actions) throw new Error('Profile field or save action missing');
 
     const initiallyHidden = actions.hidden;
+    const app = mount.querySelector('[data-v2-app]');
+    const portalSharesApp = layer.v2Portal?.parentElement === app;
+    const body = layer.querySelector('[data-v2-q-body]');
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    await frame();
+    await frame();
+    document.documentElement.classList.add('keyboard-open');
+    document.documentElement.style.setProperty('--ui-keyboard-inset', '350px');
+    await frame();
+    body.scrollTop = 90;
+    const beforeSave = { height: body.scrollHeight, top: body.scrollTop };
     input.value = 'Александр';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    const visibleAfterEdit = !actions.hidden && getComputedStyle(actions).display !== 'none';
+    await frame();
+    await frame();
+    const afterSave = { height: body.scrollHeight, top: body.scrollTop };
+    body.scrollTop += 60;
+    const scrollAfterSave = body.scrollTop;
+    const visibleAfterEdit = !actions.hidden && getComputedStyle(actions).visibility === 'visible';
 
     const box = (node) => {
       const rect = node.getBoundingClientRect();
@@ -46,8 +62,6 @@ try {
     const q = layer.querySelector('.v2-layer--standard');
     const atRest = { header: box(header), q: box(q) };
 
-    document.documentElement.classList.add('keyboard-open');
-    document.documentElement.style.setProperty('--ui-keyboard-inset', '350px');
     const whileTyping = { header: box(header), q: box(q) };
 
     document.documentElement.classList.remove('keyboard-open');
@@ -55,11 +69,22 @@ try {
     const afterClose = { header: box(header), q: box(q), save: box(save) };
     layer.v2Close?.();
 
-    return { initiallyHidden, visibleAfterEdit, atRest, whileTyping, afterClose };
+    return {
+      initiallyHidden, visibleAfterEdit, portalSharesApp,
+      beforeSave, afterSave, scrollAfterSave,
+      atRest, whileTyping, afterClose,
+    };
   });
 
   assert.equal(result.initiallyHidden, true, 'Pristine profile must preserve approved hidden-save rule');
   assert.equal(result.visibleAfterEdit, true, 'Save must appear after editing the name');
+  assert.equal(result.portalSharesApp, true, 'Q portal must be within the app, not a separately fixed body overlay');
+  assert.ok(Math.abs(result.afterSave.height - result.beforeSave.height) <= 1,
+    `Revealing Save must not change editor scrollHeight: ${JSON.stringify({ before: result.beforeSave, after: result.afterSave })}`);
+  assert.ok(Math.abs(result.afterSave.top - result.beforeSave.top) <= 1,
+    'Revealing Save must not jump scroll position');
+  assert.ok(result.scrollAfterSave > result.afterSave.top + 10,
+    'Editor must remain scrollable after Save appears while keyboard is open');
   const near = (a, b, name) => assert.ok(Math.abs(a - b) <= 1, `${name}: ${a} vs ${b}`);
   near(result.atRest.header.top, result.whileTyping.header.top, 'H must not jump on typing');
   near(result.atRest.q.top, result.whileTyping.q.top, 'Q top must not jump on typing');
@@ -67,7 +92,7 @@ try {
   assert.ok(result.afterClose.save.top >= 0 && result.afterClose.save.bottom <= 844,
     `Save must be visible without scrolling when keyboard closes: ${JSON.stringify(result.afterClose.save)}`);
 
-  console.log('PASS: real User profile save appears after name edit and remains visible when keyboard closes');
+  console.log('PASS: real User profile has app-owned Q, stable scrolling after Save appears, and visible action on keyboard close');
 } finally {
   await browser.close();
 }
