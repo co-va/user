@@ -41,10 +41,17 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  page.on('pageerror', (error) => console.error('LOCAL PROFILE JS:', error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400 && new URL(response.url()).hostname === '127.0.0.1') {
+      console.error('LOCAL PROFILE HTTP:', response.status(), response.url());
+    }
+  });
   const response = await page.goto(base, { waitUntil: 'load', timeout: 25_000 });
   assert.equal(response?.status(), 200, 'Local checked-out User fixture must load');
 
-  const result = await page.evaluate(async () => {
+  const result = await Promise.race([
+    page.evaluate(async () => {
     const { v2Shell } = await import('/ui/v2/shell.js');
     const { openAccountPersonalDataZ } = await import('/user/personal-data.js');
     const mount = document.querySelector('#app');
@@ -133,7 +140,9 @@ try {
       beforeSave, afterSave, scrollAfterSave,
       atRest, whileTyping, afterClose, pan, panBy,
     };
-  });
+  }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Local profile browser fixture timed out after 25s')), 25_000)),
+  ]);
 
   assert.equal(result.initiallyHidden, true, 'Pristine profile must preserve approved hidden-save rule');
   assert.equal(result.visibleAfterEdit, true, 'Save must appear after editing the name');
@@ -157,5 +166,6 @@ try {
   console.log('PASS: local staging profile has app-owned Q, stable Save, and fixed visual viewport anchors');
 } finally {
   await browser.close();
+  server.closeAllConnections();
   await new Promise((resolveClose) => server.close(resolveClose));
 }
