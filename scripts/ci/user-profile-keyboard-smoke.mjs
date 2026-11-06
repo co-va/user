@@ -33,7 +33,7 @@ try {
     const actions = save?.closest('.modal-actions');
     if (!input || !actions) throw new Error('Profile field or save action missing');
 
-    const initiallyHidden = actions.hidden;
+    const initiallyHidden = actions.hasAttribute('data-ui-action-hidden') && getComputedStyle(actions).visibility === 'hidden';
     const app = mount.querySelector('[data-v2-app]');
     const portalSharesApp = layer.v2Portal?.parentElement === app;
     const body = layer.querySelector('[data-v2-q-body]');
@@ -52,7 +52,7 @@ try {
     const afterSave = { height: body.scrollHeight, top: body.scrollTop };
     body.scrollTop += 60;
     const scrollAfterSave = body.scrollTop;
-    const visibleAfterEdit = !actions.hidden && getComputedStyle(actions).visibility === 'visible';
+    const visibleAfterEdit = !actions.hasAttribute('data-ui-action-hidden') && getComputedStyle(actions).visibility === 'visible';
 
     const box = (node) => {
       const rect = node.getBoundingClientRect();
