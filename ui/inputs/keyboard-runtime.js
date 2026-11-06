@@ -54,9 +54,11 @@ const actionObserver = typeof ResizeObserver === 'function'
   ? new ResizeObserver(() => scheduleActionSync())
   : null;
 
-function visibleAction(surface) {
+function measurableAction(surface) {
   if (!surface) return null;
-  return [...surface.querySelectorAll('.modal-actions:not([hidden])')]
+  // A hidden Q/Z footer remains measurable so editing does not suddenly
+  // increase the inner scroll surface's height when Save first appears.
+  return [...surface.querySelectorAll('.modal-actions')]
     .reverse()
     .find((node) => node.getBoundingClientRect().height > 0 && getComputedStyle(node).display !== 'none') || null;
 }
@@ -66,7 +68,7 @@ function syncActionHeights() {
   const areas = document.querySelectorAll('[data-v2-z-body], [data-v2-q-body]');
   const nextActions = new Set();
   areas.forEach((area) => {
-    const action = visibleAction(area);
+    const action = measurableAction(area);
     if (action) nextActions.add(action);
     const height = action ? Math.ceil(action.getBoundingClientRect().height) : 0;
     const value = `${height}px`;
@@ -87,8 +89,8 @@ function syncActionHeights() {
   const z = [...app.querySelectorAll('[data-v2-z-layer]')].at(-1)
     || app.querySelector('[data-v2-front] > [data-v2-z]');
   const active = q || z;
-  const action = visibleAction(active);
-  const value = `${action ? Math.ceil(action.getBoundingClientRect().height) : 0}px`;
+  const action = measurableAction(active);
+  const value = `${action && !action.hidden ? Math.ceil(action.getBoundingClientRect().height) : 0}px`;
   if (app.style.getPropertyValue('--ui-active-action-height') !== value) {
     app.style.setProperty('--ui-active-action-height', value);
   }
