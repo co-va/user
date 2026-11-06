@@ -1,7 +1,6 @@
 /* Shared viewport, scrollable work area and keyboard inset for every screen. */
 :root{
   --visual-vh:var(--app-stable-vh,100dvh)!important;
-  --ui-visual-top:0px;
   --ui-keyboard-inset:0px;
   --ui-bottom-safe:env(safe-area-inset-bottom);
 }
