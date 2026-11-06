@@ -54,6 +54,9 @@ try {
       header: '<header class="v2-header" data-v2-header>ABCD</header>',
       body: '<div>Journal</div>',
     });
+    // The local fixture does not run the app bootstrap. Mount its one
+    // production keyboard controller explicitly after creating the shell.
+    await import('/ui/inputs/keyboard-runtime.js');
     const state = {
       account: {
         name: 'Алекс', surname: 'Тест2',
