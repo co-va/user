@@ -10,6 +10,13 @@ const viewport = () => window.visualViewport;
 let stableHeight = 0;
 let stableWidth = 0;
 let actionsFrame = 0;
+let trackingFrame = 0;
+let trackThrough = 0;
+
+function setRootPixel(name, value) {
+  const next = `${Math.round(value)}px`;
+  if (root.style.getPropertyValue(name) !== next) root.style.setProperty(name, next);
+}
 
 function activeEditable() {
   const node = document.activeElement;
@@ -40,8 +47,8 @@ function syncViewport() {
     stableWidth = width;
   }
 
-  root.style.setProperty('--app-stable-vh', `${stableHeight}px`);
-  root.style.setProperty('--app-stable-vw', `${stableWidth}px`);
+  setRootPixel('--app-stable-vh', stableHeight);
+  setRootPixel('--app-stable-vw', stableWidth);
   // In iOS WebKit the *visual* viewport can pan while document.scrollTop
   // remains zero. Compensate only at the one fixed application root:
   // its SCREEN position is (layout top - visualViewport.offsetTop).
@@ -49,12 +56,9 @@ function syncViewport() {
   const visualTop = keyboardOpen
     ? Math.max(0, Math.round(Number(viewport()?.offsetTop || 0)))
     : 0;
-  const offsetValue = `${visualTop}px`;
-  if (root.style.getPropertyValue('--ui-visual-top') !== offsetValue) {
-    root.style.setProperty('--ui-visual-top', offsetValue);
-  }
+  setRootPixel('--ui-visual-top', visualTop);
   const inset = keyboardOpen ? Math.max(0, stableHeight - height) : 0;
-  root.style.setProperty('--ui-keyboard-inset', `${Math.round(inset)}px`);
+  setRootPixel('--ui-keyboard-inset', inset);
   root.classList.toggle('keyboard-open', keyboardOpen);
 }
 
@@ -110,17 +114,40 @@ function scheduleActionSync() {
   actionsFrame = requestAnimationFrame(syncActionHeights);
 }
 
-function onViewportChange() {
-  // Avoid competing with WebKit's native scroll-to-focused-field behavior.
-  // Z/Q use their own overflow areas, while the document itself is locked.
+// Some WebKit versions dispatch visualViewport.scroll only AFTER a native pan.
+ // During a keyboard interaction, read its offset once per animation frame.
+ // This is the SAME root anchor, not a per-form scroll or animation.
+function followVisualViewport() {
+  trackingFrame = 0;
+  if (document.visibilityState === 'hidden') return;
   syncViewport();
+  if ((activeEditable() && root.classList.contains('keyboard-open'))
+    || performance.now() < trackThrough) {
+    trackingFrame = requestAnimationFrame(followVisualViewport);
+  }
+}
+
+function ensureViewportTracking(milliseconds = 0) {
+  trackThrough = Math.max(trackThrough, performance.now() + milliseconds);
+  if (!trackingFrame && document.visibilityState !== 'hidden') {
+    trackingFrame = requestAnimationFrame(followVisualViewport);
+  }
+}
+
+function onViewportChange() {
+  syncViewport();
+  if (root.classList.contains('keyboard-open')) ensureViewportTracking();
 }
 
 document.addEventListener('focusin', (event) => {
   if (!event.target?.matches?.(EDITABLE_SELECTOR)) return;
   onViewportChange();
+  ensureViewportTracking(800);
 });
-document.addEventListener('focusout', onViewportChange);
+document.addEventListener('focusout', () => {
+  onViewportChange();
+  ensureViewportTracking(500);
+});
 window.addEventListener('resize', onViewportChange, { passive: true });
 viewport()?.addEventListener('resize', onViewportChange, { passive: true });
 viewport()?.addEventListener('scroll', onViewportChange, { passive: true });
