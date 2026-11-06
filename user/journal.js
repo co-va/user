@@ -818,6 +818,8 @@ export function renderJournal(root, options = {}) {
     : new Date();
   let disposeView = () => {};
   const records = options.records;
+  const hiddenKeys = new Set();
+  const visibleRecords = () => readRecords(records).filter((record) => !hiddenKeys.has(recordKey(record)));
 
   const render = () => {
     disposeView();
@@ -834,11 +836,11 @@ export function renderJournal(root, options = {}) {
     if (!viewRoot) return;
 
     if (activeView === 'day') {
-      markOpenedJournalDaySeen(selectedDate, records);
+      markOpenedJournalDaySeen(selectedDate, visibleRecords);
       const navigationRoot = secondaryRoot?.querySelector('[data-user-journal-period-navigation]') || secondaryRoot;
       disposeView = renderDay(viewRoot, {
         date: selectedDate,
-        records,
+        records: visibleRecords,
         navigationRoot,
         onChange: (nextDate) => {
           selectedDate = nextDate;
@@ -848,7 +850,7 @@ export function renderJournal(root, options = {}) {
     } else if (activeView === 'month') {
       disposeView = renderMonth(viewRoot, {
         month: selectedDate,
-        records,
+        records: visibleRecords,
         onMonthChange: (nextMonth) => {
           const day = Math.min(selectedDate.getDate(), new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate());
           selectedDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), day);
@@ -861,7 +863,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      disposeView = renderList(viewRoot, { records, mode: listMode });
+      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
@@ -888,14 +890,34 @@ export function renderJournal(root, options = {}) {
     render();
   };
   root.userJournalRefresh = refresh;
+  const onRecordHidden = (event) => {
+    const detail = event?.detail || {};
+    if (!detail.tenantId || !detail.recordId) return;
+    hiddenKeys.add(recordKey({ tenantId: detail.tenantId, id: detail.recordId }));
+    refresh();
+  };
+  window.addEventListener('cova:user-record-hidden', onRecordHidden);
+  // One account-scoped visibility read, not one request per deleted Record.
+  void loadJournalHiddenRecords().then((items) => {
+    if (!root.isConnected) return;
+    let changed = false;
+    for (const item of items) {
+      const key = recordKey(item);
+      if (!hiddenKeys.has(key)) { hiddenKeys.add(key); changed = true; }
+    }
+    if (changed) refresh();
+  }).catch(() => {
+    // Journal remains usable if the new Account visibility API is not yet deployed.
+    // A requested deletion reports a clear error if persistence fails.
+  });
   const onServiceUnseen = () => {
     if (!root.isConnected) return;
     renderJournalNotices(root);
-    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
+    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
   };
   window.addEventListener('va-tools:service-unseen', onServiceUnseen);
   const onJournalFocus = () => {
-    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, records);
+    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
   };
   document.addEventListener('visibilitychange', onJournalFocus);
 
@@ -904,6 +926,7 @@ export function renderJournal(root, options = {}) {
     if (root.userJournalRefresh === refresh) delete root.userJournalRefresh;
     disposeView();
     window.removeEventListener('va-tools:service-unseen', onServiceUnseen);
+    window.removeEventListener('cova:user-record-hidden', onRecordHidden);
     document.removeEventListener('visibilitychange', onJournalFocus);
     clearV2ZHeaderRows(root);
     clearV2Y(root);
