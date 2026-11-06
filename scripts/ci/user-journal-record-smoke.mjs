@@ -184,8 +184,9 @@ try {
     'Dismissed record must remain hidden after a reload');
   console.log('PASS: same card, date and duration, price/status, deleted no sum, repeat, persistent hide');
 } finally {
-  clearTimeout(watchdog);
-  await browser.close();
+  console.log('JOURNAL FIXTURE: closing browser and local server');
   server.closeAllConnections();
+  await browser.close();
   await new Promise((done) => server.close(done));
+  clearTimeout(watchdog);
 }
