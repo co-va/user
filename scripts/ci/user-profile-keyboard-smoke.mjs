@@ -120,11 +120,19 @@ try {
 
     // Simulate native WebKit visual viewport panning while the keyboard is
     // open. Visually fixed means layout top MINUS viewport offset is stable.
-    input.focus({ preventScroll: true });
+    // Directly tapping the LAST field can deliver a VisualViewport shrink
+    // before focusin. The Shared shell must not adopt that reduced height.
+    const lastInput = layer.querySelector('[name="telegram"]');
+    if (!lastInput) throw new Error('Last profile field missing');
+    const preTapHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
     const vv = window.visualViewport;
     const originalHeight = vv.height;
     const panBy = 117;
     Object.defineProperty(vv, 'height', { configurable: true, value: originalHeight - 300 });
+    vv.dispatchEvent(new Event('resize'));
+    await frame();
+    const preFocusHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
+    lastInput.focus({ preventScroll: true });
     Object.defineProperty(vv, 'offsetTop', { configurable: true, value: panBy });
     // WebKit can delay scroll events until panning has finished. The shared
     // focus-time monitor must catch the visual offset without an event.
@@ -137,7 +145,7 @@ try {
     // WebKit may blur the final input while the keyboard is still visible.
     // Its temporary viewport height must NOT become the new Z/Q height.
     const baseline = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
-    input.blur();
+    lastInput.blur();
     await frame();
     await frame();
     const afterBlur = {
@@ -156,6 +164,7 @@ try {
       initiallyHidden, visibleAfterEdit, portalSharesApp,
       beforeSave, afterSave, scrollAfterSave,
       atRest, whileTyping, afterClose, pan, panBy, afterBlur, baseline,
+      preTapHeight, preFocusHeight,
     };
   }),
     new Promise((_, reject) => setTimeout(() => reject(new Error('Local profile browser fixture timed out after 25s')), 25_000)),
@@ -174,6 +183,8 @@ try {
   near(result.atRest.header.top, result.whileTyping.header.top, 'H must not jump on typing');
   near(result.atRest.q.top, result.whileTyping.q.top, 'Q top must not jump on typing');
   near(result.atRest.q.top, result.afterClose.q.top, 'Q must return to original position');
+  assert.equal(result.preFocusHeight, result.preTapHeight,
+    'Direct tap on final field: pre-focus viewport shrink must not resize Shared Z/Q');
   assert.equal(result.pan.compensation, `${result.panBy}px`, 'Viewport offset must be compensated at app root');
   near(result.pan.header.top - result.panBy, result.afterClose.header.top, 'H stays fixed in visual viewport');
   near(result.pan.q.top - result.panBy, result.afterClose.q.top, 'Q stays fixed in visual viewport');
