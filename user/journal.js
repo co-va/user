@@ -494,26 +494,36 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
 }
 
 function listEntry(record) {
-  const payment = paymentFor(record);
-  const id = recordId(record);
+  const deleted = record?.deleted === true;
+  // Deleted notice is already the only available information. Never request,
+  // recalculate or invent the removed record's price and procedures.
+  const payment = deleted ? null : paymentFor(record);
+  const status = deleted ? null : recordPaymentLabel(record, payment);
   const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
     .map((item) => String(item?.name || '').trim())
-    .filter(Boolean);
-  const procedureTitle = procedures.join(' · ') || 'Запись';
+    .filter(Boolean).join(' · ');
+  const visual = deleted ? 'deleted' : recordVisualState(record, { paid: payment.paid });
   return v2ListEntry({
-    overline: 'Запись',
-    title: procedureTitle,
-    subtitle: '',
-    rightTop: [shortDate(record?.date, ''), String(record?.from || '')].filter(Boolean).join(' · '),
-    rightBottom: money(amountDue(record)),
-    interactive: Boolean(id),
-    data: id ? `data-user-journal-record="${escapeHtml(id)}"` : '',
-    aria: id ? `Открыть запись ${procedureTitle}` : '',
-    className: `journal-list-record--${recordVisualState(record, { paid: payment.paid })}`,
-    initial: 'З',
+    columns: [
+      [
+        { value: 'Запись', strong: true, className: 'journal-record-label' },
+        { value: procedures, muted: true, className: 'journal-record-procedures' },
+        { value: recordDurationLabel(record), muted: true, className: 'journal-record-duration' },
+      ],
+      [
+        { value: [shortDate(record?.date, ''), String(record?.from || '')].filter(Boolean).join(' · '), strong: true, className: 'journal-record-date' },
+        deleted
+          ? { value: 'Удалена', strong: true, className: 'journal-record-status--deleted' }
+          : { value: money(amountDue(record)), strong: true, className: 'journal-record-total' },
+        { value: deleted ? '' : status.label, className: deleted ? '' : `journal-record-status--${status.key}` },
+      ],
+    ],
+    interactive: Boolean(recordId(record)),
+    data: recordId(record) ? `data-user-journal-record="${escapeHtml(recordKey(record))}"` : '',
+    aria: `Открыть запись ${[procedures, record?.date, record?.from].filter(Boolean).join(' ')}`,
+    className: `journal-list-record journal-list-record--${visual}`,
   });
 }
-
 function eventId(event = {}) {
   return String(event?.id || '');
 }
@@ -586,16 +596,7 @@ function eventListEntry(event) {
 }
 
 function deletedNoticeEntry(notice = {}) {
-  const scheduled = [shortDate(notice.date, ''), String(notice.from || '')].filter(Boolean).join(' · ');
-  return v2ListEntry({
-    overline: 'Запись',
-    title: 'Удалена',
-    subtitle: String(notice.body || 'Запись удалена специалистом'),
-    rightTop: scheduled,
-    rightBottom: 'Удалена',
-    className: 'journal-list-record--deleted',
-    initial: 'З',
-  });
+  return listEntry({ ...notice, id: notice.recordId, deleted: true });
 }
 
 function listItemAppointmentTime(item, edge = 'from') {
@@ -616,8 +617,12 @@ function listItemEntry(item) {
     : listEntry(item?.value);
 }
 
-function bindListItems(root, records, events, rerender) {
-  const recordById = new Map(records.map((record) => [recordId(record), record]).filter(([id]) => Boolean(id)));
+function bindListItems(root, records, events, deletedNotices, rerender) {
+  const allRecords = [
+    ...records,
+    ...deletedNotices.map((notice) => ({ ...notice, id: notice.recordId, deleted: true })),
+  ];
+  const recordById = new Map(allRecords.map((record) => [recordKey(record), record]).filter(([, record]) => Boolean(recordId(record))));
   root.querySelectorAll('[data-user-journal-record]').forEach((node) => node.addEventListener('click', () => {
     const record = recordById.get(String(node.dataset.userJournalRecord || ''));
     if (record) openUserRecord(record);
@@ -630,7 +635,7 @@ function bindListItems(root, records, events, rerender) {
   }));
 }
 
-function renderList(root, { records, mode }) {
+function renderList(root, { records, mode, hiddenKeys }) {
   let disposed = false;
   let deletedNotices = [];
   let deletionHistoryError = false;
@@ -643,7 +648,8 @@ function renderList(root, { records, mode }) {
       String(row.tenantId || ''), recordId(row),
     ])));
     const deletedRows = deletedNotices.filter((notice) =>
-      !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')])));
+      !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')]))
+      && !hiddenKeys.has(recordKey(notice)));
     const items = [
       ...recordRows.map((value) => ({ type: 'record', value })),
       ...eventRows.map((value) => ({ type: 'event', value })),
@@ -664,7 +670,7 @@ function renderList(root, { records, mode }) {
         return left - right;
       });
       root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
-      bindListItems(root, recordRows, eventRows, draw);
+      bindListItems(root, recordRows, eventRows, deletedRows, draw);
       return;
     }
 
@@ -699,7 +705,7 @@ function renderList(root, { records, mode }) {
       .sort((a, b) => (Number.isFinite(b.activity) ? b.activity : 0) - (Number.isFinite(a.activity) ? a.activity : 0));
     const ordered = [...completed, ...pending];
     root.innerHTML = v2ListEntries(ordered.map((item) => listItemEntry(item)));
-    bindListItems(root, recordRows, eventRows, draw);
+    bindListItems(root, recordRows, eventRows, deletedRows, draw);
   };
 
   draw();
