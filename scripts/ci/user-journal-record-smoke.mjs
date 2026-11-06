@@ -16,7 +16,13 @@ const hidden = new Set();
 const changes = [];
 const deleted = {
   id: 'notice-1', tenantId: 'tenant-one', recordId: 'removed-1',
-  date: '2026-11-06', from: '16:00', body: 'Запись на 2026-11-06 в 16:00 удалена.',
+  date: '2026-11-06', from: '16:00', to: '19:00',
+  procedures: [
+    { id: 'cut', name: 'Стрижка-женская', duration: 60 },
+    { id: 'color', name: 'Окраска', duration: 90 },
+    { id: 'shatush', name: 'Шатуш', duration: 30 },
+  ],
+  body: 'Запись на 2026-11-06 в 16:00 удалена.',
   removedAt: '2026-11-06T17:00:00Z', read: true,
 };
 const sendJson = (res, data) => {
@@ -130,6 +136,8 @@ try {
       deleted: {
         title: get(deleted, '.journal-record-label'),
         date: get(deleted, '.journal-record-date'),
+        services: get(deleted, '.journal-record-procedures'),
+        length: get(deleted, '.journal-record-duration'),
         status: get(deleted, '.journal-record-status--deleted'),
         amount: get(deleted, '.journal-record-total'),
         rows: deleted?.querySelectorAll('.list-entry__column-line').length,
@@ -150,6 +158,8 @@ try {
   assert.equal(actual.debt, 'Задолженность');
   assert.equal(actual.deleted.title, 'Запись');
   assert.equal(actual.deleted.date, '06.11.26 · 16:00');
+  assert.equal(actual.deleted.services, 'Стрижка-женская · Окраска · Шатуш');
+  assert.equal(actual.deleted.length, '3 ч');
   assert.equal(actual.deleted.status, 'Удалена');
   assert.equal(actual.deleted.amount, '');
   assert.equal(actual.deleted.text.includes('₽'), false);
