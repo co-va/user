@@ -8,7 +8,7 @@ import { chromium } from 'playwright';
 // measure the exact commit being tested, regardless of deployment delays.
 const root = process.cwd();
 const entry = await readFile(resolve(root, 'index.html'), 'utf8');
-const stylePaths = [...entry.matchAll(/<link\\s+rel="stylesheet"\\s+href="([^"]+)"/g)].map((m) => m[1]);
+const stylePaths = [...entry.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"/g)].map((m) => m[1]);
 const fixture = `<!doctype html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 ${stylePaths.map((file) => `<link rel="stylesheet" href="/${file}">`).join('')}
