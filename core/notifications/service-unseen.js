@@ -32,6 +32,22 @@ export async function loadDeletedRecordHistory() {
   return Array.isArray(payload?.items) ? payload.items : [];
 }
 
+// Visibility is owned by Account, never by the source Record.
+export async function loadJournalHiddenRecords() {
+  const response = await accountRequest('/account/journal-hidden-records', { auth: true }, 'Не удалось загрузить скрытые записи');
+  return Array.isArray(response?.items) ? response.items : [];
+}
+
+export async function hideJournalRecord(tenantId, recordId) {
+  const response = await accountRequest('/account/journal-hidden-records', {
+    auth: true,
+    method: 'POST',
+    body: JSON.stringify({ tenantId: String(tenantId || ''), recordId: String(recordId || '') }),
+  }, 'Не удалось убрать запись из журнала');
+  if (!response?.hidden) throw new Error('Сервер не подтвердил удаление из списка');
+  return response;
+}
+
 export function getServiceUnseenState() {
   if (typeof globalThis === 'undefined') return { total: 0, items: [] };
   const state = globalThis[SERVICE_UNSEEN_KEY];
