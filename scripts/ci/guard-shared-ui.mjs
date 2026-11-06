@@ -9,6 +9,7 @@ const mini = read('ui/cards/mini-card.css');
 const list = read('ui/lists/list-entry.css');
 const keyboard = read('ui/inputs/keyboard-runtime.js');
 const keyboardStyles = read('ui/inputs/keyboard.css');
+const recordStyles = read('ui/record/record.css');
 const modalStyles = read('ui/modals/modal.css');
 const vStyles = read('ui/v2/v.css');
 const portal = read('ui/v2/modal-portal.js');
@@ -85,6 +86,10 @@ assert(keyboardStyles.includes('margin-bottom:var(--ui-keyboard-inset)'),
   'Z and Q must only reduce their internal work area');
 assert(keyboardStyles.includes('html.keyboard-open .modal-sheet.v2-layer--bottom'),
   'Every X sheet must have one upper stop above the keyboard');
+assert(recordStyles.includes('.record-creation-flow__body{min-height:0;overflow:visible}'),
+  'Record, Event and Note must use the existing shared Z/Q scroll area');
+assert(!recordStyles.includes('.record-creation-flow__body{min-height:0;overflow:auto'),
+  'Nested creation-flow scroller must not return');
 assert(keyboardStyles.includes('overscroll-behavior:none'),
   'X must stop scrolling at actual content bounds');
 assert(!modalStyles.includes('var(--ui-keyboard-inset'),
