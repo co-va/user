@@ -42,6 +42,11 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   page.on('pageerror', (error) => console.error('LOCAL PROFILE JS:', error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'log' || message.type() === 'error') {
+      console.log('LOCAL EDITOR:', message.text());
+    }
+  });
   page.on('response', (response) => {
     if (response.status() >= 400 && new URL(response.url()).hostname === '127.0.0.1') {
       console.error('LOCAL PROFILE HTTP:', response.status(), response.url());
@@ -178,6 +183,7 @@ try {
         import('/user/note-create.js'),
         import('/ui/profile/index.js'),
       ]);
+      console.log('Editor matrix modules imported');
       const app = document.querySelector('[data-v2-app]');
       const z = app?.querySelector('[data-v2-front] > [data-v2-z]');
       const zBody = z?.querySelector(':scope > [data-v2-z-body]');
@@ -216,6 +222,7 @@ try {
       const event = { id: 'editor-test-event', date: '2026-11-06',
         from: '11:00', to: '12:30', title: 'Событие', description: 'Проверка описания' };
       const eventActions = { read: () => event, update: async () => event, remove: async () => true, create: async () => event };
+      console.log('Checking event Q');
       const eventLayer = openUserEventView(event, { eventActions });
       if (!eventLayer) throw new Error('Real event editor did not open');
       eventLayer.querySelector('[data-user-event-edit]')?.click();
@@ -225,12 +232,14 @@ try {
       const note = { id: 'editor-test-note', date: '2026-11-06', title: 'Заметка',
         text: 'Проверка содержимого', context: { scope: 'account' } };
       const noteActions = { read: () => note, update: async () => note, remove: async () => true, create: async () => note };
+      console.log('Checking note Q');
       const noteLayer = openUserNoteView(note, { noteActions });
       if (!noteLayer) throw new Error('Real note editor did not open');
       noteLayer.querySelector('[data-user-note-edit]')?.click();
       record('Изменение заметки', 'q', noteLayer, '[data-user-note-save]');
       noteLayer.v2Close?.();
 
+      console.log('Checking inline event Z');
       const inlineEvent = openRecordCreationOwner({ surfaceRoot: z, bodyRoot: zBody });
       if (!inlineEvent) throw new Error('Inline event creation did not open');
       createUserEventFlow({ owner: inlineEvent, date: '2026-11-06', eventActions });
@@ -238,6 +247,7 @@ try {
         '[data-user-event-create-submit]', '.record-creation-flow__body');
       inlineEvent.close();
 
+      console.log('Checking inline note Z');
       const inlineNote = openRecordCreationOwner({ surfaceRoot: z, bodyRoot: zBody });
       if (!inlineNote) throw new Error('Inline note creation did not open');
       createUserNoteFlow({ owner: inlineNote, date: '2026-11-06', noteActions });
@@ -245,6 +255,7 @@ try {
         '[data-user-note-create-submit]', '.record-creation-flow__body');
       inlineNote.close();
 
+      console.log('Checking creation Q');
       const qOwner = openRecordCreationOwner();
       if (!qOwner) throw new Error('Q creation owner did not open');
       createUserEventFlow({ owner: qOwner, date: '2026-11-06', eventActions });
@@ -252,6 +263,7 @@ try {
         '[data-user-event-create-submit]', '.record-creation-flow__body');
       qOwner.close();
 
+      console.log('Checking password X');
       const passwordLayer = openSharedPasswordAction({ onSubmit: async () => {} });
       if (!passwordLayer) throw new Error('Real password X editor did not open');
       record('Изменение пароля', 'x', passwordLayer, '[type="submit"]');
