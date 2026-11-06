@@ -25,9 +25,16 @@ function mountV2ModalPortal(host, app = null) {
   if (!host) return null;
 
   const portal = document.createElement('div');
-  portal.className = 'v2-layer-portal v2-layer-portal--viewport';
+  // Every app modal must share the same containing block as H and Z.
+  // A separate fixed body portal follows iOS VisualViewport panning on
+  // its own timeline and moves Q/X independently of the application.
+  const owner = app || document.body;
+  const inApp = Boolean(app);
+  portal.className = inApp
+    ? 'v2-layer-portal v2-layer-portal--workspace'
+    : 'v2-layer-portal v2-layer-portal--viewport';
   portal.dataset.v2LayerPortal = '';
-  document.body.appendChild(portal);
+  owner.appendChild(portal);
   let qLayer = false;
 
   const sync = () => {
@@ -53,8 +60,8 @@ function mountV2ModalPortal(host, app = null) {
       portal.style.removeProperty('--v2-q-top');
       portal.style.removeProperty('--v2-q-left');
     }
-    portal.style.left = `${geometry.left}px`;
-    portal.style.top = `${geometry.top}px`;
+    portal.style.left = `${geometry.left - (inApp ? appRect.left : 0)}px`;
+    portal.style.top = `${geometry.top - (inApp ? appRect.top : 0)}px`;
     portal.style.width = `${geometry.width}px`;
     portal.style.height = `${geometry.height}px`;
   };
@@ -71,8 +78,9 @@ function mountV2ModalPortal(host, app = null) {
   sync();
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(settle) : null;
   resizeObserver?.observe(host);
+  if (app && host !== app) resizeObserver?.observe(app);
   window.addEventListener('resize', settle);
-  window.visualViewport?.addEventListener('resize', settle);
+  if (!inApp) window.visualViewport?.addEventListener('resize', settle);
   // Keyboard focus and visual viewport panning do not change portal geometry.
 
   return {
@@ -89,7 +97,7 @@ function mountV2ModalPortal(host, app = null) {
       if (settleFrame) cancelAnimationFrame(settleFrame);
       settleFrame = 0;
       window.removeEventListener('resize', settle);
-      window.visualViewport?.removeEventListener('resize', settle);
+      if (!inApp) window.visualViewport?.removeEventListener('resize', settle);
       // No focus/scroll geometry listeners to dispose.
       if (portal.isConnected) portal.remove();
     },
