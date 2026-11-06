@@ -73,9 +73,7 @@ function mountV2ModalPortal(host, app = null) {
   resizeObserver?.observe(host);
   window.addEventListener('resize', settle);
   window.visualViewport?.addEventListener('resize', settle);
-  window.visualViewport?.addEventListener('scroll', settle);
-  document.addEventListener('focusin', settle, true);
-  document.addEventListener('focusout', settle, true);
+  // Keyboard focus and visual viewport panning do not change portal geometry.
 
   return {
     portal,
@@ -92,9 +90,7 @@ function mountV2ModalPortal(host, app = null) {
       settleFrame = 0;
       window.removeEventListener('resize', settle);
       window.visualViewport?.removeEventListener('resize', settle);
-      window.visualViewport?.removeEventListener('scroll', settle);
-      document.removeEventListener('focusin', settle, true);
-      document.removeEventListener('focusout', settle, true);
+      // No focus/scroll geometry listeners to dispose.
       if (portal.isConnected) portal.remove();
     },
   };
