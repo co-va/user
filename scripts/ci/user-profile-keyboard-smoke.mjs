@@ -118,21 +118,29 @@ try {
     document.documentElement.style.setProperty('--ui-keyboard-inset', '0px');
     const afterClose = { header: box(header), q: box(q), save: box(save) };
 
-    // Simulate native WebKit visual viewport panning while the keyboard is
-    // open. Visually fixed means layout top MINUS viewport offset is stable.
-    // Directly tapping the LAST field can deliver a VisualViewport shrink
-    // before focusin. The Shared shell must not adopt that reduced height.
+    // iOS animates its keyboard, shrinking the VisualViewport about 20px
+    // per frame. Previously syncViewport adopted each small decrease as the
+    // new "stable" shell height, eventually exposing the dark H background.
+    // Include the troublesome direct tap on the LAST input mid-animation.
     const lastInput = layer.querySelector('[name="telegram"]');
     if (!lastInput) throw new Error('Last profile field missing');
     const preTapHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
     const vv = window.visualViewport;
     const originalHeight = vv.height;
     const panBy = 117;
-    Object.defineProperty(vv, 'height', { configurable: true, value: originalHeight - 300 });
-    vv.dispatchEvent(new Event('resize'));
-    await frame();
-    const preFocusHeight = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
-    lastInput.focus({ preventScroll: true });
+    const progressiveHeights = [];
+    let preFocusHeight = '';
+    for (let delta = 20; delta <= 300; delta += 20) {
+      Object.defineProperty(vv, 'height', { configurable: true, value: originalHeight - delta });
+      vv.dispatchEvent(new Event('resize'));
+      await frame();
+      const h = getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim();
+      progressiveHeights.push(h);
+      if (delta === 80) {
+        preFocusHeight = h;
+        lastInput.focus({ preventScroll: true });
+      }
+    }
     Object.defineProperty(vv, 'offsetTop', { configurable: true, value: panBy });
     // WebKit can delay scroll events until panning has finished. The shared
     // focus-time monitor must catch the visual offset without an event.
@@ -154,6 +162,13 @@ try {
       keyboardOpen: document.documentElement.classList.contains('keyboard-open'),
       header: box(header), q: box(q),
     };
+    const recoveringHeights = [];
+    for (let delta = 280; delta >= 0; delta -= 20) {
+      Object.defineProperty(vv, 'height', { configurable: true, value: originalHeight - delta });
+      vv.dispatchEvent(new Event('resize'));
+      await frame();
+      recoveringHeights.push(getComputedStyle(document.documentElement).getPropertyValue('--app-stable-vh').trim());
+    }
     delete vv.height;
     delete vv.offsetTop;
     vv.dispatchEvent(new Event('resize'));
@@ -164,7 +179,7 @@ try {
       initiallyHidden, visibleAfterEdit, portalSharesApp,
       beforeSave, afterSave, scrollAfterSave,
       atRest, whileTyping, afterClose, pan, panBy, afterBlur, baseline,
-      preTapHeight, preFocusHeight,
+      preTapHeight, preFocusHeight, progressiveHeights, recoveringHeights,
     };
   }),
     new Promise((_, reject) => setTimeout(() => reject(new Error('Local profile browser fixture timed out after 25s')), 25_000)),
@@ -185,6 +200,12 @@ try {
   near(result.atRest.q.top, result.afterClose.q.top, 'Q must return to original position');
   assert.equal(result.preFocusHeight, result.preTapHeight,
     'Direct tap on final field: pre-focus viewport shrink must not resize Shared Z/Q');
+  assert.ok(result.progressiveHeights.every((h) => h === result.preTapHeight),
+    'Progressive iOS keyboard animation must NEVER ratchet the Shared Z/Q shell height: ' +
+      JSON.stringify(result.progressiveHeights));
+  assert.ok(result.recoveringHeights.every((h) => h === result.preTapHeight),
+    'Progressive keyboard dismissal must NEVER shrink the Shared Z/Q shell height: ' +
+      JSON.stringify(result.recoveringHeights));
   assert.equal(result.pan.compensation, `${result.panBy}px`, 'Viewport offset must be compensated at app root');
   near(result.pan.header.top - result.panBy, result.afterClose.header.top, 'H stays fixed in visual viewport');
   near(result.pan.q.top - result.panBy, result.afterClose.q.top, 'Q stays fixed in visual viewport');
