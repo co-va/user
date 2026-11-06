@@ -121,7 +121,7 @@ new MutationObserver(scheduleActionSync).observe(document.body, {
   childList: true,
   subtree: true,
   attributes: true,
-  attributeFilter: ['hidden', 'class'],
+  attributeFilter: ['hidden', 'class', 'data-ui-action-hidden'],
 });
 window.addEventListener('user:v2-context-changed', scheduleActionSync);
 
