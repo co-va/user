@@ -34,9 +34,8 @@ try {
             </main>
           </div>
         </div>
-      </section>
-    </div>
-    <div class="v2-layer-portal v2-layer-portal--viewport is-q"
+      <!-- Q and X are children of the shared app coordinate space. -->
+      <div class="v2-layer-portal v2-layer-portal--workspace is-q"
       style="top:0;left:0;width:390px;height:844px;--v2-q-top:72px;--v2-q-left:16px">
       <div class="v2-layer-backdrop v2-layer-backdrop--contained" data-v2-layer data-v2-q="true">
         <section class="v2-layer v2-layer--standard modal-sheet" id="q"
@@ -46,7 +45,7 @@ try {
         </section>
       </div>
     </div>
-    <div class="v2-layer-portal v2-layer-portal--viewport"
+    <div class="v2-layer-portal v2-layer-portal--workspace"
       style="top:0;left:0;width:390px;height:844px">
       <div class="v2-layer-backdrop v2-layer-backdrop--contained" data-v2-layer data-v2-layer-kind="bottom">
         <section class="v2-layer v2-layer--bottom modal-sheet modal--bottom modal--form-sheet" id="x">
@@ -54,6 +53,8 @@ try {
           <div class="modal-actions"><button id="save" style="height:56px">Save</button></div>
         </section>
       </div>
+    </div>
+      </section>
     </div>
     </body></html>`);
 
