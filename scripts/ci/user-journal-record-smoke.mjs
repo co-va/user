@@ -97,12 +97,13 @@ try {
         initialView: 'list', records: () => window.__records,
       });
     }, sourceRecords);
-    await page.locator('.journal-list-record--active').waitFor({ timeout: 12_000 });
+    await page.locator('.journal-list-record--active').first().waitFor({ timeout: 12_000 });
   }
   await mount();
   await page.locator('.journal-list-record--deleted').waitFor({ timeout: 12_000 });
   const actual = await page.evaluate(() => {
-    const normal = document.querySelector('.journal-list-record--active');
+    const normal = [...document.querySelectorAll('.journal-list-record--active')]
+      .find((row) => row.textContent.includes('Стрижка-женская'));
     const deleted = document.querySelector('.journal-list-record--deleted');
     const get = (node, css) => node?.querySelector(css)?.textContent?.trim() || '';
     return {
