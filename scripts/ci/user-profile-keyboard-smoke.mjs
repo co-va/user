@@ -111,8 +111,8 @@ try {
     const panBy = 117;
     Object.defineProperty(vv, 'height', { configurable: true, value: originalHeight - 300 });
     Object.defineProperty(vv, 'offsetTop', { configurable: true, value: panBy });
-    vv.dispatchEvent(new Event('resize'));
-    vv.dispatchEvent(new Event('scroll'));
+    // WebKit can delay scroll events until panning has finished. The shared
+    // focus-time monitor must catch the visual offset without an event.
     await frame();
     await frame();
     const pan = {
