@@ -6,10 +6,8 @@
 
 /* One measured action stack for all Z/Q surfaces; no button-count rules. */
 .modal-actions[hidden]{display:none!important}
-/* Reserve the same Q/Z footer clearance while its action is hidden.
-   Toggling Save cannot change scrollHeight during an active keyboard. */
-:is([data-v2-z-body],[data-v2-q-body]) .modal-actions[hidden]{
-  display:grid!important;
+/* Shared action visibility retains the occupied footer height and scroll bounds. */
+.modal-actions[data-ui-action-hidden]{
   visibility:hidden;
   pointer-events:none;
 }
