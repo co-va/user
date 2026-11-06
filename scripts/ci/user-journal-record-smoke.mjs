@@ -118,6 +118,15 @@ try {
   console.log('JOURNAL FIXTURE: rendered active records');
   await page.locator('.journal-list-record--deleted').waitFor({ timeout: 6_000 });
   console.log('JOURNAL FIXTURE: rendered deleted record');
+  // The shared Z Header must keep the first list row clear of its controls.
+  const navGap = await page.evaluate(() => {
+    const tabs = document.querySelector('[data-v2-z-header-row="1"] [data-view-navigation]');
+    const firstEntry = document.querySelector('[data-user-journal-view] .list-entries .list-entry');
+    if (!tabs || !firstEntry) return null;
+    return firstEntry.getBoundingClientRect().top - tabs.getBoundingClientRect().bottom;
+  });
+  assert.ok(navGap != null && navGap >= 10,
+    `Journal list overlaps the shared Z navigation (gap: ${navGap})`);
   const actual = await page.evaluate(() => {
     const normal = [...document.querySelectorAll('.journal-list-record--active')]
       .find((row) => row.textContent.includes('Стрижка-женская'));
