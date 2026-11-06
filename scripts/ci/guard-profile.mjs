@@ -14,7 +14,8 @@ assert(count(shell, 'function profileSummary(') === 1, 'Profile summary must not
 
 assert(count(personal, 'export function openAccountPersonalDataZ') === 1, 'Personal-data editor must have one owner');
 assert(personal.includes('openSharedPersonalDataEditor({'), 'Personal data must use the shared editor');
-assert(personal.includes('saveActions.hidden = !dirty'), 'Profile save action must appear only for changed data');
+assert(personal.includes('setSharedActionVisible(saveActions, dirty)'), 'Profile save action must appear only for changed data');
+assert(personal.includes('setSharedActionVisible(saveActions, false)'), 'Pristine profile action must be visually hidden without resizing the scroll surface');
 assert(personal.includes('updateGlobalAccount(payload)'), 'Profile data must save through Account');
 assert(personal.includes('changeAccountEmail(requestedEmail)'), 'Email change must keep verification flow');
 
