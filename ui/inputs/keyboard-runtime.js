@@ -44,8 +44,12 @@ function syncViewport() {
 
   root.style.setProperty('--app-stable-vh', `${stableHeight}px`);
   root.style.setProperty('--app-stable-vw', `${stableWidth}px`);
-  // VisualViewport.offsetTop accounts for Safari panning while the keyboard is shown.
-  const inset = keyboardOpen ? Math.max(0, stableHeight - (top + height)) : 0;
+  // Keep H and the top of Z/Q aligned to the visual viewport when Safari
+  // pans the layout viewport to focus an input.
+  root.style.setProperty('--ui-visual-top', `${Math.max(0, Math.round(top))}px`);
+  // The anchored shell starts at visualViewport.offsetTop, so subtracting
+  // offsetTop again would make the keyboard work area too short.
+  const inset = keyboardOpen ? Math.max(0, stableHeight - height) : 0;
   root.style.setProperty('--ui-keyboard-inset', `${Math.round(inset)}px`);
   root.classList.toggle('keyboard-open', keyboardOpen);
 }
