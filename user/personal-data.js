@@ -41,11 +41,9 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
   const form = layer.querySelector('[data-account-personal-form]');
   const errorNode = layer.querySelector('[data-account-personal-error]');
   const saveButton = layer.querySelector('[data-account-personal-save]');
-  const saveActions = saveButton?.closest('.modal-actions');
   const initialSignature = form ? formSignature(form) : '';
   const syncDirty = () => {
     const dirty = Boolean(form && formSignature(form) !== initialSignature);
-    if (saveActions) saveActions.hidden = !dirty;
     onDirtyChange?.(dirty);
   };
   form?.addEventListener('input', syncDirty);
@@ -107,6 +105,5 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
     }
   });
 
-  if (saveActions) saveActions.hidden = true;
   return layer;
 }
