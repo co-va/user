@@ -59,9 +59,18 @@ const server = createServer(async (req, res) => {
 await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const url = 'http://127.0.0.1:' + server.address().port + '/__journal_smoke__';
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+const watchdog = setTimeout(() => {
+  console.error('FAIL: Journal browser fixture exceeded 45 seconds');
+  process.exit(1);
+}, 45_000);
 
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  page.setDefaultTimeout(6_000);
+  page.setDefaultNavigationTimeout(15_000);
+  page.on('console', (message) => {
+    if (message.type() === 'error') console.error('JOURNAL CONSOLE:', message.text());
+  });
   page.on('pageerror', (error) => console.error('JOURNAL JS:', error.message));
   await page.addInitScript(() => {
     window.__USER_API_BASE__ = location.origin;
@@ -100,7 +109,9 @@ try {
     await page.locator('.journal-list-record--active').first().waitFor({ timeout: 12_000 });
   }
   await mount();
-  await page.locator('.journal-list-record--deleted').waitFor({ timeout: 12_000 });
+  console.log('JOURNAL FIXTURE: rendered active records');
+  await page.locator('.journal-list-record--deleted').waitFor({ timeout: 6_000 });
+  console.log('JOURNAL FIXTURE: rendered deleted record');
   const actual = await page.evaluate(() => {
     const normal = [...document.querySelectorAll('.journal-list-record--active')]
       .find((row) => row.textContent.includes('Стрижка-женская'));
@@ -146,6 +157,7 @@ try {
   assert.equal(actual.deleted.rows, actual.normal.rows);
 
   // A removed source record can be opened and repeated without inventing details.
+  console.log('JOURNAL FIXTURE: checking deleted record actions');
   await page.locator('.journal-list-record--deleted').click();
   await page.locator('[data-user-record-repeat]').waitFor();
   await page.locator('[data-user-record-hide]').waitFor();
@@ -159,17 +171,20 @@ try {
   assert.equal(Boolean(repeated?.repeatRequest), false);
 
   await page.locator('.journal-list-record--deleted').click();
+  console.log('JOURNAL FIXTURE: hiding deleted record');
   await page.locator('[data-user-record-hide]').click();
   await page.locator('.journal-list-record--deleted').waitFor({ state: 'detached', timeout: 10_000 });
   assert.deepEqual(changes, [{ method: 'POST', path: '/account/journal-hidden-records',
     tenantId: 'tenant-one', recordId: 'removed-1' }]);
   assert.equal(sourceRecords.length, 3);
+  console.log('JOURNAL FIXTURE: reloading to verify durable hide');
   await mount();
   await page.waitForTimeout(800);
   assert.equal(await page.locator('.journal-list-record--deleted').count(), 0,
     'Dismissed record must remain hidden after a reload');
   console.log('PASS: same card, date and duration, price/status, deleted no sum, repeat, persistent hide');
 } finally {
+  clearTimeout(watchdog);
   await browser.close();
   server.closeAllConnections();
   await new Promise((done) => server.close(done));
