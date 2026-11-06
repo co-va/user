@@ -19,7 +19,10 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
   await page.setContent(`<!doctype html><html><head>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <style>${css}</style></head><body>
+    <style>${css}
+      /* Measure settled layout, not the entry animation's translated frame. */
+      .v2-layer--bottom,.v2-layer--standard{animation:none!important;transition:none!important}
+    </style></head><body>
     <div class="app-shell">
       <section class="v2-app" data-v2-app>
         <header class="v2-header" data-v2-header id="h">ABCD</header>
