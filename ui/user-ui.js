@@ -10,7 +10,7 @@ export { field, formValidationMessage, initPasswordFields, passwordField, phoneF
 export { collectLinks, initLinks, links } from './links/index.js';
 export { v2ListEntries, v2ListEntry } from './lists/list-entry.js';
 export { modal, mountModal, openNotice } from './modals/index.js';
-export { actionBlock, details, page } from './page/page.js';
+export { actionBlock, details, page, setSharedActionVisible } from './page/page.js';
 export { openSharedPasswordAction, openSharedPhotoAction, openSharedProfileSettingsMenu, openSharedPersonalDataEditor, readSharedPersonalDataEditor } from './profile/index.js';
 export { openRecordCreationOwner, recordCreationTimeRows } from './record/creation-flow.js';
 export { recordConfirmationMiniCard, recordContactList, recordProcedureList, recordTimeRows, recordWorkplaceCards } from './record/runtime.js';
