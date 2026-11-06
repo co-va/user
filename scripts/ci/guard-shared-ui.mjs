@@ -75,8 +75,10 @@ assert(shellStyles.includes('position:fixed;top:var(--ui-visual-top,0px);left:0;
   'Shared root must compensate Safari visual viewport panning');
 assert(!shellStyles.includes('body:has([data-v2-app]){position:fixed'),
   'Never nest a fixed application root inside a second fixed body');
-assert(keyboard.includes("root.style.setProperty('--ui-visual-top'"),
+assert(keyboard.includes("setRootPixel('--ui-visual-top', visualTop)"),
   'Visual viewport compensation must have one shared runtime owner');
+assert(keyboard.includes('function followVisualViewport()'),
+  'WebKit visual viewport panning must be tracked even when scroll events are delayed');
 assert(!keyboard.includes('scrollBy('),
   'Scripted input scrolling must not compete with native WebKit focus scrolling');
 assert(keyboardStyles.includes('margin-bottom:var(--ui-keyboard-inset)'),
