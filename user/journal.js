@@ -493,35 +493,54 @@ function renderMonth(root, { month, records, onDateSelect, onMonthChange }) {
   return () => { disposed = true; };
 }
 
+// Presentation composition belongs to Journal, not to the generic List Entry.
+// Records and Events use the same positions, typography and fill mechanism.
+function journalListCard({ label, title, date, from, duration = '', amount = '', amountClass = 'journal-record-total', status = '', statusClass = '', fillColor, className, data, aria }) {
+  return v2ListEntry({
+    columns: [
+      [
+        { value: label, strong: true, className: 'journal-record-label' },
+        { value: title, muted: true, className: 'journal-record-procedures' },
+        { value: duration, muted: true, className: 'journal-record-duration' },
+      ],
+      [
+        { value: [shortDate(date, ''), String(from || '')].filter(Boolean).join(' · '), strong: true, className: 'journal-record-date' },
+        { value: amount, strong: true, className: amountClass },
+        { value: status, className: statusClass },
+      ],
+    ],
+    fillColor,
+    interactive: Boolean(data),
+    data,
+    aria,
+    className: `journal-list-item ${className}`,
+  });
+}
+
 function listEntry(record) {
   const deleted = record?.deleted === true;
-  // Deleted notice is already the only available information. Never request,
-  // recalculate or invent the removed record's price and procedures.
   const payment = deleted ? null : paymentFor(record);
   const status = deleted ? null : recordPaymentLabel(record, payment);
   const procedures = (Array.isArray(record?.procedures) ? record.procedures : [])
     .map((item) => String(item?.name || '').trim())
     .filter(Boolean).join(' · ');
   const visual = deleted ? 'deleted' : recordVisualState(record, { paid: payment.paid });
-  return v2ListEntry({
-    columns: [
-      [
-        { value: 'Запись', strong: true, className: 'journal-record-label' },
-        { value: procedures, muted: true, className: 'journal-record-procedures' },
-        { value: recordDurationLabel(record), muted: true, className: 'journal-record-duration' },
-      ],
-      [
-        { value: [shortDate(record?.date, ''), String(record?.from || '')].filter(Boolean).join(' · '), strong: true, className: 'journal-record-date' },
-        deleted
-          ? { value: 'Удалена', strong: true, className: 'journal-record-status--deleted' }
-          : { value: money(amountDue(record)), strong: true, className: 'journal-record-total' },
-        { value: deleted ? '' : status.label, className: deleted ? '' : `journal-record-status--${status.key}` },
-      ],
-    ],
-    interactive: Boolean(recordId(record)),
-    data: recordId(record) ? `data-user-journal-record="${escapeHtml(recordKey(record))}"` : '',
-    aria: `Открыть запись ${[procedures, record?.date, record?.from].filter(Boolean).join(' ')}`,
+  const fillColor = deleted ? '#FFFFFF' : visual === 'paid' ? PAID_COLOR : visual === 'no-show' ? NO_SHOW_COLOR : RECORD_COLOR;
+  const id = recordId(record);
+  return journalListCard({
+    label: 'Запись',
+    title: procedures,
+    date: record?.date,
+    from: record?.from,
+    duration: recordDurationLabel(record),
+    amount: deleted ? 'Удалена' : money(amountDue(record)),
+    amountClass: deleted ? 'journal-record-status--deleted' : 'journal-record-total',
+    status: deleted ? '' : status.label,
+    statusClass: deleted ? '' : `journal-record-status--${status.key}`,
+    fillColor,
     className: `journal-list-record journal-list-record--${visual}`,
+    data: id ? `data-user-journal-record="${escapeHtml(recordKey(record))}"` : '',
+    aria: `Открыть запись ${[procedures, record?.date, record?.from].filter(Boolean).join(' ')}`,
   });
 }
 function eventId(event = {}) {
@@ -545,56 +564,32 @@ function eventActivityTime(event = {}) {
   return Number.isFinite(activity) ? activity : eventAppointmentTime(event, 'from');
 }
 
-function russianCount(value, one, few, many) {
-  const number = Math.abs(Number(value) || 0);
-  const mod100 = number % 100;
-  const mod10 = number % 10;
-  if (mod100 >= 11 && mod100 <= 14) return many;
-  if (mod10 === 1) return one;
-  if (mod10 >= 2 && mod10 <= 4) return few;
-  return many;
-}
-
-function eventDurationLabel(event = {}) {
-  const from = usageMinutes(event?.from);
-  const to = usageMinutes(event?.to);
-  if (from == null || to == null || from === to) return '';
-  let duration = to - from;
-  if (duration < 0) duration += 24 * 60;
-  const hours = Math.floor(duration / 60);
-  const minutes = duration % 60;
-  const parts = [];
-  if (hours) parts.push(`${hours} ${russianCount(hours, 'час', 'часа', 'часов')}`);
-  if (minutes) parts.push(`${minutes} ${russianCount(minutes, 'минута', 'минуты', 'минут')}`);
-  return parts.join(' ');
+function lightEventFill(event = {}) {
+  // Stored Event colors are saturated; in a list they become a pale full-card tint.
+  const color = monthEventColor(event);
+  const result = [1, 3, 5].map((start) => {
+    const channel = parseInt(color.slice(start, start + 2), 16);
+    return Math.round(255 - (255 - channel) * 0.27).toString(16).padStart(2, '0');
+  }).join('');
+  const fill = `#${result.toUpperCase()}`;
+  return fill === '#FFFFFF' ? '#F3F3F3' : fill;
 }
 
 function eventListEntry(event) {
   const id = eventId(event);
   const title = String(event?.title || '').trim() || 'Событие';
-  const from = String(event?.from || '').trim();
-  return v2ListEntry({
-    columns: [
-      [
-        { value: 'Событие', muted: true },
-        { value: title, strong: true },
-      ],
-      [],
-      [
-        { value: shortDate(event?.date, ''), strong: true },
-        { value: from },
-        { value: eventDurationLabel(event), muted: true },
-      ],
-    ],
-    leadingSwatch: monthEventColor(event),
-    interactive: Boolean(id),
+  return journalListCard({
+    label: 'Событие',
+    title,
+    date: event?.date,
+    from: event?.from,
+    amount: recordDurationLabel(event),
+    fillColor: lightEventFill(event),
+    className: 'journal-list-event',
     data: id ? `data-user-journal-event="${escapeHtml(id)}"` : '',
     aria: id ? `Открыть событие ${title}` : '',
-    className: 'journal-list-event',
-    initial: 'С',
   });
 }
-
 function deletedNoticeEntry(notice = {}) {
   return listEntry({ ...notice, id: notice.recordId, deleted: true });
 }
