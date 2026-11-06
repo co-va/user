@@ -53,14 +53,19 @@ jobs:
             | xargs -0 -n1 node --check
           node --check service-worker.js
 
-      - name: Browser runtime smoke (User entry and invalid session)
+      - name: Local UI browser smoke
         shell: bash
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
-          # Validate the checked-out UI first; an intermittent external
-          # Amvera connection must not prevent reporting local regressions.
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
-          node scripts/ci/user-runtime-smoke.mjs
+
+      # Staging Smoke already checks live Amvera HTTPS/HTML/JS/API on every
+      # push. Run the full live browser login/expired-session scenario at
+      # the PR gate, not simultaneously for the same SHA on push and PR.
+      # This retains both required real-service and Chromium protections.
+      - name: Live User browser login and expired session (PR gate)
+        if: github.event_name != 'push'
+        run: node scripts/ci/user-runtime-smoke.mjs
