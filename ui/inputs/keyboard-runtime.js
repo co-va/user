@@ -9,7 +9,6 @@ const root = document.documentElement;
 const viewport = () => window.visualViewport;
 let stableHeight = 0;
 let stableWidth = 0;
-let revealFrame = 0;
 let actionsFrame = 0;
 
 function activeEditable() {
@@ -22,12 +21,11 @@ function viewportSize() {
   return {
     height: Math.round(vv?.height || window.innerHeight || root.clientHeight || 0),
     width: Math.round(vv?.width || window.innerWidth || root.clientWidth || 0),
-    top: Number(vv?.offsetTop || 0),
   };
 }
 
 function syncViewport() {
-  const { height, width, top } = viewportSize();
+  const { height, width } = viewportSize();
   if (!height || !width) return;
 
   // Orientation changes can change the stable size; keyboard changes only height.
@@ -44,56 +42,11 @@ function syncViewport() {
 
   root.style.setProperty('--app-stable-vh', `${stableHeight}px`);
   root.style.setProperty('--app-stable-vw', `${stableWidth}px`);
-  // Keep H and the top of Z/Q aligned to the visual viewport when Safari
-  // pans the layout viewport to focus an input.
-  root.style.setProperty('--ui-visual-top', `${Math.max(0, Math.round(top))}px`);
-  // The anchored shell starts at visualViewport.offsetTop, so subtracting
-  // offsetTop again would make the keyboard work area too short.
+  // The application frame is anchored at top:0. Only its scrollable body
+  // gets a keyboard inset; never move H/Z/Q following VisualViewport scroll.
   const inset = keyboardOpen ? Math.max(0, stableHeight - height) : 0;
   root.style.setProperty('--ui-keyboard-inset', `${Math.round(inset)}px`);
   root.classList.toggle('keyboard-open', keyboardOpen);
-}
-
-function scrollHostFor(node) {
-  for (let parent = node?.parentElement; parent && parent !== document.body && parent !== root; parent = parent.parentElement) {
-    const style = getComputedStyle(parent);
-    if (/(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 1) return parent;
-  }
-  return null;
-}
-
-function revealEditable(node) {
-  if (!node?.isConnected || document.activeElement !== node || !node.matches(EDITABLE_SELECTOR)) return;
-  const host = scrollHostFor(node);
-  if (!host) return; // Never scroll the application shell or a background Z.
-  const rect = node.getBoundingClientRect();
-  const hostRect = host.getBoundingClientRect();
-  const vv = viewport();
-  const top = Number(vv?.offsetTop || 0);
-  const bottom = top + Number(vv?.height || window.innerHeight || stableHeight);
-  const surface = node.closest('[data-v2-layer], [data-v2-z-layer], [data-v2-z]');
-  const footer = surface?.querySelector('.modal-actions:not([hidden])');
-  const footerTop = footer?.getBoundingClientRect?.().top;
-  const visibleTop = Math.max(hostRect.top, top) + 12;
-  const visibleBottom = Math.min(hostRect.bottom, bottom, Number.isFinite(footerTop) ? footerTop : bottom) - 12;
-  if (visibleBottom <= visibleTop) return;
-
-  // Minimal immediate scroll, never smooth recentering or repeated timers.
-  const distance = rect.top < visibleTop
-    ? rect.top - visibleTop
-    : rect.height > visibleBottom - visibleTop
-      ? rect.top - visibleTop
-      : rect.bottom - visibleBottom;
-  if (Math.abs(distance) > 1) host.scrollBy({ top: distance, behavior: 'auto' });
-}
-
-function scheduleReveal() {
-  if (revealFrame) cancelAnimationFrame(revealFrame);
-  revealFrame = requestAnimationFrame(() => {
-    revealFrame = 0;
-    const focused = activeEditable();
-    if (focused) revealEditable(focused);
-  });
 }
 
 const observedActions = new Set();
@@ -147,8 +100,9 @@ function scheduleActionSync() {
 }
 
 function onViewportChange() {
+  // Avoid competing with WebKit's native scroll-to-focused-field behavior.
+  // Z/Q use their own overflow areas, while the document itself is locked.
   syncViewport();
-  scheduleReveal();
 }
 
 document.addEventListener('focusin', (event) => {
