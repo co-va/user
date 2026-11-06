@@ -71,12 +71,12 @@ assert(walk('ui').filter((file) => file.endsWith('.css') && file !== 'ui/inputs/
   .every((file) => !read(file).includes('keyboard-open')), 'Keyboard-specific stylesheet exceptions returned');
 
 // Keyboard geometry is a shared contract, not a profile/event/payment fix.
-assert(shellStyles.includes('position:fixed;top:0;left:0;right:0'),
-  'App shell must keep a fixed top instead of following Safari viewport offset');
-assert(shellStyles.includes('body:has([data-v2-app]){position:fixed;inset:0;width:100%}'),
-  'Document must not scroll behind the active Z/Q surface');
-assert(!keyboard.includes('--ui-visual-top'),
-  'VisualViewport scroll must not move the application root');
+assert(shellStyles.includes('position:fixed;top:var(--ui-visual-top,0px);left:0;right:0'),
+  'Shared root must compensate Safari visual viewport panning');
+assert(!shellStyles.includes('body:has([data-v2-app]){position:fixed'),
+  'Never nest a fixed application root inside a second fixed body');
+assert(keyboard.includes("root.style.setProperty('--ui-visual-top'"),
+  'Visual viewport compensation must have one shared runtime owner');
 assert(!keyboard.includes('scrollBy('),
   'Scripted input scrolling must not compete with native WebKit focus scrolling');
 assert(keyboardStyles.includes('margin-bottom:var(--ui-keyboard-inset)'),
