@@ -649,7 +649,7 @@ function renderList(root, { records, mode, hiddenKeys }) {
     ])));
     const deletedRows = deletedNotices.filter((notice) =>
       !currentKeys.has(JSON.stringify([String(notice.tenantId || ''), String(notice.recordId || '')]))
-      && !hiddenKeys.has(recordKey(notice)));
+      && !hiddenKeys.has(recordKey({ tenantId: notice.tenantId, id: notice.recordId })));
     const items = [
       ...recordRows.map((value) => ({ type: 'record', value })),
       ...eventRows.map((value) => ({ type: 'event', value })),
