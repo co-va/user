@@ -60,3 +60,4 @@ jobs:
           npx playwright install --with-deps chromium
           node scripts/ci/user-runtime-smoke.mjs
           node scripts/ci/shared-keyboard-layout-smoke.mjs
+          node scripts/ci/user-profile-keyboard-smoke.mjs
