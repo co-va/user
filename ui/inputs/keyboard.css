@@ -19,7 +19,7 @@ html.keyboard-open{--ui-bottom-safe:0px}
   bottom:0;
   max-height:min(calc(52% + var(--ui-keyboard-inset)),calc(100% - 12px));
   overflow-y:auto;
-  overscroll-behavior:contain;
+  overscroll-behavior:none;
 }
 html.keyboard-open .v2-layer--bottom{
   padding-bottom:calc(20px + var(--ui-keyboard-inset));
