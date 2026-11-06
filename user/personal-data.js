@@ -5,6 +5,7 @@ import {
   openNotice,
   openSharedPersonalDataEditor,
   readSharedPersonalDataEditor,
+  setSharedActionVisible,
 } from '../ui/user-ui.js';
 
 function profileData(account = {}) {
@@ -45,7 +46,7 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
   const initialSignature = form ? formSignature(form) : '';
   const syncDirty = () => {
     const dirty = Boolean(form && formSignature(form) !== initialSignature);
-    if (saveActions) saveActions.hidden = !dirty;
+    setSharedActionVisible(saveActions, dirty);
     onDirtyChange?.(dirty);
   };
   form?.addEventListener('input', syncDirty);
@@ -107,6 +108,6 @@ export function openAccountPersonalDataZ(root, state, { onSaved, onDirtyChange, 
     }
   });
 
-  if (saveActions) saveActions.hidden = true;
+  setSharedActionVisible(saveActions, false);
   return layer;
 }
