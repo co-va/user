@@ -9,13 +9,14 @@ import {
   journalDayTimeline,
   modal,
   mountModal,
+  openNotice,
   openRecordCreationOwner,
   shortDate,
   v2ListEntries,
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
-import { getServiceUnseenState, loadDeletedRecordHistory, markRecordsSeen } from '../core/notifications/service-unseen.js';
+import { getServiceUnseenState, loadDeletedRecordHistory, loadJournalHiddenRecords, hideJournalRecord, markRecordsSeen } from '../core/notifications/service-unseen.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { readOnlyReceipt } from '../ui/receipt/index.js';
@@ -79,7 +80,33 @@ function readRecords(source) {
 }
 
 function recordId(record = {}) {
-  return String(record?.id || record?.sourceId || '');
+  return String(record?.id || record?.sourceId || record?.recordId || '');
+}
+
+function recordKey(record = {}) {
+  return JSON.stringify([String(record?.tenantId || ''), recordId(record)]);
+}
+
+function recordDurationLabel(record = {}) {
+  const start = usageMinutes(record?.from);
+  const end = usageMinutes(record?.to);
+  const elapsed = start != null && end != null && end !== start
+    ? (end - start + 1440) % 1440
+    : (Array.isArray(record?.procedures) ? record.procedures : [])
+      .reduce((sum, p) => sum + Math.max(0, Number(p?.duration) || 0), 0);
+  if (!elapsed) return '';
+  const hours = Math.floor(elapsed / 60);
+  const minutes = elapsed % 60;
+  return [hours ? `${hours} ч` : '', minutes ? `${minutes} мин` : ''].filter(Boolean).join(' ');
+}
+
+function recordPaymentLabel(record, payment) {
+  const state = String(record?.payment?.state || '').toLowerCase();
+  if (state === 'debt' || (payment.due > 0.009 && record?.attendance === 'arrived')) {
+    return { label: 'Задолженность', key: 'debt' };
+  }
+  if (state === 'paid' || payment.paid) return { label: 'Оплачено', key: 'paid' };
+  return { label: 'К оплате', key: 'due' };
 }
 
 function paymentFor(record = {}) {
@@ -115,20 +142,27 @@ function procedureRows(record = {}) {
 }
 
 function openUserRecord(record) {
-  const payment = paymentFor(record);
+  const deleted = record?.deleted === true;
+  const payment = deleted ? null : paymentFor(record);
   const body = readOnlyReceipt({
-    status: String(record?.status || '').toLowerCase() === 'cancelled' ? 'Отменено' : '',
+    status: deleted ? 'Удалена' : String(record?.status || '').toLowerCase() === 'cancelled' ? 'Отменена' : '',
     date: shortDate(record?.date, ''),
     time: String(record?.from || ''),
-    items: procedureRows(record),
-    totals: [
+    items: deleted
+      ? (Array.isArray(record?.procedures) ? record.procedures : []).map((item) => ({ label: String(item?.name || 'Процедура'), value: '' }))
+      : procedureRows(record),
+    totals: deleted ? [] : [
       { label: 'Стоимость', value: money(amountDue(record)) },
       payment.paidAmount > 0.009 ? { label: 'Оплачено', value: money(payment.paidAmount), strong: true } : null,
       !payment.paid && payment.due > 0.009 ? { label: 'К оплате', value: money(payment.due), strong: true } : null,
     ].filter(Boolean),
   });
-  const actions = (Array.isArray(record?.procedures) && record.procedures.length && String(record?.tenantId || ''))
-    ? `<div class="modal-actions">${button('Повторить', { data: 'data-user-record-repeat' })}</div>`
+  const canAct = Boolean(recordId(record) && String(record?.tenantId || ''));
+  const actions = canAct
+    ? `<div class="modal-actions">
+        ${button('Повторить', { data: 'data-user-record-repeat' })}
+        ${button('Удалить', { variant: 'danger', data: 'data-user-record-hide' })}
+      </div>`
     : '';
   const layer = mountModal(document.body, modal(`${body}${actions}`, {
     variant: 'x',
@@ -141,13 +175,25 @@ function openUserRecord(record) {
       detail: {
         contactId: String(record?.tenantId || ''),
         workplaceKey: String(record?.workplaceId || record?.workplaceKey || ''),
-        repeatRequest: record,
+        ...(deleted ? {} : { repeatRequest: record }),
       },
     }));
   });
+  layer?.querySelector('[data-user-record-hide]')?.addEventListener('click', async (event) => {
+    const control = event.currentTarget;
+    control.disabled = true;
+    try {
+      // User-only dismissal: never cancel or delete the underlying Record.
+      const hidden = await hideJournalRecord(record?.tenantId, recordId(record));
+      layer.v2Close?.();
+      window.dispatchEvent(new CustomEvent('cova:user-record-hidden', { detail: hidden }));
+    } catch (error) {
+      control.disabled = false;
+      openNotice({ title: 'Не удалось удалить из списка', message: String(error?.message || 'Повторите попытку.') });
+    }
+  });
   return layer;
 }
-
 function recordUsage(record) {
   const payment = paymentFor(record);
   return {
