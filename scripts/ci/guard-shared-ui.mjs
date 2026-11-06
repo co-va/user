@@ -7,6 +7,13 @@ const zStack = read('ui/v2/z-stack.js');
 const entity = read('ui/cards/entity-card-constructor.css');
 const mini = read('ui/cards/mini-card.css');
 const list = read('ui/lists/list-entry.css');
+const keyboard = read('ui/inputs/keyboard-runtime.js');
+const keyboardStyles = read('ui/inputs/keyboard.css');
+const modalStyles = read('ui/modals/modal.css');
+const vStyles = read('ui/v2/v.css');
+const portal = read('ui/v2/modal-portal.js');
+const profileStyles = read('ui/profile/profile.css');
+const userMain = read('user/main.js');
 
 function rootSelectorCount(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,5 +52,21 @@ assert(count(list, '.list-entry{') === 1, 'List entry geometry must have one own
 
 assert(header.includes("kind === 'chat'"), 'Shared D chat control missing');
 assert(v2.includes('.v2-header__slot--d .v2-header__control--chat'), 'Shared D chat geometry missing');
+
+// Shared keyboard contract: layout is stationary; all Q/Z/X editors use one
+// visual inset and one measured action stack. Per-editor/variant overrides
+// must not return as compatibility fixes.
+assert(keyboard.includes("root.style.setProperty('--ui-keyboard-inset'"), 'Shared keyboard viewport owner missing');
+assert(keyboard.includes("area.style.setProperty('--ui-action-height'"), 'Shared action measurement owner missing');
+assert(keyboardStyles.includes('--ui-keyboard-inset:0px'), 'Shared keyboard inset CSS missing');
+assert(!userMain.includes('function syncViewport()'), 'Duplicate User viewport controller returned');
+assert(!portal.includes('is-keyboard-visible'), 'Per-Q/X keyboard portal geometry returned');
+assert(!modalStyles.includes('is-keyboard-visible'), 'Per-variant modal keyboard rules returned');
+assert(!modalStyles.includes('.modal-actions>:nth-child('), 'Button-count geometry returned');
+assert(!vStyles.includes('.modal-actions>:nth-child('), 'Button-count V offsets returned');
+assert(!vStyles.includes('html.keyboard-open .v2-v'), 'Keyboard may not hide V');
+assert(!profileStyles.includes('.modal--profile-editor .modal-actions'), 'Profile may not own action footer geometry');
+assert(walk('ui').filter((file) => file.endsWith('.css') && file !== 'ui/inputs/keyboard.css')
+  .every((file) => !read(file).includes('keyboard-open')), 'Keyboard-specific stylesheet exceptions returned');
 
 finish('Shared UI');
