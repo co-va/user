@@ -17,3 +17,9 @@ html.keyboard-open{--ui-bottom-safe:0px}
   overflow-y:auto;
   overscroll-behavior:none;
 }
+/* Some X sheets have content-defined minimum heights. On keyboard open,
+   their maximum may never exceed the visible area or push past the top stop. */
+html.keyboard-open .modal-sheet.v2-layer--bottom{
+  min-height:0;
+  max-height:min(52%,calc(100% - var(--ui-keyboard-inset) - 12px));
+}
