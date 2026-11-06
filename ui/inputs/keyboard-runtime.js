@@ -9,6 +9,9 @@ const root = document.documentElement;
 const viewport = () => window.visualViewport;
 let stableHeight = 0;
 let stableWidth = 0;
+// Keep the outer shell's pre-keyboard dimensions through input changes and
+// WebKit's staggered focus/viewport events. Only its work area may shrink.
+let keyboardSession = false;
 let actionsFrame = 0;
 let trackingFrame = 0;
 let trackThrough = 0;
@@ -27,7 +30,9 @@ function viewportSize() {
   const vv = viewport();
   return {
     height: Math.round(vv?.height || window.innerHeight || root.clientHeight || 0),
-    width: Math.round(vv?.width || window.innerWidth || root.clientWidth || 0),
+    // VisualViewport.width can change on iOS focus zoom/pan without rotating.
+    // Rotation is a LAYOUT width change, not a keyboard-size change.
+    width: Math.round(window.innerWidth || root.clientWidth || vv?.width || 0),
   };
 }
 
@@ -35,28 +40,39 @@ function syncViewport() {
   const { height, width } = viewportSize();
   if (!height || !width) return;
 
-  // Orientation changes can change the stable size; keyboard changes only height.
-  if (!stableHeight || !stableWidth || Math.abs(width - stableWidth) > 48) {
+  // Only a changed layout width (rotation) may replace the shell's
+  // baseline during keyboard interaction. A visual viewport shrink must
+  // never shorten Z/Q, including when Safari blurs one input before focusing
+  // the next or pans to the final field.
+  const rotated = !stableHeight || !stableWidth || Math.abs(width - stableWidth) > 48;
+  if (rotated) {
     stableHeight = height;
     stableWidth = width;
+    keyboardSession = false;
   }
+  const focused = Boolean(activeEditable());
+  if (focused) keyboardSession = true;
   const shrinking = height < stableHeight - 60;
-  const keyboardOpen = shrinking && Boolean(activeEditable() || root.classList.contains('keyboard-open'));
-  if (!keyboardOpen) {
+  if (!shrinking) {
+    stableHeight = height;
+    stableWidth = width;
+    if (!focused) keyboardSession = false;
+  } else if (!keyboardSession) {
+    // An ordinary unfocused viewport resize is not a keyboard session.
     stableHeight = height;
     stableWidth = width;
   }
+  const keyboardOpen = keyboardSession && height < stableHeight - 60;
 
   setRootPixel('--app-stable-vh', stableHeight);
   setRootPixel('--app-stable-vw', stableWidth);
-  // In iOS WebKit the *visual* viewport can pan while document.scrollTop
-  // remains zero. Compensate only at the one fixed application root:
-  // its SCREEN position is (layout top - visualViewport.offsetTop).
-  // Q/X are app-owned portals and inherit the exact same offset.
-  const visualTop = keyboardOpen
-    ? Math.max(0, Math.round(Number(viewport()?.offsetTop || 0)))
-    : 0;
+  // iOS can pan its visual viewport vertically AND horizontally when
+  // focusing an edge field. Apply both compensations only to the one app
+  // shell: Z, Q and X continue sharing its stable coordinate space.
+  const visualTop = Math.max(0, Math.round(Number(viewport()?.offsetTop || 0)));
+  const visualLeft = Math.max(0, Math.round(Number(viewport()?.offsetLeft || 0)));
   setRootPixel('--ui-visual-top', visualTop);
+  setRootPixel('--ui-visual-left', visualLeft);
   const inset = keyboardOpen ? Math.max(0, stableHeight - height) : 0;
   setRootPixel('--ui-keyboard-inset', inset);
   root.classList.toggle('keyboard-open', keyboardOpen);
