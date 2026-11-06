@@ -14,6 +14,7 @@ const vStyles = read('ui/v2/v.css');
 const portal = read('ui/v2/modal-portal.js');
 const profileStyles = read('ui/profile/profile.css');
 const userMain = read('user/main.js');
+const shellStyles = read('css/style.css');
 
 function rootSelectorCount(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -68,5 +69,23 @@ assert(!vStyles.includes('html.keyboard-open .v2-v'), 'Keyboard may not hide V')
 assert(!profileStyles.includes('.modal--profile-editor .modal-actions'), 'Profile may not own action footer geometry');
 assert(walk('ui').filter((file) => file.endsWith('.css') && file !== 'ui/inputs/keyboard.css')
   .every((file) => !read(file).includes('keyboard-open')), 'Keyboard-specific stylesheet exceptions returned');
+
+// Keyboard geometry is a shared contract, not a profile/event/payment fix.
+assert(shellStyles.includes('position:fixed;top:var(--ui-visual-top,0px)'),
+  'App shell must remain anchored while Safari pans its viewport');
+assert(keyboard.includes("root.style.setProperty('--ui-visual-top'"),
+  'Visual viewport anchor must have exactly one runtime owner');
+assert(keyboardStyles.includes('margin-bottom:var(--ui-keyboard-inset)'),
+  'Z and Q must only reduce their internal work area');
+assert(keyboardStyles.includes('html.keyboard-open .modal-sheet.v2-layer--bottom'),
+  'Every X sheet must have one upper stop above the keyboard');
+assert(keyboardStyles.includes('overscroll-behavior:none'),
+  'X must stop scrolling at actual content bounds');
+assert(!modalStyles.includes('var(--ui-keyboard-inset'),
+  'Z/Q action footer may not jump above the keyboard');
+assert(modalStyles.includes('.v2-layer--bottom .modal-actions{\n  position:static;'),
+  'X action must be the terminal scroll item');
+assert(portal.includes('offsetTop: appRect.top'),
+  'Q/X portal must use stable app coordinates');
 
 finish('Shared UI');
