@@ -42,8 +42,17 @@ function syncViewport() {
 
   root.style.setProperty('--app-stable-vh', `${stableHeight}px`);
   root.style.setProperty('--app-stable-vw', `${stableWidth}px`);
-  // The application frame is anchored at top:0. Only its scrollable body
-  // gets a keyboard inset; never move H/Z/Q following VisualViewport scroll.
+  // In iOS WebKit the *visual* viewport can pan while document.scrollTop
+  // remains zero. Compensate only at the one fixed application root:
+  // its SCREEN position is (layout top - visualViewport.offsetTop).
+  // Q/X are app-owned portals and inherit the exact same offset.
+  const visualTop = keyboardOpen
+    ? Math.max(0, Math.round(Number(viewport()?.offsetTop || 0)))
+    : 0;
+  const offsetValue = `${visualTop}px`;
+  if (root.style.getPropertyValue('--ui-visual-top') !== offsetValue) {
+    root.style.setProperty('--ui-visual-top', offsetValue);
+  }
   const inset = keyboardOpen ? Math.max(0, stableHeight - height) : 0;
   root.style.setProperty('--ui-keyboard-inset', `${Math.round(inset)}px`);
   root.classList.toggle('keyboard-open', keyboardOpen);
