@@ -64,3 +64,6 @@
 
 /* Only this long Q title scales on narrow phones; other Q headings are unchanged. */
 .modal--account-controls .v2-q-title{font-size:clamp(13px,4.3vw,18px);letter-spacing:-.035em;white-space:nowrap;max-width:100%}
+
+/* The locked Email status keeps its check visible; it is not an opt-in. */
+.modal--account-controls [data-account-notification-email-status]:checked:disabled{background:var(--text);border-color:var(--text);opacity:.65}
