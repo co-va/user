@@ -17,14 +17,18 @@ function rowMarkup(row = {}) {
 function lineMarkup(line = {}) {
   const value = escapeHtml(line.value || '');
   const align = line.align === 'right' ? 'right' : 'left';
-  const variant = ['title', 'primary', 'muted'].includes(line.variant) ? line.variant : '';
+  const variant = ['title', 'primary', 'muted', 'moment'].includes(line.variant) ? line.variant : '';
   const classes = [
     'mini-card__line',
     `mini-card__line--${align}`,
     variant ? `mini-card__line--${variant}` : '',
+    line.rightValue != null && line.rightValue !== '' ? 'mini-card__line--pair' : '',
     line.strong ? 'is-strong' : '',
   ].filter(Boolean).join(' ');
-  const content = `<span class="${classes}">${value || '&nbsp;'}</span>`;
+  const right = line.rightValue != null && line.rightValue !== ''
+    ? `<span class="mini-card__line-text">${value || '&nbsp;'}</span><strong class="mini-card__line-right">${escapeHtml(line.rightValue)}</strong>`
+    : (value || '&nbsp;');
+  const content = `<span class="${classes}">${right}</span>`;
   if (line.data) {
     return `<button type="button" class="mini-card__line-action"${attrs(line.data, line.aria || line.value)}>${content}</button>`;
   }
