@@ -118,7 +118,7 @@ function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
     date: formatDate(state.date),
     from: text(state.from),
     procedures: state.procedures,
-    duration: durationText(quote.durationMinutes),
+    duration: text(quote.durationText),
     total: text(quote.totalText),
   })}</div>`;
 }
@@ -177,7 +177,10 @@ async function startUserRecord(contactId, owner, options = {}) {
     procedureName: (procedure) => text(procedure?.name),
     procedureCost: (procedure, workplaceKey) => recordProcedureCost(procedure, workplaceKey),
     procedurePriceText: (procedure, workplaceKey) => recordProcedurePriceText(procedure, workplaceKey),
-    quote: (procedures, workplaceKey) => recordSelectionQuote(procedures, workplaceKey),
+    quote: (procedures, workplaceKey) => {
+      const quote = recordSelectionQuote(procedures, workplaceKey);
+      return { ...quote, durationText: durationText(quote.durationMinutes) };
+    },
     procedureDuration: (procedure) => Math.max(0, Number(procedure?.duration) || 0),
     workingDates: (workplaceKey) => getRecordWorkingDates(recordContext, workplaceKey),
     timeRows: ({ workplaceId, date, procedures }) => getRecordTimeRows(recordContext, {
