@@ -74,7 +74,17 @@ try{
   verified=false;
   enabled=false;
   await q.evaluate(el=>el.v2Close?.());
-  await page.locator('[data-account-profile-settings]').click();
+  // The fixture does not run the full app controller. Restore its Profile
+  // screen explicitly before re-opening the settings Q.
+  await page.evaluate(async()=>{
+    const {renderGlobalAccount}=await import('/user/account-shell.js');
+    const state={account:{id:'fixture',name:'Тест',email:'fixture@example.com',phone:'+79999999999',profileData:{}},accountTab:'profile',accountDeckActive:'profile'};
+    const root=document.querySelector('#app');
+    await renderGlobalAccount(root,state,{});
+    const settings=root.querySelector('[data-account-profile-settings]');
+    if(!settings) throw new Error('Re-rendered Profile settings trigger missing');
+    settings.click();
+  });
   await page.locator('[data-shared-profile-action="controls"]').click();
   const pending=page.locator('.modal--account-controls');
   await pending.locator('[data-account-notification-email]').waitFor({state:'visible'});
