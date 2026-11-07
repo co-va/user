@@ -13,7 +13,6 @@ const fixture = '<!doctype html><html><head><meta charset="utf-8">' +
   '</head><body><div class="app-shell" id="app"></div></body></html>';
 const types = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const hidden = new Set();
-const changes = [];
 const deleted = {
   id: 'notice-1', tenantId: 'tenant-one', recordId: 'removed-1',
   date: '2026-11-06', from: '16:00', to: '19:00',
@@ -47,14 +46,6 @@ const server = createServer(async (req, res) => {
       const [tenantId, recordId] = JSON.parse(key);
       return { tenantId, recordId };
     }) });
-  }
-  if (path === '/account/journal-hidden-records' && req.method === 'POST') {
-    let payload = '';
-    for await (const part of req) payload += part;
-    const input = JSON.parse(payload || '{}');
-    hidden.add(JSON.stringify([input.tenantId, input.recordId]));
-    changes.push({ method: req.method, path, tenantId: input.tenantId, recordId: input.recordId });
-    return sendJson(res, { hidden: true, tenantId: input.tenantId, recordId: input.recordId });
   }
   if (path.startsWith('/account/')) return sendJson(res, []);
   const file = resolve(root, '.' + decodeURIComponent(path));
@@ -217,33 +208,48 @@ try {
   assert.equal(actual.deleted.bg, 'rgb(255, 255, 255)');
   assert.equal(actual.deleted.rows, actual.normal.rows);
 
-  // A removed source record can be opened and repeated without inventing details.
-  console.log('JOURNAL FIXTURE: checking deleted record actions');
-  await page.locator('.journal-list-record--deleted').click();
-  await page.locator('[data-user-record-repeat]').waitFor();
-  await page.locator('[data-user-record-hide]').waitFor();
+  // Journal opens the SAME record mini-card as booking confirmation, in Q.
+  // The Repeat icon is INSIDE that card. No delete/hide action exists here.
+  await page.locator('.journal-list-record--active').first().click();
+  const liveQ = page.locator('[data-v2-q="true"]').last();
+  await liveQ.locator('[data-user-journal-record-preview] .record-summary-mini-card--confirmation').waitFor();
+  assert.equal(await liveQ.locator('[data-read-only-sheet]').count(), 0, 'Old X receipt must be removed');
+  assert.equal(await liveQ.locator('.modal-actions').count(), 0, 'No detached action buttons');
+  assert.equal(await liveQ.locator('[data-user-record-hide]').count(), 0, 'Journal has no delete/hide action');
+  assert.equal(await liveQ.locator('.mini-card__compact-action[data-user-record-repeat]').count(), 1);
+  assert.ok((await liveQ.locator('.mini-card__lines').innerText()).includes('Стрижка-женская'));
+  assert.ok((await liveQ.locator('.mini-card__rows').innerText()).includes('21 000'));
+  assert.ok((await liveQ.locator('.mini-card__row-label').innerText()).includes('3 ч'));
   await page.evaluate(() => {
     window.__repeat = null;
     window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
   });
-  await page.locator('[data-user-record-repeat]').click();
+  await liveQ.locator('[data-user-record-repeat]').click();
+  const repeatedCurrent = await page.evaluate(() => window.__repeat);
+  assert.equal(repeatedCurrent?.contactId, 'tenant-one');
+  assert.equal(repeatedCurrent?.repeatRequest?.id, 'future-1');
+
+  // Source-deleted records retain their history indicator and can start a
+  // fresh booking; they cannot be deleted or hidden from Journal.
+  await page.locator('.journal-list-record--deleted').click();
+  const deletedQ = page.locator('[data-v2-q="true"]').last();
+  await deletedQ.locator('[data-user-journal-record-preview] .record-summary-mini-card--confirmation').waitFor();
+  assert.ok((await deletedQ.locator('.mini-card__line--primary').innerText()).includes('Удалена'));
+  assert.equal(await deletedQ.locator('[data-user-record-hide]').count(), 0);
+  assert.equal(await deletedQ.locator('.mini-card__row-value').innerText(), '');
+  await page.evaluate(() => {
+    window.__repeat = null;
+    window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
+  });
+  await deletedQ.locator('[data-user-record-repeat]').click();
   const repeated = await page.evaluate(() => window.__repeat);
   assert.equal(repeated?.contactId, 'tenant-one');
   assert.equal(Boolean(repeated?.repeatRequest), false);
-
-  await page.locator('.journal-list-record--deleted').click();
-  console.log('JOURNAL FIXTURE: hiding deleted record');
-  await page.locator('[data-user-record-hide]').click();
-  await page.locator('.journal-list-record--deleted').waitFor({ state: 'detached', timeout: 10_000 });
-  assert.deepEqual(changes, [{ method: 'POST', path: '/account/journal-hidden-records',
-    tenantId: 'tenant-one', recordId: 'removed-1' }]);
   assert.equal(sourceRecords.length, 3);
-  console.log('JOURNAL FIXTURE: reloading to verify durable hide');
   await mount();
-  await page.waitForTimeout(800);
-  assert.equal(await page.locator('.journal-list-record--deleted').count(), 0,
-    'Dismissed record must remain hidden after a reload');
-  console.log('PASS: shared Record/Event layout and full-card event tints; deleted no sum, repeat, persistent hide');
+  await page.locator('.journal-list-record--deleted').waitFor();
+  console.log('PASS: Journal Q uses shared record mini-card, repeat icon only, no delete/hide action');
+
 } finally {
   console.log('JOURNAL FIXTURE: closing browser and local server');
   server.closeAllConnections();
