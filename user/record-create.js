@@ -16,7 +16,7 @@ import {
   field,
   openNotice,
   openRecordCreationOwner,
-  recordConfirmationMiniCard,
+  recordMiniCard,
   recordContactList,
   v2ListEntry,
   v2ListEntries,
@@ -36,9 +36,7 @@ function money(value) {
 
 function formatDate(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return String(value || '');
-  const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-  return `${Number(match[3])} ${months[Number(match[2]) - 1] || match[2]}`;
+  return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
 }
 
 function contactProfile(target = {}) {
@@ -105,35 +103,20 @@ function procedureEntry(procedure, workplaceKey) {
   };
 }
 
-function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
+function summaryMarkup(state = {}, workplaceKey = '') {
   const procedures = Array.isArray(state.procedures) ? state.procedures : [];
-  const workplace = (Array.isArray(context?.workplaces) ? context.workplaces : [])
-    .find((item) => text(item?.key) === text(workplaceKey));
   const total = procedures.reduce((sum, procedure) => {
     const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
     return sum + Math.max(0, Number(price.minimum) || 0);
   }, 0);
-  const totalDuration = procedures.reduce(
-    (sum, procedure) => sum + Math.max(0, Number(procedure?.duration) || 0),
-    0,
-  );
 
-  return recordConfirmationMiniCard({
-    workplace: text(workplace?.name) || 'Рабочее пространство',
+  // The same record mini-card as Contacts → Workplace → History.
+  return `<div class="record-confirmation-view__card">${recordMiniCard({
     date: formatDate(state.date),
-    period: [text(state.from), text(state.to)].filter(Boolean).join('–'),
-    duration: totalDuration ? `${totalDuration} мин` : '',
+    from: text(state.from),
+    procedures,
     total: money(total),
-    procedures: procedures.map((procedure) => {
-      const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
-      const duration = Math.max(0, Number(procedure?.duration) || 0);
-      return {
-        name: text(procedure?.name),
-        durationText: duration ? `${duration} мин` : '',
-        costText: money(Math.max(0, Number(price.minimum) || 0)),
-      };
-    }),
-  });
+  })}</div>`;
 }
 
 function reopenWorkplaceOrigin(workplaceKey) {
@@ -181,7 +164,7 @@ async function startUserRecord(contactId, owner, options = {}) {
     const confirmation = config?.step === 'confirmation' && text(config?.action?.data).includes('data-records-confirm');
     if (!confirmation) return ownerRender(config);
     const state = owner.getRecordState?.() || {};
-    return ownerRender({ ...config, body: summaryMarkup(state, activeWorkplaceKey, recordContext) });
+    return ownerRender({ ...config, title: false, body: summaryMarkup(state, activeWorkplaceKey) });
   };
 
   const provider = {
