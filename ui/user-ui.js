@@ -13,7 +13,7 @@ export { modal, mountModal, openNotice } from './modals/index.js';
 export { actionBlock, details, page, setSharedActionVisible } from './page/page.js';
 export { openSharedPasswordAction, openSharedPhotoAction, openSharedProfileSettingsMenu, openSharedPersonalDataEditor, readSharedPersonalDataEditor } from './profile/index.js';
 export { openRecordCreationOwner, recordCreationTimeRows } from './record/creation-flow.js';
-export { recordConfirmationMiniCard, recordContactList, recordProcedureList, recordTimeRows, recordWorkplaceCards } from './record/runtime.js';
+export { recordMiniCard, recordContactList, recordProcedureList, recordTimeRows, recordWorkplaceCards } from './record/runtime.js';
 export { collectRepeatedField, initRepeatedFields, repeatedField } from './repeated-fields/index.js';
 export { initMultiSelect, initSegmentControls, segmentControl } from './selection/index.js';
 export { select } from './selectors/index.js';
