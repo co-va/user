@@ -26,7 +26,7 @@ import {
   entityCardStack,
   entityVisualCard,
   normalizeEntityCardAppearance,
-  miniCard,
+  recordMiniCard,
   miniCardRail,
   miniCardStack,
   escapeHtml,
@@ -885,18 +885,12 @@ function preferredHistoryIndex(records = []) {
 }
 
 function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, current = false } = {}) {
-  const procedures = requestProcedures(request).slice(0, 4);
   const pricing = requestPricing(request);
-  const procedureLines = procedures.map((procedure) => ({
-    value: String(procedure?.name || 'Процедура'),
-  }));
-  while (procedureLines.length < 4) procedureLines.push({ value: '' });
-  return miniCard({
-    lines: [
-      { value: [formatDate(request.date), request.from].filter(Boolean).join(' · '), variant: 'primary' },
-      ...procedureLines,
-    ],
-    rows: [{ label: 'Стоимость', value: money(pricing.total || pricing.subtotal) }],
+  return recordMiniCard({
+    date: formatDate(request.date),
+    from: request.from,
+    procedures: requestProcedures(request).slice(0, 4),
+    total: money(pricing.total || pricing.subtotal),
     compactAction: canRepeat ? {
       label: '↻',
       data: `data-global-contact-repeat="${index}"`,
