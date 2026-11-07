@@ -345,6 +345,63 @@ try {
     assert.equal(item.saveVisibleAfterClose, true, item.name + ': action must be visible after keyboard closes');
   }
   assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
+
+  // Confirmation and contact History must render one identical UI component.
+  // The former is read-only without Repeat; all services remain inside it.
+  const recordCardCheck = await page.evaluate(async () => {
+    const { recordMiniCard } = await import('/ui/record/runtime.js');
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;top:110px;left:18px;width:300px;';
+    const procedures = ['Стрижка', 'Мытьё', 'Укладка', 'Уход'];
+    host.innerHTML = `
+      <div id="history-example">${recordMiniCard({
+        date: '07.11.26', from: '12:00',
+        procedures: procedures.map((name) => ({ name })),
+        total: '3 000 ₽', interactive: true, data: 'data-record-history',
+        compactAction: { label: '↻', data: 'data-record-repeat' },
+      })}</div>
+      <div id="confirmation-example">${recordMiniCard({
+        date: '07.11.26', from: '12:00',
+        procedures: procedures.map((name) => ({ name })),
+        total: '3 000 ₽',
+      })}</div>
+      <div id="long-confirmation-example">${recordMiniCard({
+        date: '07.11.26', from: '12:00',
+        procedures: Array.from({length:12}, (_, i) => ({name: 'Процедура ' + i})),
+        total: '8 000 ₽',
+      })}</div>`;
+    document.body.append(host);
+    const history = host.querySelector('#history-example .record-summary-mini-card');
+    const confirmation = host.querySelector('#confirmation-example .record-summary-mini-card');
+    const longCard = host.querySelector('#long-confirmation-example .record-summary-mini-card');
+    const longLines = longCard.querySelector('.mini-card__lines');
+    const result = {
+      sharedClasses: Boolean(history && confirmation && longCard),
+      sameWidth: history.getBoundingClientRect().width === confirmation.getBoundingClientRect().width,
+      sameHeight: history.getBoundingClientRect().height === confirmation.getBoundingClientRect().height,
+      sameDetails: history.querySelector('.mini-card__lines').textContent
+        === confirmation.querySelector('.mini-card__lines').textContent,
+      confirmationRepeat: Boolean(confirmation.querySelector('.mini-card__compact-action')),
+      historyRepeat: Boolean(history.querySelector('.mini-card__compact-action')),
+      serviceNames: procedures.every((name) => confirmation.textContent.includes(name)),
+      priceInside: confirmation.querySelector('.mini-card__rows')?.textContent.includes('3 000'),
+      outsideList: Boolean(host.querySelector('.list-entry,.read-only-sheet')),
+      longScroll: longLines.scrollHeight > longLines.clientHeight,
+      longService: longCard.textContent.includes('Процедура 11'),
+    };
+    host.remove();
+    return result;
+  });
+  assert.ok(recordCardCheck.sharedClasses && recordCardCheck.sameWidth && recordCardCheck.sameHeight,
+    'History and Confirmation must use exactly the same mini-card dimensions');
+  assert.ok(recordCardCheck.sameDetails && recordCardCheck.serviceNames && recordCardCheck.priceInside,
+    'Confirmation must display date, services and cost inside the same card');
+  assert.equal(recordCardCheck.confirmationRepeat, false, 'Confirmation cannot have Repeat');
+  assert.equal(recordCardCheck.historyRepeat, true, 'History keeps Repeat');
+  assert.equal(recordCardCheck.outsideList, false, 'No separate V2 list under confirmation');
+  assert.ok(recordCardCheck.longScroll && recordCardCheck.longService, 'All services remain in a scrollable card');
+  console.log('PASS: identical history/confirmation mini-cards; no repeat, no external list');
+
   console.log('PASS: all six real User editor flows keep Z/Q fixed and X white to bottom during keyboard');
 
 } finally {
