@@ -42,10 +42,10 @@ export async function offerAccountEmailVerificationReminder(root, state) {
       <p>Подтвердите адрес <strong>${escapeHtml(address || 'вашей учётной записи')}</strong>, чтобы получать сервисные письма и восстанавливать пароль.</p>
       <p>Откройте письмо с подтверждением. Если его нет, проверьте папку «Спам». Если адрес неверный — исправьте его.</p>
     </div>
-    <p class="muted" data-user-email-verification-status role="status" aria-live="polite">Проверяем отправку письма…</p>
+    <p class="muted" data-user-email-verification-status role="status" aria-live="polite">Письмо отправляется только по вашему запросу.</p>
     <div class="modal-actions">
       ${button('Исправить email', { variant: 'outline', data: 'data-user-email-verification-change' })}
-      ${button('Отправить повторно', { variant: 'outline', data: 'data-user-email-verification-resend' })}
+      ${button('Отправить письмо', { variant: 'outline', data: 'data-user-email-verification-resend' })}
       ${button('Понятно', { data: 'data-user-email-verification-later' })}
     </div>`;
     const layer = mountModal(document.body, modal(content, {
@@ -90,8 +90,8 @@ export async function offerAccountEmailVerificationReminder(root, state) {
     });
     layer.querySelector('[data-user-email-verification-later]')?.addEventListener('click', () => layer.v2Close?.());
     resend?.addEventListener('click', () => void send());
-    // Core owns delivery and the 10-minute cooldown.
-    void send();
+    // No automatic request on opening the modal or signing in.
+    // Core enforces the explicit-request cooldown.
     return layer;
   } catch {
     // Verification failures never block User login.
