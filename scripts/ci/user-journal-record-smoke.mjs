@@ -210,7 +210,7 @@ try {
 
   // Journal opens the SAME record mini-card as booking confirmation, in Q.
   // The Repeat icon is INSIDE that card. No delete/hide action exists here.
-  await page.locator('.journal-list-record--active').first().click();
+  await page.locator('.journal-list-record--active').filter({ hasText: 'Стрижка-женская' }).click();
   const liveQ = page.locator('[data-v2-q="true"]').last();
   await liveQ.locator('[data-user-journal-record-preview] .record-summary-mini-card--confirmation').waitFor();
   assert.equal(await liveQ.locator('[data-read-only-sheet]').count(), 0, 'Old X receipt must be removed');
