@@ -42,6 +42,46 @@ export function recordProcedureCost(procedure = {}, workplaceKey = '') {
   return price.free ? '' : price.minimum;
 }
 
+// Prepare display-ready price values when procedures are selected, not while
+// rendering the confirmation card. The API currently supplies a minimum and
+// the variable/free flags instead of a ready-made "от" text.
+function displayPrice(price = {}) {
+  if (price.free) return 'Бесплатно';
+  const minimum = Math.max(0, Number(price.minimum) || 0);
+  if (price.variable && minimum === 0) return 'Цена уточняется';
+  const sum = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(minimum);
+  return `${price.variable ? 'от ' : ''}${sum} ₽`;
+}
+
+export function recordProcedurePriceText(procedure = {}, workplaceKey = '') {
+  const assigned = procedureWorkplaceAssignment(procedure, workplaceKey)?.price;
+  const provided = String(assigned?.display || assigned?.label || '').trim();
+  return provided || displayPrice(recordProcedurePrice(procedure, workplaceKey));
+}
+
+export function recordSelectionQuote(items = [], workplaceKey = '') {
+  const procedures = Array.isArray(items) ? items : [];
+  let minimum = 0;
+  let variable = false;
+  let unpriced = false;
+  let chargeable = false;
+  let duration = 0;
+  procedures.forEach((item) => {
+    const price = recordProcedurePrice(item?.raw || item, workplaceKey);
+    duration += Math.max(0, Number(item?.duration) || 0);
+    if (price.free) return;
+    chargeable = true;
+    minimum += price.minimum;
+    variable ||= price.variable;
+    if (price.variable && price.minimum === 0) unpriced = true;
+  });
+  return {
+    totalText: unpriced ? 'Цена уточняется'
+      : chargeable ? displayPrice({ minimum, variable }) : 'Бесплатно',
+    durationMinutes: duration,
+  };
+}
+
 export function recordSelection(context = {}, workplaceKey = '', ids = []) {
   const selected = new Set((Array.isArray(ids) ? ids : []).map(key));
   return getRecordProcedures(context, workplaceKey).filter((procedure) => selected.has(key(procedure.id)));
