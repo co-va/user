@@ -5,6 +5,8 @@ function normalizePrice(source = {}) {
     minimum: Math.max(0, Number(source?.minimum) || 0),
     variable: Boolean(source?.variable),
     free: Boolean(source?.free),
+    // Preserve a display-ready price when the source supplies it.
+    display: String(source?.display || source?.label || '').trim(),
   };
 }
 

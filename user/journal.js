@@ -11,15 +11,15 @@ import {
   mountModal,
   openNotice,
   openRecordCreationOwner,
+  recordMiniCard,
   shortDate,
   v2ListEntries,
   v2ListEntry,
   viewNavigation,
 } from '../ui/user-ui.js';
-import { getServiceUnseenState, loadDeletedRecordHistory, loadJournalHiddenRecords, hideJournalRecord, markRecordsSeen } from '../core/notifications/service-unseen.js';
+import { getServiceUnseenState, loadDeletedRecordHistory, loadJournalHiddenRecords, markRecordsSeen } from '../core/notifications/service-unseen.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
-import { readOnlyReceipt } from '../ui/receipt/index.js';
 import { initNoteReels, noteReels } from '../ui/note/index.js';
 import {
   isRecordCompletedSide,
@@ -134,41 +134,48 @@ function amountDue(record = {}) {
     .reduce((sum, item) => sum + Math.max(0, Number(item?.cost ?? item?.price) || 0), 0);
 }
 
-function procedureRows(record = {}) {
-  return (Array.isArray(record?.procedures) ? record.procedures : []).map((item) => ({
-    label: String(item?.name || 'Процедура'),
-    value: money(item?.cost ?? item?.price),
-  }));
+function journalRecordPriceText(item = {}) {
+  const prepared = String(item.priceText || item.costText || item.displayPrice || '').trim();
+  if (prepared) return prepared;
+  const cost = item.cost ?? item.price;
+  if (cost == null || cost === '') return '';
+  const amount = typeof cost === 'object' ? cost.minimum ?? cost.amount ?? cost.from : cost;
+  if (amount == null || amount === '') return '';
+  const variable = item.variable === true || (typeof cost === 'object' && cost.variable === true);
+  return `${variable ? 'от ' : ''}${money(amount)}`;
 }
 
 function openUserRecord(record) {
   const deleted = record?.deleted === true;
-  const payment = deleted ? null : paymentFor(record);
-  const body = readOnlyReceipt({
-    status: deleted ? 'Удалена' : String(record?.status || '').toLowerCase() === 'cancelled' ? 'Отменена' : '',
-    date: shortDate(record?.date, ''),
-    time: String(record?.from || ''),
-    items: deleted
-      ? (Array.isArray(record?.procedures) ? record.procedures : []).map((item) => ({ label: String(item?.name || 'Процедура'), value: '' }))
-      : procedureRows(record),
-    totals: deleted ? [] : [
-      { label: 'Стоимость', value: money(amountDue(record)) },
-      payment.paidAmount > 0.009 ? { label: 'Оплачено', value: money(payment.paidAmount), strong: true } : null,
-      !payment.paid && payment.due > 0.009 ? { label: 'К оплате', value: money(payment.due), strong: true } : null,
-    ].filter(Boolean),
-  });
-  const canAct = Boolean(recordId(record) && String(record?.tenantId || ''));
-  const actions = canAct
-    ? `<div class="modal-actions">
-        ${button('Повторить', { data: 'data-user-record-repeat' })}
-        ${button('Удалить', { variant: 'danger', data: 'data-user-record-hide' })}
-      </div>`
-    : '';
-  const layer = mountModal(document.body, modal(`${body}${actions}`, {
-    variant: 'x',
-    xRole: 'action',
-    surface: 'app',
+  const cancelled = String(record?.status || '').toLowerCase() === 'cancelled';
+  const canRepeat = Boolean(recordId(record) && String(record?.tenantId || ''));
+  const workplace = String(record?.workplaceName || record?.workplace?.name || record?.workplaceTitle || '').trim();
+  const status = deleted ? 'Удалена' : cancelled ? 'Отменена' : '';
+  const procedures = (Array.isArray(record?.procedures) ? record.procedures : []).map((item) => ({
+    name: String(item?.name || 'Процедура'),
+    priceText: deleted ? '' : journalRecordPriceText(item),
   }));
+  const card = recordMiniCard({
+    confirmation: true,
+    workplace: status || workplace || 'Запись',
+    date: shortDate(record?.date, ''),
+    from: String(record?.from || ''),
+    procedures,
+    duration: recordDurationLabel(record),
+    total: deleted ? '' : money(amountDue(record)),
+    compactAction: canRepeat ? {
+      label: '↻',
+      data: 'data-user-record-repeat',
+      aria: 'Повторить запись',
+    } : null,
+  });
+  const layer = mountModal(document.body, modal(
+    `<div class="record-confirmation-view__card" data-user-journal-record-preview>${card}</div>`, {
+      variant: 'q',
+      surface: 'app',
+      title: '',
+    },
+  ));
   layer?.querySelector('[data-user-record-repeat]')?.addEventListener('click', () => {
     layer.v2Close?.();
     window.dispatchEvent(new CustomEvent('cova:user-record-start', {
@@ -178,19 +185,6 @@ function openUserRecord(record) {
         ...(deleted ? {} : { repeatRequest: record }),
       },
     }));
-  });
-  layer?.querySelector('[data-user-record-hide]')?.addEventListener('click', async (event) => {
-    const control = event.currentTarget;
-    control.disabled = true;
-    try {
-      // User-only dismissal: never cancel or delete the underlying Record.
-      const hidden = await hideJournalRecord(record?.tenantId, recordId(record));
-      layer.v2Close?.();
-      window.dispatchEvent(new CustomEvent('cova:user-record-hidden', { detail: hidden }));
-    } catch (error) {
-      control.disabled = false;
-      openNotice({ title: 'Не удалось удалить из списка', message: String(error?.message || 'Повторите попытку.') });
-    }
   });
   return layer;
 }

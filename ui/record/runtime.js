@@ -1,6 +1,5 @@
 import { workspaceHeaderContext } from '../header/index.js';
 import { mountV2ZLayer, v2ZLayer } from '../v2/index.js';
-import { v2ZBodySections } from '../v2/z-layout.js';
 import { modal, mountModal } from '../modals/index.js';
 import { bindCalendarHeaderHost } from '../calendar/index.js';
 import { entityVisualCard } from '../cards/entity-card-constructor.js';
@@ -189,50 +188,46 @@ export function recordTimeRows(items = [], {
   });
 }
 
-export function recordConfirmationMiniCard({
+// One receipt-shaped mini-card for both contact history and booking confirmation.
+// No second confirmation layout, no external V2 service list and no repeated styling.
+export function recordMiniCard({
+  confirmation = false,
   workplace = '',
-  contactDiscount = '',
   date = '',
-  period = '',
-  identity = '',
-  phone = '',
-  duration = '',
-  discountMoney = '',
-  total = '',
-  programControl = '',
+  from = '',
   procedures = [],
+  duration = '',
+  total = '',
+  compactAction = null,
+  interactive = false,
+  data = '',
+  aria = '',
 } = {}) {
-  const serviceRows = (Array.isArray(procedures) ? procedures : []).map((item = {}) => v2ListEntry({
-    title: item.name || item.title || 'Процедура',
-    subtitle: item.durationText || item.secondary || '',
-    rightTop: item.right || item.costText || '',
-    interactive: false,
-    actionData: item.action?.data || '',
-    actionAria: item.action?.aria || '',
-    actionIcon: item.action?.label || '⚙',
+  const procedureLines = (Array.isArray(procedures) ? procedures : []).map((item) => ({
+    value: String(item?.name || item?.title || 'Процедура'),
+    ...(confirmation ? { rightValue: String(item?.priceText || '') } : {}),
   }));
-  const services = serviceRows.length ? v2ListEntries(serviceRows) : '';
+  // History retains its original four-service spacing.
+  if (!confirmation) while (procedureLines.length < 4) procedureLines.push({ value: '' });
 
-  const card = miniCard({
-    className: 'record-confirmation-mini-card',
-    lines: [
-      { value: workplace, strong: true },
-      { value: contactDiscount, align: 'right', strong: true },
-      { value: date },
-      { value: period, align: 'right' },
-      { value: identity, strong: true },
-      { value: phone },
-      { value: duration, strong: true },
-      { value: discountMoney, strong: true },
-      { value: total, align: 'right', strong: true },
-    ],
+  return miniCard({
+    className: `record-summary-mini-card${confirmation ? ' record-summary-mini-card--confirmation' : ''}`,
+    lines: confirmation
+      ? [
+          { value: workplace, variant: 'primary' },
+          { value: [date, from].filter(Boolean).join(' · '), variant: 'moment' },
+          ...procedureLines,
+        ]
+      : [
+          { value: [date, from].filter(Boolean).join(' · '), variant: 'primary' },
+          ...procedureLines,
+        ],
+    rows: [{ label: confirmation ? duration : 'Стоимость', value: total }],
+    compactAction,
+    interactive,
+    data,
+    aria,
   });
-
-  return `<div class="record-confirmation-view">${v2ZBodySections([
-    { kind: 'content', content: `<div class="record-confirmation-view__card">${card}</div>` },
-    ...(programControl ? [{ kind: 'content', content: `<div class="record-confirmation-view__program">${programControl}</div>` }] : []),
-    { kind: 'content', content: `<div class="record-confirmation-view__procedures">${services}</div>` },
-  ])}</div>`;
 }
 
 export function mountRecordZ({

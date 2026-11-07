@@ -26,7 +26,7 @@ import {
   entityCardStack,
   entityVisualCard,
   normalizeEntityCardAppearance,
-  miniCard,
+  recordMiniCard,
   miniCardRail,
   miniCardStack,
   escapeHtml,
@@ -514,10 +514,21 @@ async function renderGlobalJournal(root, state, handlers) {
   });
   const journalRoot = root.querySelector('[data-account-journal-root]');
   if (journalRoot) {
+    const workplaceNames = new Map((Array.isArray(state.relationships) ? state.relationships : [])
+      .flatMap((relationship) => (Array.isArray(relationship.workplaces) ? relationship.workplaces : [])
+        .map((workplace) => [
+          JSON.stringify([String(relationship.tenantId || ''), String(workplace.key || '')]),
+          String(workplace.name || ''),
+        ])));
     root.accountJournalDispose = renderJournal(journalRoot, {
       context: 'account',
       initialDate: state.accountJournalDate instanceof Date ? state.accountJournalDate : undefined,
-      records: () => Array.isArray(state.accountRecords) ? state.accountRecords : [],
+      records: () => (Array.isArray(state.accountRecords) ? state.accountRecords : []).map((record) => ({
+        ...record,
+        workplaceName: String(record.workplaceName || '') || workplaceNames.get(JSON.stringify([
+          String(record.tenantId || ''), String(record.workplaceId || record.workplaceKey || ''),
+        ])) || '',
+      })),
     }) || null;
   }
   bindWorkspaceInteraction(root, state, handlers);
@@ -885,18 +896,12 @@ function preferredHistoryIndex(records = []) {
 }
 
 function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, current = false } = {}) {
-  const procedures = requestProcedures(request).slice(0, 4);
   const pricing = requestPricing(request);
-  const procedureLines = procedures.map((procedure) => ({
-    value: String(procedure?.name || 'Процедура'),
-  }));
-  while (procedureLines.length < 4) procedureLines.push({ value: '' });
-  return miniCard({
-    lines: [
-      { value: [formatDate(request.date), request.from].filter(Boolean).join(' · '), variant: 'primary' },
-      ...procedureLines,
-    ],
-    rows: [{ label: 'Стоимость', value: money(pricing.total || pricing.subtotal) }],
+  return recordMiniCard({
+    date: formatDate(request.date),
+    from: request.from,
+    procedures: requestProcedures(request).slice(0, 4),
+    total: money(pricing.total || pricing.subtotal),
     compactAction: canRepeat ? {
       label: '↻',
       data: `data-global-contact-repeat="${index}"`,

@@ -9,14 +9,16 @@ import {
   getRecordTimeRows,
   getRecordWorkingDates,
   recordProcedureCost,
-  recordProcedurePrice,
+  recordProcedurePriceText,
+  recordSelectionQuote,
 } from '../core/record/availability.js';
 import {
   escapeHtml,
   field,
   openNotice,
   openRecordCreationOwner,
-  recordConfirmationMiniCard,
+  recordMiniCard,
+  durationText,
   recordContactList,
   v2ListEntry,
   v2ListEntries,
@@ -36,9 +38,7 @@ function money(value) {
 
 function formatDate(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return String(value || '');
-  const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-  return `${Number(match[3])} ${months[Number(match[2]) - 1] || match[2]}`;
+  return match ? `${match[3]}.${match[2]}.${match[1].slice(-2)}` : String(value || '');
 }
 
 function contactProfile(target = {}) {
@@ -100,40 +100,27 @@ function procedureEntry(procedure, workplaceKey) {
     id: text(procedure?.id),
     name: text(procedure?.name),
     cost: recordProcedureCost(procedure, workplaceKey),
+    priceText: recordProcedurePriceText(procedure, workplaceKey),
     duration: Math.max(0, Number(procedure?.duration) || 0),
     raw: procedure,
   };
 }
 
 function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
-  const procedures = Array.isArray(state.procedures) ? state.procedures : [];
   const workplace = (Array.isArray(context?.workplaces) ? context.workplaces : [])
     .find((item) => text(item?.key) === text(workplaceKey));
-  const total = procedures.reduce((sum, procedure) => {
-    const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
-    return sum + Math.max(0, Number(price.minimum) || 0);
-  }, 0);
-  const totalDuration = procedures.reduce(
-    (sum, procedure) => sum + Math.max(0, Number(procedure?.duration) || 0),
-    0,
-  );
-
-  return recordConfirmationMiniCard({
+  // No price or duration calculations on the confirmation surface.
+  // Both values were prepared once when the selected procedures changed.
+  const quote = state.quote || {};
+  return `<div class="record-confirmation-view__card">${recordMiniCard({
+    confirmation: true,
     workplace: text(workplace?.name) || 'Рабочее пространство',
     date: formatDate(state.date),
-    period: [text(state.from), text(state.to)].filter(Boolean).join('–'),
-    duration: totalDuration ? `${totalDuration} мин` : '',
-    total: money(total),
-    procedures: procedures.map((procedure) => {
-      const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
-      const duration = Math.max(0, Number(procedure?.duration) || 0);
-      return {
-        name: text(procedure?.name),
-        durationText: duration ? `${duration} мин` : '',
-        costText: money(Math.max(0, Number(price.minimum) || 0)),
-      };
-    }),
-  });
+    from: text(state.from),
+    procedures: state.procedures,
+    duration: text(quote.durationText),
+    total: text(quote.totalText),
+  })}</div>`;
 }
 
 function reopenWorkplaceOrigin(workplaceKey) {
@@ -181,7 +168,7 @@ async function startUserRecord(contactId, owner, options = {}) {
     const confirmation = config?.step === 'confirmation' && text(config?.action?.data).includes('data-records-confirm');
     if (!confirmation) return ownerRender(config);
     const state = owner.getRecordState?.() || {};
-    return ownerRender({ ...config, body: summaryMarkup(state, activeWorkplaceKey, recordContext) });
+    return ownerRender({ ...config, title: false, body: summaryMarkup(state, activeWorkplaceKey, recordContext) });
   };
 
   const provider = {
@@ -189,6 +176,11 @@ async function startUserRecord(contactId, owner, options = {}) {
     procedureId: (procedure) => text(procedure?.id),
     procedureName: (procedure) => text(procedure?.name),
     procedureCost: (procedure, workplaceKey) => recordProcedureCost(procedure, workplaceKey),
+    procedurePriceText: (procedure, workplaceKey) => recordProcedurePriceText(procedure, workplaceKey),
+    quote: (procedures, workplaceKey) => {
+      const quote = recordSelectionQuote(procedures, workplaceKey);
+      return { ...quote, durationText: durationText(quote.durationMinutes) };
+    },
     procedureDuration: (procedure) => Math.max(0, Number(procedure?.duration) || 0),
     workingDates: (workplaceKey) => getRecordWorkingDates(recordContext, workplaceKey),
     timeRows: ({ workplaceId, date, procedures }) => getRecordTimeRows(recordContext, {

@@ -37,10 +37,6 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
   }));
   if (!layer) return null;
   layer.setAttribute('aria-label', 'Событие');
-  const headerHost = layer.querySelector('[data-v2-q-header-content]');
-  if (headerHost) {
-    headerHost.innerHTML = '<div class="user-event-shell-title" style="position:absolute;top:0;left:52px;height:24px;display:flex;align-items:center;margin:0;font-size:20px;line-height:24px;font-weight:500">Событие</div>';
-  }
   const close = layer.v2Close?.bind(layer);
   if (close) layer.v2Close = () => { if (layer.isConnected) { close(); onClose(); } };
   const host = () => layer.querySelector('[data-user-event-view]');
@@ -50,15 +46,19 @@ export function openUserEventView(eventOrId, { eventActions, onClose = () => {} 
     const root = host();
     if (!root || !current) return;
     const attachedNotes = notesForEvent(eventId);
-    const metaStyle = 'color:var(--text-secondary);font-size:13px;line-height:1.35;font-weight:650';
-    root.innerHTML = `<section class="form-grid event-view">
-      <h2 style="margin:0;font-size:23px;line-height:1.15">${escapeHtml(current.title || 'Событие')}</h2>
-      ${current.description ? `<div class="event-view__description" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:18px;line-height:1.5">${escapeHtml(current.description)}</div>` : ''}
-      <div style="${metaStyle}">${escapeHtml(dateLabel(current.date || ''))}</div>
-      <div style="${metaStyle}">${escapeHtml(current.from || '')}–${escapeHtml(current.to || '')}</div>
+    const color = /^#[0-9A-F]{6}$/i.test(String(current.color || '')) ? current.color : '#777A7D';
+    root.innerHTML = `<section class="note-detail event-detail">
+      <article class="note-sticker note-sticker--event" style="--note-color:${escapeHtml(color)}">
+        <strong class="note-sticker__title">${escapeHtml(current.title || 'Событие')}</strong>
+        ${current.description ? `<div class="note-sticker__text">${escapeHtml(current.description)}</div>` : ''}
+        <div class="event-sticker__meta">
+          <span class="note-sticker__date">${escapeHtml(dateLabel(current.date || ''))}</span>
+          <span class="note-sticker__date">${escapeHtml(current.from || '')}–${escapeHtml(current.to || '')}</span>
+        </div>
+      </article>
       ${noteAttachmentStickers(attachedNotes)}
-      ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'danger', data: 'data-user-event-delete' })}`)}
-    </section>`;
+    </section>
+    ${actionBlock(`${button('Изменить', { data: 'data-user-event-edit' })}${button('Удалить', { variant: 'danger', data: 'data-user-event-delete' })}`)}`;
     root.querySelector('[data-user-event-edit]')?.addEventListener('click', renderEdit);
     root.querySelectorAll('[data-note-attachment]').forEach((node) => node.addEventListener('click', () => {
       const noteId = String(node.dataset.noteAttachment || '');
