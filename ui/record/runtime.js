@@ -191,27 +191,38 @@ export function recordTimeRows(items = [], {
 // One receipt-shaped mini-card for both contact history and booking confirmation.
 // No second confirmation layout, no external V2 service list and no repeated styling.
 export function recordMiniCard({
+  confirmation = false,
+  workplace = '',
   date = '',
   from = '',
   procedures = [],
+  duration = '',
   total = '',
   compactAction = null,
   interactive = false,
   data = '',
   aria = '',
 } = {}) {
-  const procedureLines = (Array.isArray(procedures) ? procedures : [])
-    .map((item) => ({ value: String(item?.name || item?.title || 'Процедура') }));
-  // Keep the History card's four-line minimum even for a short booking.
-  while (procedureLines.length < 4) procedureLines.push({ value: '' });
+  const procedureLines = (Array.isArray(procedures) ? procedures : []).map((item) => ({
+    value: String(item?.name || item?.title || 'Процедура'),
+    ...(confirmation ? { rightValue: String(item?.priceText || '') } : {}),
+  }));
+  // History retains its original four-service spacing.
+  if (!confirmation) while (procedureLines.length < 4) procedureLines.push({ value: '' });
 
   return miniCard({
-    className: 'record-summary-mini-card',
-    lines: [
-      { value: [date, from].filter(Boolean).join(' · '), variant: 'primary' },
-      ...procedureLines,
-    ],
-    rows: [{ label: 'Стоимость', value: total }],
+    className: `record-summary-mini-card${confirmation ? ' record-summary-mini-card--confirmation' : ''}`,
+    lines: confirmation
+      ? [
+          { value: workplace, variant: 'primary' },
+          { value: [date, from].filter(Boolean).join(' · '), variant: 'moment' },
+          ...procedureLines,
+        ]
+      : [
+          { value: [date, from].filter(Boolean).join(' · '), variant: 'primary' },
+          ...procedureLines,
+        ],
+    rows: [{ label: confirmation ? duration : 'Стоимость', value: total }],
     compactAction,
     interactive,
     data,
