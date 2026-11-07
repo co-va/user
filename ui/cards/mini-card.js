@@ -61,14 +61,15 @@ export function miniCard({
   const resolvedCompactAction = compactAction && typeof compactAction === 'object'
     ? compactAction
     : null;
-  const dualAction = Boolean(interactive && resolvedCompactAction?.data && resolvedCompactAction?.label);
+  const hasCompactAction = Boolean(resolvedCompactAction?.data && resolvedCompactAction?.label);
+  const dualAction = Boolean(interactive && hasCompactAction);
   const tag = dualAction ? 'section' : interactive ? 'button' : 'section';
   const resolvedSurface = surface === 'photo' ? 'photo' : 'default';
   const classes = [
     'mini-card',
     `mini-card--surface-${resolvedSurface}`,
     interactive ? 'mini-card--interactive' : '',
-    dualAction ? 'mini-card--dual-action' : '',
+    hasCompactAction ? 'mini-card--dual-action' : '',
     image ? 'has-image' : '',
     className,
   ].filter(Boolean).join(' ');
@@ -90,7 +91,7 @@ export function miniCard({
   const surfaceAction = dualAction
     ? `<button type="button" class="mini-card__surface-action"${attrs(data, aria || title)}></button>`
     : '';
-  const compactActionMarkup = dualAction
+  const compactActionMarkup = hasCompactAction
     ? `<button type="button" class="mini-card__compact-action"${attrs(resolvedCompactAction.data, resolvedCompactAction.aria || resolvedCompactAction.label)}>${escapeHtml(resolvedCompactAction.label)}</button>`
     : '';
 
