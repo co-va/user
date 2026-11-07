@@ -29,3 +29,50 @@
   scrollbar-width:none;
 }
 .record-summary-mini-card .mini-card__lines::-webkit-scrollbar{display:none}
+
+
+
+/* Same mini-card geometry for history and confirmation; only content differs.
+   Price pairs remain inside the same bounded, scrollable lines region. */
+.record-summary-mini-card--confirmation .mini-card__lines{gap:4px}
+.record-summary-mini-card--confirmation .mini-card__line--primary{
+  font-size:14px;
+  line-height:1.1;
+  font-weight:850;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.record-summary-mini-card .mini-card__line--moment{
+  font-size:12px;
+  line-height:1.15;
+  font-weight:500;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.record-summary-mini-card .mini-card__line--pair{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) max-content;
+  gap:7px;
+  align-items:start;
+  text-align:left;
+}
+.record-summary-mini-card .mini-card__line-text{
+  min-width:0;
+  font-size:12px;
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.record-summary-mini-card .mini-card__line-right{
+  max-width:90px;
+  font-size:11px;
+  line-height:1.25;
+  font-weight:700;
+  text-align:right;
+  white-space:nowrap;
+}
+.record-summary-mini-card--confirmation .mini-card__row-label{
+  font-size:12px;
+  font-weight:700;
+}
