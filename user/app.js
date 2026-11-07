@@ -14,7 +14,6 @@ import {
   prepareGlobalAccount,
   registerGlobalAccount,
 } from '../core/account/index.js';
-import { ensureAccountEmailVerification } from '../core/account/email.js';
 import { button } from '../ui/buttons/index.js';
 import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
 import { field, formValidationMessage, initPasswordFields, passwordField, phoneField } from '../ui/inputs/index.js';
@@ -147,6 +146,7 @@ function shellCallbacks(root, state) {
   return {
     onStartRecord: startRecord,
     onLogout: () => {
+      window.dispatchEvent(new Event('user:auth-logout'));
       clearAccount();
       state.account = null;
       state.relationships = [];
@@ -194,6 +194,13 @@ async function renderHome(root, state) {
   }
 
   await renderShell(root, state, callbacks);
+
+  // Never block the User workspace while checking account email verification.
+  if (root.isConnected && root.userRelationshipState === state) {
+    void import('./email-verification-reminder.js')
+      .then(({ offerAccountEmailVerificationReminder }) => offerAccountEmailVerificationReminder(root, state))
+      .catch(() => undefined);
+  }
 
   if (tab !== 'journal') return;
   const records = await getGlobalAccountRecords().catch(() => []);
@@ -283,7 +290,6 @@ function renderEntry(root, state) {
       loginSucceeded = true;
       state.account = payload.account;
       state.error = '';
-      void ensureAccountEmailVerification().catch(() => {});
       await continueIdentity(root, state);
     } catch (error) {
       if (loginSucceeded) {
@@ -442,7 +448,6 @@ function renderLegal(root, state) {
           accountTerms: termsFact(state),
         });
         state.account = payload.account;
-        void ensureAccountEmailVerification().catch(() => {});
       } else {
         await acceptGlobalAccountTerms(termsFact(state));
       }
