@@ -6,7 +6,6 @@ COPY index.html /usr/share/nginx/html/index.html
 COPY service-worker.js /usr/share/nginx/html/service-worker.js
 COPY manifest.webmanifest /usr/share/nginx/html/manifest.webmanifest
 COPY user-icon.svg /usr/share/nginx/html/user-icon.svg
-COPY email-icon.png /usr/share/nginx/html/email-icon.png
 COPY css /usr/share/nginx/html/css
 COPY core /usr/share/nginx/html/core
 COPY user /usr/share/nginx/html/user
