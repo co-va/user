@@ -20,6 +20,7 @@ function selectionEntry(provider, raw, workplaceId) {
     id: provider.procedureId(raw),
     name: provider.procedureName(raw),
     cost: provider.procedureCost(raw, workplaceId),
+    priceText: provider.procedurePriceText?.(raw, workplaceId) || '',
     duration: provider.procedureDuration(raw),
     raw,
   };
@@ -43,6 +44,8 @@ export function openRecords({
     from: '',
     to: '',
     procedures: Array.isArray(procedures) ? procedures.map((entry) => ({ ...entry })) : [],
+    // Quote is created on selection changes, never by the preview renderer.
+    quote: typeof source.quote === 'function' ? source.quote(procedures, workplaceId) : null,
   };
 
   const owner = creationOwner || openRecordCreationOwner({ onCancel });
@@ -85,9 +88,10 @@ export function openRecords({
       id: source.procedureId(item),
       name: source.procedureName(item),
       durationText: durationText(source.procedureDuration(item)),
-      costText: source.procedureCost(item, state.workplaceId) !== ''
-        ? `${source.procedureCost(item, state.workplaceId)} ₽`
-        : '',
+      costText: typeof source.procedurePriceText === 'function'
+        ? source.procedurePriceText(item, state.workplaceId)
+        : (source.procedureCost(item, state.workplaceId) !== ''
+          ? `${source.procedureCost(item, state.workplaceId)} ₽` : ''),
     })), {
       data: 'data-records-procedure',
       selected: [...selected.keys()],
@@ -112,6 +116,7 @@ export function openRecords({
         selected.clear();
         next.forEach((value, key) => selected.set(key, value));
         state.procedures = [...selected.values()];
+        if (typeof source.quote === 'function') state.quote = source.quote(state.procedures, state.workplaceId);
         const nextButton = view?.layer?.querySelector('[data-records-procedures-next]');
         if (nextButton) nextButton.disabled = selected.size === 0;
       },
