@@ -17,6 +17,7 @@ import { formatPhone } from '../core/phone/index.js';
 import { getRecordContacts } from '../core/record/platform-api.js';
 import { projectRecordStatuses } from '../core/record/state.js';
 import { disableWebPush, enableWebPush, getWebPushState } from '../core/notifications/web-push.js';
+import { getAccountNotificationSettings, saveAccountNotificationSettings } from '../core/notifications/account-email-api.js';
 import {
   actionBlock,
   button,
@@ -304,13 +305,16 @@ function openAccountPhotoSettings(state, handlers) {
 }
 
 async function loadGlobalNotificationState() {
-  const pushState = await getWebPushState().catch(() => ({
-    supported: false,
-    enabled: false,
-    subscribed: false,
-    permission: 'unsupported',
-  }));
-  return { pushState };
+  const [pushState, emailState] = await Promise.all([
+    getWebPushState().catch(() => ({
+      supported: false,
+      enabled: false,
+      subscribed: false,
+      permission: 'unsupported',
+    })),
+    getAccountNotificationSettings().catch(() => ({ unavailable: true, emailVerified: false, emailEnabled: false })),
+  ]);
+  return { pushState, emailState };
 }
 
 async function openGlobalAccountControls(root, state) {
@@ -323,6 +327,9 @@ async function openGlobalAccountControls(root, state) {
   ]);
   const pushSupported = Boolean(notificationState.pushState?.supported && notificationState.pushState?.enabled);
   const pushSubscribed = Boolean(notificationState.pushState?.subscribed);
+  const emailAvailable = notificationState.emailState?.unavailable !== true;
+  const emailVerified = emailAvailable && notificationState.emailState?.emailVerified === true;
+  const emailEnabled = emailVerified && notificationState.emailState?.emailEnabled === true;
   const platformDocument = platformState?.document && typeof platformState.document === 'object'
     ? platformState.document
     : null;
@@ -362,6 +369,17 @@ async function openGlobalAccountControls(root, state) {
         disabled: !pushSupported,
         data: 'data-account-notification-push',
       },
+      {
+        label: 'Email',
+        description: !emailAvailable
+          ? 'Не удалось загрузить настройки Email.'
+          : emailVerified
+            ? 'Сервисные уведомления на подтверждённый email.'
+            : 'Email станет доступен после подтверждения адреса.',
+        checked: emailEnabled,
+        disabled: !emailVerified,
+        data: 'data-account-notification-email',
+      },
     ]))}
     ${v2Section('Документы', platformDocuments)}
   </div>`;
@@ -386,6 +404,24 @@ async function openGlobalAccountControls(root, state) {
       if (status) status.textContent = accountErrorMessage(error, 'Не удалось изменить Push');
     } finally {
       control.disabled = !pushSupported;
+    }
+  });
+
+  layer?.querySelector('[data-account-notification-email]')?.addEventListener('change', async (event) => {
+    const control = event.currentTarget;
+    const previous = !control.checked;
+    control.disabled = true;
+    const status = layer.querySelector('[data-notification-status]');
+    if (status) status.textContent = 'Сохраняем…';
+    try {
+      const saved = await saveAccountNotificationSettings(control.checked);
+      control.checked = saved.emailVerified === true && saved.emailEnabled === true;
+      if (status) status.textContent = 'Сохранено.';
+    } catch (error) {
+      control.checked = previous;
+      if (status) status.textContent = accountErrorMessage(error, 'Не удалось изменить Email');
+    } finally {
+      control.disabled = !emailVerified;
     }
   });
 
