@@ -248,6 +248,33 @@ try {
       console.log('Checking event Q');
       const eventLayer = openUserEventView(event, { eventActions });
       if (!eventLayer) throw new Error('Real event editor did not open');
+      const shortPaper = eventLayer.querySelector('.note-sticker--event');
+      if (!shortPaper || shortPaper.querySelector('.note-sticker__tape')) {
+        throw new Error('Event preview must be one paper sticker without tape');
+      }
+      if (eventLayer.querySelector('[data-v2-q-header-content]')?.textContent?.trim()) {
+        throw new Error('Event Q must not repeat a visible outer "Событие" heading');
+      }
+      if (getComputedStyle(shortPaper).borderTopLeftRadius !== '0px') {
+        throw new Error('Event paper sticker must have square 90-degree corners');
+      }
+      const shortRect = shortPaper.getBoundingClientRect();
+      event.description = 'Подробное описание события. '.repeat(260);
+      eventLayer.querySelector('[data-user-event-edit]')?.click();
+      eventLayer.querySelector('[data-user-event-cancel]')?.click();
+      const longPaper = eventLayer.querySelector('.note-sticker--event');
+      const longText = longPaper?.querySelector('.note-sticker__text');
+      const longRect = longPaper?.getBoundingClientRect();
+      if (!longPaper || !longText || !longRect) throw new Error('Long event paper is missing');
+      if (Math.abs(shortRect.width - longRect.width) > 1 || longRect.height <= shortRect.height ||
+          longRect.height > 461 || longText.scrollHeight <= longText.clientHeight) {
+        throw new Error('Event preview must keep its width, grow vertically and scroll long text: ' +
+          JSON.stringify({ short: shortRect.height, long: longRect.height,
+            shortWidth: shortRect.width, longWidth: longRect.width,
+            textScroll: longText.scrollHeight, textClient: longText.clientHeight }));
+      }
+      longText.scrollTop = longText.scrollHeight;
+      if (longText.scrollTop <= 0) throw new Error('Long event text must scroll inside paper');
       eventLayer.querySelector('[data-user-event-edit]')?.click();
       record('Изменение события', 'q', eventLayer, '[type="submit"]');
       eventLayer.v2Close?.();
