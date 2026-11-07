@@ -69,6 +69,23 @@ try{
   await q.locator('[data-notification-status]').getByText('Сохранено.').waitFor({timeout:10000});
   assert.equal(writes,2,'Enabled again only when user acts');
   assert.equal(enabled,true);
+  // The preference stays editable with an unverified address. Only actual
+  // email delivery is deferred until the account confirms that address.
+  verified=false;
+  enabled=false;
+  await q.evaluate(el=>el.v2Close?.());
+  await page.locator('[data-account-profile-settings]').click();
+  await page.locator('[data-shared-profile-action="controls"]').click();
+  const pending=page.locator('.modal--account-controls');
+  await pending.locator('[data-account-notification-email]').waitFor({state:'visible'});
+  assert.equal(await pending.locator('[data-account-notification-email]').isEnabled(),true,
+    'Unverified account must be allowed to configure Email');
+  assert.equal(await pending.locator('[data-account-notification-email]').isChecked(),false);
+  await pending.locator('[data-account-notification-email]').check();
+  await pending.locator('[data-notification-status]').getByText('Сохранено.').waitFor({timeout:10000});
+  assert.equal(writes,3,'Preference saved for unverified account');
+  assert.equal(enabled,true,'Account preference is on independently of delivery eligibility');
+  assert.equal(await pending.locator('[data-account-notification-email]').isChecked(),true);
   assert.deepEqual(faults,[],'No runtime errors');
-  console.log('User notifications: Push + live Email toggle, saved preference, 320px single-line Q title: PASS');
+  console.log('User notifications: Push + Email, editable before verification, persisted preference, 320px single-line Q title: PASS');
 }finally{await browser.close();await new Promise(done=>server.close(done))}

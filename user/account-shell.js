@@ -329,7 +329,7 @@ async function openGlobalAccountControls(root, state) {
   const pushSubscribed = Boolean(notificationState.pushState?.subscribed);
   const emailAvailable = notificationState.emailState?.unavailable !== true;
   const emailVerified = emailAvailable && notificationState.emailState?.emailVerified === true;
-  const emailEnabled = emailVerified && notificationState.emailState?.emailEnabled === true;
+  const emailEnabled = emailAvailable && notificationState.emailState?.emailEnabled === true;
   const platformDocument = platformState?.document && typeof platformState.document === 'object'
     ? platformState.document
     : null;
@@ -375,9 +375,9 @@ async function openGlobalAccountControls(root, state) {
           ? 'Не удалось загрузить настройки Email.'
           : emailVerified
             ? 'Сервисные уведомления на подтверждённый email.'
-            : 'Email станет доступен после подтверждения адреса.',
+            : 'Настройка доступна сейчас. Сервисные письма начнут приходить после подтверждения адреса.',
         checked: emailEnabled,
-        disabled: !emailVerified,
+        disabled: !emailAvailable,
         data: 'data-account-notification-email',
       },
     ]))}
@@ -415,13 +415,13 @@ async function openGlobalAccountControls(root, state) {
     if (status) status.textContent = 'Сохраняем…';
     try {
       const saved = await saveAccountNotificationSettings(control.checked);
-      control.checked = saved.emailVerified === true && saved.emailEnabled === true;
+      control.checked = saved.emailEnabled === true;
       if (status) status.textContent = 'Сохранено.';
     } catch (error) {
       control.checked = previous;
       if (status) status.textContent = accountErrorMessage(error, 'Не удалось изменить Email');
     } finally {
-      control.disabled = !emailVerified;
+      control.disabled = !emailAvailable;
     }
   });
 
