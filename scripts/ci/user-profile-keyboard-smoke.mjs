@@ -424,18 +424,23 @@ try {
     return result;
   });
   assert.equal(recordCardCheck.sameGeometry, true, 'History and confirmation preserve the same mini-card UI');
-  assert.deepEqual(recordCardCheck.priceLabels, ['от 1 500 ₽', '2 000 ₽']);
-  assert.equal(recordCardCheck.quote, 'от 3 500 ₽');
+  // Intl.NumberFormat uses NBSP for Russian thousands grouping.
+  // Compare display text after normalizing Unicode spacing only.
+  const spaces = (value) => String(value).replace(/[\u00a0\u202f]/g, ' ');
+  assert.deepEqual(recordCardCheck.priceLabels.map(spaces), ['от 1 500 ₽', '2 000 ₽']);
+  assert.equal(spaces(recordCardCheck.quote), 'от 3 500 ₽');
   assert.equal(recordCardCheck.quoteDuration, 90);
   assert.equal(recordCardCheck.historyLabel, 'Стоимость', 'History layout remains unchanged');
   assert.equal(recordCardCheck.workplace, 'Бьюти тория');
   assert.equal(recordCardCheck.moment, '07.11.26 · 12:00');
-  assert.deepEqual(recordCardCheck.pairs, [
+  assert.deepEqual(recordCardCheck.pairs.map((row) => ({
+    name: row.name, price: spaces(row.price),
+  })), [
     { name: 'Укладка', price: 'от 1 500 ₽' },
     { name: 'Стрижка', price: '2 000 ₽' },
   ]);
   assert.equal(recordCardCheck.footerLabel, '1 ч 30 мин');
-  assert.equal(recordCardCheck.footerTotal, 'от 3 500 ₽');
+  assert.equal(spaces(recordCardCheck.footerTotal), 'от 3 500 ₽');
   assert.equal(recordCardCheck.confirmationRepeat, false);
   assert.equal(recordCardCheck.historyRepeat, true);
   assert.equal(recordCardCheck.outsideList, false, 'No external V2 list');
