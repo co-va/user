@@ -72,7 +72,7 @@ assert(walk('ui').filter((file) => file.endsWith('.css') && file !== 'ui/inputs/
   .every((file) => !read(file).includes('keyboard-open')), 'Keyboard-specific stylesheet exceptions returned');
 
 // Keyboard geometry is a shared contract, not a profile/event/payment fix.
-assert(shellStyles.includes('position:fixed;top:0;left:0;right:0;transform:translate3d(var(--ui-visual-left,0px),var(--ui-visual-top,0px),0)'),
+assert(shellStyles.includes('position:fixed;top:var(--ui-visual-top,0px);left:0;right:0'),
   'Shared root must compensate Safari visual viewport panning');
 assert(!shellStyles.includes('body:has([data-v2-app]){position:fixed'),
   'Never nest a fixed application root inside a second fixed body');
