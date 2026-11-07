@@ -9,7 +9,8 @@ import {
   getRecordTimeRows,
   getRecordWorkingDates,
   recordProcedureCost,
-  recordProcedurePrice,
+  recordProcedurePriceText,
+  recordSelectionQuote,
 } from '../core/record/availability.js';
 import {
   escapeHtml,
@@ -17,6 +18,7 @@ import {
   openNotice,
   openRecordCreationOwner,
   recordMiniCard,
+  durationText,
   recordContactList,
   v2ListEntry,
   v2ListEntries,
@@ -98,24 +100,26 @@ function procedureEntry(procedure, workplaceKey) {
     id: text(procedure?.id),
     name: text(procedure?.name),
     cost: recordProcedureCost(procedure, workplaceKey),
+    priceText: recordProcedurePriceText(procedure, workplaceKey),
     duration: Math.max(0, Number(procedure?.duration) || 0),
     raw: procedure,
   };
 }
 
-function summaryMarkup(state = {}, workplaceKey = '') {
-  const procedures = Array.isArray(state.procedures) ? state.procedures : [];
-  const total = procedures.reduce((sum, procedure) => {
-    const price = recordProcedurePrice(procedure?.raw || procedure, workplaceKey);
-    return sum + Math.max(0, Number(price.minimum) || 0);
-  }, 0);
-
-  // The same record mini-card as Contacts → Workplace → History.
+function summaryMarkup(state = {}, workplaceKey = '', context = {}) {
+  const workplace = (Array.isArray(context?.workplaces) ? context.workplaces : [])
+    .find((item) => text(item?.key) === text(workplaceKey));
+  // No price or duration calculations on the confirmation surface.
+  // Both values were prepared once when the selected procedures changed.
+  const quote = state.quote || {};
   return `<div class="record-confirmation-view__card">${recordMiniCard({
+    confirmation: true,
+    workplace: text(workplace?.name) || 'Рабочее пространство',
     date: formatDate(state.date),
     from: text(state.from),
-    procedures,
-    total: money(total),
+    procedures: state.procedures,
+    duration: durationText(quote.durationMinutes),
+    total: text(quote.totalText),
   })}</div>`;
 }
 
@@ -164,7 +168,7 @@ async function startUserRecord(contactId, owner, options = {}) {
     const confirmation = config?.step === 'confirmation' && text(config?.action?.data).includes('data-records-confirm');
     if (!confirmation) return ownerRender(config);
     const state = owner.getRecordState?.() || {};
-    return ownerRender({ ...config, title: false, body: summaryMarkup(state, activeWorkplaceKey) });
+    return ownerRender({ ...config, title: false, body: summaryMarkup(state, activeWorkplaceKey, recordContext) });
   };
 
   const provider = {
@@ -172,6 +176,8 @@ async function startUserRecord(contactId, owner, options = {}) {
     procedureId: (procedure) => text(procedure?.id),
     procedureName: (procedure) => text(procedure?.name),
     procedureCost: (procedure, workplaceKey) => recordProcedureCost(procedure, workplaceKey),
+    procedurePriceText: (procedure, workplaceKey) => recordProcedurePriceText(procedure, workplaceKey),
+    quote: (procedures, workplaceKey) => recordSelectionQuote(procedures, workplaceKey),
     procedureDuration: (procedure) => Math.max(0, Number(procedure?.duration) || 0),
     workingDates: (workplaceKey) => getRecordWorkingDates(recordContext, workplaceKey),
     timeRows: ({ workplaceId, date, procedures }) => getRecordTimeRows(recordContext, {
