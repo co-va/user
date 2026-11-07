@@ -514,10 +514,21 @@ async function renderGlobalJournal(root, state, handlers) {
   });
   const journalRoot = root.querySelector('[data-account-journal-root]');
   if (journalRoot) {
+    const workplaceNames = new Map((Array.isArray(state.relationships) ? state.relationships : [])
+      .flatMap((relationship) => (Array.isArray(relationship.workplaces) ? relationship.workplaces : [])
+        .map((workplace) => [
+          JSON.stringify([String(relationship.tenantId || ''), String(workplace.key || '')]),
+          String(workplace.name || ''),
+        ])));
     root.accountJournalDispose = renderJournal(journalRoot, {
       context: 'account',
       initialDate: state.accountJournalDate instanceof Date ? state.accountJournalDate : undefined,
-      records: () => Array.isArray(state.accountRecords) ? state.accountRecords : [],
+      records: () => (Array.isArray(state.accountRecords) ? state.accountRecords : []).map((record) => ({
+        ...record,
+        workplaceName: String(record.workplaceName || '') || workplaceNames.get(JSON.stringify([
+          String(record.tenantId || ''), String(record.workplaceId || record.workplaceKey || ''),
+        ])) || '',
+      })),
     }) || null;
   }
   bindWorkspaceInteraction(root, state, handlers);
