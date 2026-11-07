@@ -34,7 +34,7 @@ try{
   await page.goto(base,{waitUntil:'load',timeout:25000});
   await page.evaluate(()=>localStorage.setItem('user.account.token','test-session'));
 
-  let enabled=true,verified=true,writes=0;
+  let enabled=true,verified=false,writes=0;
   await page.route('**/account/notification-settings',async(route)=>{
     if(route.request().method()==='PUT'){
       writes++;
@@ -59,7 +59,10 @@ try{
   const title=await q.locator('.v2-q-title').evaluate(el=>({scroll:el.scrollWidth,client:el.clientWidth,height:el.getBoundingClientRect().height,line:getComputedStyle(el).lineHeight}));
   assert.ok(title.scroll<=title.client+1,'Title must fit within one line on 320px: '+JSON.stringify(title));
   assert.ok(title.height<=parseFloat(title.line)+1,'Title must render one line: '+JSON.stringify(title));
-  assert.equal(await q.locator('[data-account-notification-email]').isChecked(),true,'Verified email is on by default');
+  assert.equal(await q.locator('[data-account-notification-email]').isEnabled(),true,
+    'Unverified account must still be allowed to configure Email');
+  assert.equal(await q.locator('[data-account-notification-email]').isChecked(),true,
+    'Service Email preference is independent of verification state');
   await q.locator('[data-account-notification-email]').uncheck();
   await q.locator('[data-notification-status]').getByText('Сохранено.').waitFor({timeout:10000});
   assert.equal(writes,1,'Email preference must persist via Core API');
@@ -69,33 +72,6 @@ try{
   await q.locator('[data-notification-status]').getByText('Сохранено.').waitFor({timeout:10000});
   assert.equal(writes,2,'Enabled again only when user acts');
   assert.equal(enabled,true);
-  // The preference stays editable with an unverified address. Only actual
-  // email delivery is deferred until the account confirms that address.
-  verified=false;
-  enabled=false;
-  await q.evaluate(el=>el.v2Close?.());
-  // The fixture does not run the full app controller. Restore its Profile
-  // screen explicitly before re-opening the settings Q.
-  await page.evaluate(async()=>{
-    const {renderGlobalAccount}=await import('/user/account-shell.js');
-    const state={account:{id:'fixture',name:'Тест',email:'fixture@example.com',phone:'+79999999999',profileData:{}},accountTab:'profile',accountDeckActive:'profile'};
-    const root=document.querySelector('#app');
-    await renderGlobalAccount(root,state,{});
-    const settings=root.querySelector('[data-account-profile-settings]');
-    if(!settings) throw new Error('Re-rendered Profile settings trigger missing');
-    settings.click();
-  });
-  await page.locator('[data-shared-profile-action="controls"]').click();
-  const pending=page.locator('.modal--account-controls');
-  await pending.locator('[data-account-notification-email]').waitFor({state:'visible'});
-  assert.equal(await pending.locator('[data-account-notification-email]').isEnabled(),true,
-    'Unverified account must be allowed to configure Email');
-  assert.equal(await pending.locator('[data-account-notification-email]').isChecked(),false);
-  await pending.locator('[data-account-notification-email]').check();
-  await pending.locator('[data-notification-status]').getByText('Сохранено.').waitFor({timeout:10000});
-  assert.equal(writes,3,'Preference saved for unverified account');
-  assert.equal(enabled,true,'Account preference is on independently of delivery eligibility');
-  assert.equal(await pending.locator('[data-account-notification-email]').isChecked(),true);
   assert.deepEqual(faults,[],'No runtime errors');
-  console.log('User notifications: Push + Email, editable before verification, persisted preference, 320px single-line Q title: PASS');
+  console.log('User notifications: Push + Email on/off without verified address, persisted preference, 320px single-line Q title: PASS');
 }finally{await browser.close();await new Promise(done=>server.close(done))}
