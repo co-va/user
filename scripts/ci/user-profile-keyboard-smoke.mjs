@@ -346,45 +346,76 @@ try {
   }
   assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
 
-  // Confirmation and contact History must render one identical UI component.
-  // The former is read-only without Repeat; all services remain inside it.
+  // One mini-card component, with a different data set on confirmation:
+  // workplace, date+time, each selected service and its prepared price,
+  // duration replacing the footer label, total replacing the footer amount.
   const recordCardCheck = await page.evaluate(async () => {
-    const { recordMiniCard } = await import('/ui/record/runtime.js');
+    const [{ recordMiniCard }, { recordProcedurePriceText, recordSelectionQuote }] = await Promise.all([
+      import('/ui/record/runtime.js'),
+      import('/core/record/availability.js'),
+    ]);
+    const workplaceKey = 'salon';
+    const raw = [
+      { name: 'Укладка', duration: 30, workplaces: [
+        { workplaceId: workplaceKey, price: { minimum: 1500, variable: true, free: false } },
+      ] },
+      { name: 'Стрижка', duration: 60, workplaces: [
+        { workplaceId: workplaceKey, price: { minimum: 2000, variable: false, free: false } },
+      ] },
+    ];
+    const selected = raw.map((item) => ({
+      raw: item, name: item.name, duration: item.duration,
+      priceText: recordProcedurePriceText(item, workplaceKey),
+    }));
+    const quote = recordSelectionQuote(selected, workplaceKey);
     const host = document.createElement('div');
     host.style.cssText = 'position:absolute;top:110px;left:18px;width:300px;';
-    const procedures = ['Стрижка', 'Мытьё', 'Укладка', 'Уход'];
     host.innerHTML = `
       <div id="history-example">${recordMiniCard({
         date: '07.11.26', from: '12:00',
-        procedures: procedures.map((name) => ({ name })),
-        total: '3 000 ₽', interactive: true, data: 'data-record-history',
+        procedures: selected, total: '3 500 ₽',
+        interactive: true, data: 'data-record-history',
         compactAction: { label: '↻', data: 'data-record-repeat' },
       })}</div>
       <div id="confirmation-example">${recordMiniCard({
+        confirmation: true, workplace: 'Бьюти тория',
         date: '07.11.26', from: '12:00',
-        procedures: procedures.map((name) => ({ name })),
-        total: '3 000 ₽',
+        procedures: selected, duration: '1 ч 30 мин',
+        total: quote.totalText,
       })}</div>
       <div id="long-confirmation-example">${recordMiniCard({
+        confirmation: true, workplace: 'Бьюти тория',
         date: '07.11.26', from: '12:00',
-        procedures: Array.from({length:12}, (_, i) => ({name: 'Процедура ' + i})),
-        total: '8 000 ₽',
+        procedures: Array.from({ length: 12 }, (_, i) => ({
+          name: 'Процедура ' + i, priceText: 'от 1 500 ₽',
+        })),
+        duration: '6 ч', total: 'от 18 000 ₽',
       })}</div>`;
     document.body.append(host);
     const history = host.querySelector('#history-example .record-summary-mini-card');
     const confirmation = host.querySelector('#confirmation-example .record-summary-mini-card');
     const longCard = host.querySelector('#long-confirmation-example .record-summary-mini-card');
     const longLines = longCard.querySelector('.mini-card__lines');
+    const pairs = [...confirmation.querySelectorAll('.mini-card__line--pair')].map((row) => ({
+      name: row.querySelector('.mini-card__line-text')?.textContent,
+      price: row.querySelector('.mini-card__line-right')?.textContent,
+    }));
     const result = {
-      sharedClasses: Boolean(history && confirmation && longCard),
-      sameWidth: history.getBoundingClientRect().width === confirmation.getBoundingClientRect().width,
-      sameHeight: history.getBoundingClientRect().height === confirmation.getBoundingClientRect().height,
-      sameDetails: history.querySelector('.mini-card__lines').textContent
-        === confirmation.querySelector('.mini-card__lines').textContent,
+      sameGeometry: Boolean(history && confirmation && longCard)
+        && history.getBoundingClientRect().width === confirmation.getBoundingClientRect().width
+        && history.getBoundingClientRect().height === confirmation.getBoundingClientRect().height
+        && getComputedStyle(history).borderRadius === getComputedStyle(confirmation).borderRadius,
+      priceLabels: selected.map((item) => item.priceText),
+      quote: quote.totalText,
+      quoteDuration: quote.durationMinutes,
+      historyLabel: history.querySelector('.mini-card__row-label')?.textContent,
+      workplace: confirmation.querySelector('.mini-card__line--primary')?.textContent,
+      moment: confirmation.querySelector('.mini-card__line--moment')?.textContent,
+      pairs,
+      footerLabel: confirmation.querySelector('.mini-card__row-label')?.textContent,
+      footerTotal: confirmation.querySelector('.mini-card__row-value')?.textContent,
       confirmationRepeat: Boolean(confirmation.querySelector('.mini-card__compact-action')),
       historyRepeat: Boolean(history.querySelector('.mini-card__compact-action')),
-      serviceNames: procedures.every((name) => confirmation.textContent.includes(name)),
-      priceInside: confirmation.querySelector('.mini-card__rows')?.textContent.includes('3 000'),
       outsideList: Boolean(host.querySelector('.list-entry,.read-only-sheet')),
       longScroll: longLines.scrollHeight > longLines.clientHeight,
       longService: longCard.textContent.includes('Процедура 11'),
@@ -392,15 +423,25 @@ try {
     host.remove();
     return result;
   });
-  assert.ok(recordCardCheck.sharedClasses && recordCardCheck.sameWidth && recordCardCheck.sameHeight,
-    'History and Confirmation must use exactly the same mini-card dimensions');
-  assert.ok(recordCardCheck.sameDetails && recordCardCheck.serviceNames && recordCardCheck.priceInside,
-    'Confirmation must display date, services and cost inside the same card');
-  assert.equal(recordCardCheck.confirmationRepeat, false, 'Confirmation cannot have Repeat');
-  assert.equal(recordCardCheck.historyRepeat, true, 'History keeps Repeat');
-  assert.equal(recordCardCheck.outsideList, false, 'No separate V2 list under confirmation');
-  assert.ok(recordCardCheck.longScroll && recordCardCheck.longService, 'All services remain in a scrollable card');
-  console.log('PASS: identical history/confirmation mini-cards; no repeat, no external list');
+  assert.equal(recordCardCheck.sameGeometry, true, 'History and confirmation preserve the same mini-card UI');
+  assert.deepEqual(recordCardCheck.priceLabels, ['от 1 500 ₽', '2 000 ₽']);
+  assert.equal(recordCardCheck.quote, 'от 3 500 ₽');
+  assert.equal(recordCardCheck.quoteDuration, 90);
+  assert.equal(recordCardCheck.historyLabel, 'Стоимость', 'History layout remains unchanged');
+  assert.equal(recordCardCheck.workplace, 'Бьюти тория');
+  assert.equal(recordCardCheck.moment, '07.11.26 · 12:00');
+  assert.deepEqual(recordCardCheck.pairs, [
+    { name: 'Укладка', price: 'от 1 500 ₽' },
+    { name: 'Стрижка', price: '2 000 ₽' },
+  ]);
+  assert.equal(recordCardCheck.footerLabel, '1 ч 30 мин');
+  assert.equal(recordCardCheck.footerTotal, 'от 3 500 ₽');
+  assert.equal(recordCardCheck.confirmationRepeat, false);
+  assert.equal(recordCardCheck.historyRepeat, true);
+  assert.equal(recordCardCheck.outsideList, false, 'No external V2 list');
+  assert.ok(recordCardCheck.longScroll && recordCardCheck.longService,
+    'Multiple services remain inside a scrollable mini-card');
+  console.log('PASS: confirmation lists workplace, time, exact/от prices, duration and total inside the shared mini-card');
 
   console.log('PASS: all six real User editor flows keep Z/Q fixed and X white to bottom during keyboard');
 
