@@ -17,6 +17,7 @@ import { formatPhone } from '../core/phone/index.js';
 import { getRecordContacts } from '../core/record/platform-api.js';
 import { projectRecordStatuses } from '../core/record/state.js';
 import { disableWebPush, enableWebPush, getWebPushState } from '../core/notifications/web-push.js';
+import { getAccountEmailVerification } from '../core/account/email.js';
 import {
   actionBlock,
   button,
@@ -304,13 +305,16 @@ function openAccountPhotoSettings(state, handlers) {
 }
 
 async function loadGlobalNotificationState() {
-  const pushState = await getWebPushState().catch(() => ({
-    supported: false,
-    enabled: false,
-    subscribed: false,
-    permission: 'unsupported',
-  }));
-  return { pushState };
+  const [pushState, emailState] = await Promise.all([
+    getWebPushState().catch(() => ({
+      supported: false,
+      enabled: false,
+      subscribed: false,
+      permission: 'unsupported',
+    })),
+    getAccountEmailVerification().catch(() => ({ unavailable: true, verified: false, email: '' })),
+  ]);
+  return { pushState, emailState };
 }
 
 async function openGlobalAccountControls(root, state) {
@@ -323,6 +327,9 @@ async function openGlobalAccountControls(root, state) {
   ]);
   const pushSupported = Boolean(notificationState.pushState?.supported && notificationState.pushState?.enabled);
   const pushSubscribed = Boolean(notificationState.pushState?.subscribed);
+  const emailAvailable = notificationState.emailState?.unavailable !== true;
+  const emailVerified = emailAvailable && notificationState.emailState?.verified === true;
+  const accountEmail = String(notificationState.emailState?.email || state.account?.email || '').trim();
   const platformDocument = platformState?.document && typeof platformState.document === 'object'
     ? platformState.document
     : null;
@@ -361,6 +368,17 @@ async function openGlobalAccountControls(root, state) {
         checked: pushSubscribed,
         disabled: !pushSupported,
         data: 'data-account-notification-push',
+      },
+      {
+        label: 'Email',
+        description: !emailAvailable
+          ? 'Не удалось проверить подтверждение адреса.'
+          : emailVerified
+            ? `Email аккаунта ${accountEmail} подтверждён.`
+            : `Email аккаунта ${accountEmail} не подтверждён.`,
+        checked: emailVerified,
+        disabled: true,
+        data: 'data-account-notification-email-status',
       },
     ]))}
     ${v2Section('Документы', platformDocuments)}
