@@ -61,6 +61,7 @@ jobs:
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
+          node scripts/ci/user-email-verification-smoke.mjs
 
       # Staging Smoke already checks live Amvera HTTPS/HTML/JS/API on every
       # push. Run the full live browser login/expired-session scenario at

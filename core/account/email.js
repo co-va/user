@@ -8,19 +8,12 @@ export function getAccountEmailVerification() {
   );
 }
 
-async function requestCurrentAccountEmailVerification() {
+export function requestAccountEmailVerification() {
   return accountRequest(
     '/account/email-verification/request',
     { auth: true, method: 'POST' },
     'Не удалось отправить письмо подтверждения',
   );
-}
-
-export async function ensureAccountEmailVerification() {
-  const state = await getAccountEmailVerification();
-  if (state?.verified) return { ...state, requested: false };
-  const delivery = await requestCurrentAccountEmailVerification();
-  return { ...state, requested: true, delivery };
 }
 
 export function confirmAccountEmailVerification(token) {
