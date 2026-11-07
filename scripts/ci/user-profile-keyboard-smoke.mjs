@@ -273,6 +273,10 @@ try {
             shortWidth: shortRect.width, longWidth: longRect.width,
             textScroll: longText.scrollHeight, textClient: longText.clientHeight }));
       }
+      const actionsTop = eventLayer.querySelector('[data-user-event-edit]')?.getBoundingClientRect().top;
+      if (!Number.isFinite(actionsTop) || longRect.bottom > actionsTop - 12) {
+        throw new Error('Event paper preview must stop above the permanent actions');
+      }
       longText.scrollTop = longText.scrollHeight;
       if (longText.scrollTop <= 0) throw new Error('Long event text must scroll inside paper');
       eventLayer.querySelector('[data-user-event-edit]')?.click();
