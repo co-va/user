@@ -340,7 +340,7 @@ async function openGlobalAccountControls(root, state) {
   // The platform API already returns the actual recorded acceptance moment.
   // Show its date; never substitute today's date or the document's issue date.
   const acceptedDay = String(platformState?.acceptedAt || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  const acceptedDate = acceptedDay ? `${acceptedDay[3]}.${acceptedDay[2]}.${acceptedDay[1]}` : '';
+  const acceptedDate = acceptedDay ? `${acceptedDay[3]}.${acceptedDay[2]}.${acceptedDay[1].slice(-2)}` : '';
   const documentCards = [];
   if (platformDocument) {
     documentCards.push(documentTile({
