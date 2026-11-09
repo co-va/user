@@ -511,15 +511,37 @@ try {
     assert.ok(paper && close && paper.x > 20 && paper.y > 20 &&
       paper.x + paper.width < 390 - 20 && paper.y + paper.height < 844 - 20,
       'H background must remain visible on all four sides of technical paper');
-    const beforeScroll = await docsPage.locator('.document-viewer__content').evaluate((element) => ({
-      visible: element.clientHeight, total: element.scrollHeight, top: element.scrollTop,
+    const beforeScroll = await docsPage.locator('.document-viewer-sheet').evaluate((paperEl) => {
+      const scroller = paperEl.querySelector('.v2-layer__technical-body');
+      const documentContent = paperEl.querySelector('.document-viewer__content');
+      const pageContent = paperEl.querySelector('.document-page');
+      return {
+        visible:scroller.clientHeight, total:scroller.scrollHeight,
+        sheetColor:getComputedStyle(paperEl).backgroundColor,
+        contentColor:getComputedStyle(documentContent).backgroundColor,
+        pageColor:getComputedStyle(pageContent).backgroundColor,
+        contentOverflow:getComputedStyle(documentContent).overflowY,
+        bodyOverflow:getComputedStyle(scroller).overflowY,
+      };
+    });
+    assert.ok(beforeScroll.total > beforeScroll.visible + 100,
+      'The shared technical body must be the only long-document scroller');
+    assert.equal(beforeScroll.sheetColor, 'rgb(255, 255, 255)', 'One unified white technical paper');
+    assert.equal(beforeScroll.contentColor, 'rgba(0, 0, 0, 0)', 'No second opaque document surface');
+    assert.equal(beforeScroll.pageColor, 'rgba(0, 0, 0, 0)', 'No nested white paper inside paper');
+    assert.equal(beforeScroll.contentOverflow, 'visible', 'No duplicate document scroll controller');
+    assert.equal(beforeScroll.bodyOverflow, 'auto', 'Shared technical body owns scrolling');
+    await docsPage.locator('.document-viewer-sheet .v2-layer__technical-body').evaluate((element) => {
+      element.scrollTop = 550;
+    });
+    const afterScroll = await docsPage.locator('.document-viewer-sheet').evaluate((paperEl) => ({
+      sharedTop: paperEl.querySelector('.v2-layer__technical-body').scrollTop,
+      innerTop: paperEl.querySelector('.document-viewer__content').scrollTop,
     }));
-    assert.ok(beforeScroll.total > beforeScroll.visible + 100, 'Long document must overflow inside paper');
-    await docsPage.locator('.document-viewer__content').evaluate((element) => { element.scrollTop = 550; });
-    const afterScroll = await docsPage.locator('.document-viewer__content').evaluate((element) => element.scrollTop);
     const paperAfter = await sheet.boundingBox();
     const closeAfter = await docsPage.locator('.document-viewer-sheet [data-modal-close]').boundingBox();
-    assert.ok(afterScroll > 300, 'Only technical document text scrolls');
+    assert.ok(afterScroll.sharedTop > 300, 'Only shared technical body scrolls');
+    assert.equal(afterScroll.innerTop, 0, 'Nested document never becomes its own scroller');
     assert.ok(Math.abs(paperAfter.y - paper.y) <= 1 && Math.abs(paperAfter.height - paper.height) <= 1,
       'Document paper stays fixed while content scrolls');
     assert.ok(Math.abs(closeAfter.y - close.y) <= 1,
