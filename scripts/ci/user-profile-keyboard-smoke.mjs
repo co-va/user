@@ -89,6 +89,59 @@ assert.equal(accrualDetails['Действующая скидка'], undefined,
   'Accrual is not a discount');
 console.log('PASS: User deposit details show program terms and only Core-authorized active discount');
 
+// The User does not own program-card positions. It consumes a safe projection
+// of Professional's canonical nine-line card and sends it to Shared UI intact.
+const programStart = accountShell.indexOf('const CONTACT_PROGRAM_CARD_APPEARANCE =');
+const programEnd = accountShell.indexOf('\nfunction programWorkplaceKeys(', programStart);
+assert.ok(programStart > -1 && programEnd > programStart, 'Program card renderer exists');
+const renderProgram = runInNewContext(
+  accountShell.slice(programStart, programEnd) + '\ncontactProgramCard',
+  {
+    normalizeEntityCardAppearance: (config) => config,
+    entityVisualCard: (config) => config,
+    money: (amount) => String(amount || 0) + ' ₽',
+    escapeHtml: (value) => value,
+  },
+);
+const cardAppearance = {
+  gradient: { from: '#123456', mid: '#456789', to: '#ABCDEF', angle: 110 },
+  lines: [
+    { field: 'uei', zone: 'left', align: 'left', size: 'm' },
+    { field: 'status', zone: 'right', align: 'right', size: 's' },
+    {}, {}, {},
+    { field: 'title', zone: 'full', align: 'center', size: 'xl', bold: true },
+    { field: 'subtitle', zone: 'full', align: 'left', size: 'm' },
+    { field: 'metaLeft', zone: 'left', align: 'left', size: 's' },
+    { field: 'metaRight', zone: 'right', align: 'right', size: 'm' },
+  ],
+};
+const assigned = [
+  { value: 'uei', text: 'D003 0092 0003' },
+  { value: 'status', text: 'Активен' },
+  { value: 'title', text: 'Зима 2025' },
+  { value: 'subtitle', text: '01.12.25 — 30.11.26' },
+  { value: 'metaLeft', text: 'На обслуживание 20%' },
+  { value: 'metaRight', text: '50 000 ₽' },
+];
+const cardResult = JSON.parse(JSON.stringify(renderProgram({
+  type: 'deposit', title: 'Зима 2025', depositId: 'deposit-1',
+  card: {
+    appearance: cardAppearance, fields: assigned,
+    photo: '/specialist-card.jpg', photoPosition: '32% 68%',
+  },
+})));
+assert.deepEqual(cardResult.appearance, cardAppearance,
+  'User must preserve all nine programmed positions and style values');
+assert.deepEqual(cardResult.fields, assigned,
+  'User must not rename, reorder or recalculate the professional card fields');
+assert.equal(cardResult.image, '/specialist-card.jpg');
+assert.equal(cardResult.imagePosition, '32% 68%');
+assert.equal(cardResult.data, 'data-global-contact-deposit="deposit-1"',
+  'Professional card appearance cannot break deposit navigation');
+const legacy = renderProgram({type:'deposit', title:'Старый депозит', depositId:'old-1', balance:3000});
+assert.ok(Array.isArray(legacy.fields), 'Existing API still renders without a presentation');
+console.log('PASS: User follows Professional program card presentation without shifting fields or photos');
+
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 
 try {
