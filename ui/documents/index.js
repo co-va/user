@@ -103,9 +103,9 @@ export function documentTile({
 export function documentTiles(items = [], { className = '', layout = 'stack' } = {}) {
   const values = (Array.isArray(items) ? items : []).filter(Boolean);
   const layoutClass = layout === 'rail' ? ' document-tiles--rail' : '';
-  // A horizontal document rail owns its swipe. The enclosing Q/Z swipe
-  // handler already respects this shared gesture-ignore contract.
-  const railGesture = layout === 'rail' ? ' data-v2-layer-gesture-ignore' : '';
+  // Register as a Shared UI horizontal rail: Z and Q both leave its
+  // native horizontal scroll alone, with no document-specific gesture hack.
+  const railGesture = layout === 'rail' ? ' data-v2-horizontal-rail' : '';
   return `<div class="document-tiles${layoutClass}${className ? ` ${text(className)}` : ''}" data-document-tiles data-document-layout="${layout === 'rail' ? 'rail' : 'stack'}"${railGesture}>${values.join('')}</div>`;
 }
 
