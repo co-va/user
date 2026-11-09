@@ -91,18 +91,32 @@ console.log('PASS: User deposit details show program terms and only Core-authori
 
 // The User does not own program-card positions. It consumes a safe projection
 // of Professional's canonical nine-line card and sends it to Shared UI intact.
-const programStart = accountShell.indexOf('const CONTACT_PROGRAM_CARD_APPEARANCE =');
+const profileCardStart = accountShell.indexOf('function relationshipProfile(');
+const profileCardEnd = accountShell.indexOf('\nconst ACCOUNT_PROFILE_CARD_APPEARANCE =', profileCardStart);
+const workplaceCardStart = accountShell.indexOf('function contactWorkplaceCard(');
+const programStart = accountShell.indexOf('const CONTACT_PROGRAM_CARD_APPEARANCE =', workplaceCardStart);
 const programEnd = accountShell.indexOf('\nfunction programWorkplaceKeys(', programStart);
-assert.ok(programStart > -1 && programEnd > programStart, 'Program card renderer exists');
-const renderProgram = runInNewContext(
-  accountShell.slice(programStart, programEnd) + '\ncontactProgramCard',
+assert.ok(profileCardStart > -1 && profileCardEnd > profileCardStart &&
+  workplaceCardStart > -1 && programStart > workplaceCardStart &&
+  programEnd > programStart, 'Core-backed contact card renderers exist');
+const contactCards = runInNewContext(
+  [
+    accountShell.slice(profileCardStart, profileCardEnd),
+    accountShell.slice(workplaceCardStart, programEnd),
+    '({ relationshipCard, contactWorkplaceCard, contactProgramCard })',
+  ].join('\n'),
   {
     normalizeEntityCardAppearance: (config) => config,
     entityVisualCard: (config) => config,
+    profileCardAppearance: () => ({ lines: [] }),
+    profileCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    workplaceCardAppearance: () => ({ lines: [] }),
+    workplaceCardFields: () => [{ value:'fallback', text:'Should never appear' }],
     money: (amount) => String(amount || 0) + ' ₽',
     escapeHtml: (value) => value,
   },
 );
+const renderProgram = contactCards.contactProgramCard;
 const cardAppearance = {
   gradient: { from: '#123456', mid: '#456789', to: '#ABCDEF', angle: 110 },
   lines: [
@@ -138,6 +152,56 @@ assert.equal(cardResult.image, '/specialist-card.jpg');
 assert.equal(cardResult.imagePosition, '32% 68%');
 assert.equal(cardResult.data, 'data-global-contact-deposit="deposit-1"',
   'Professional card appearance cannot break deposit navigation');
+const presentedProfile = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId: 'tenant-one',
+  profile: {
+    name:'Александр',surname:'Профессионал',
+    card: { appearance:cardAppearance, fields:assigned, photo:'/profile.jpg', photoPosition:'20% 70%' },
+  },
+})));
+assert.deepEqual(presentedProfile.appearance, cardAppearance,
+  'Profile card must use Professional rows and positions, never a User layout');
+assert.deepEqual(presentedProfile.fields, assigned,
+  'Profile card data must be the exact Core projection');
+assert.equal(presentedProfile.image, '/profile.jpg', 'Profile card photo must match Core');
+assert.equal(presentedProfile.imagePosition, '20% 70%', 'Profile photo cropping must match Core');
+assert.equal(presentedProfile.data, 'data-global-relationship="tenant-one"',
+  'Profile still opens its own contact details');
+const presentedSpace = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр',surname:'Профессионал'}},
+  {key:'studio-3',name:'Пространство',card:{
+    appearance:cardAppearance,fields:assigned,photo:'/studio.jpg',photoPosition:'80% 15%',
+  }},
+)));
+assert.deepEqual(presentedSpace.appearance, cardAppearance,
+  'Workplace card must use the exact Professional layout');
+assert.deepEqual(presentedSpace.fields, assigned,
+  'Workplace fields must not be populated from User guesses');
+assert.equal(presentedSpace.image, '/studio.jpg');
+assert.equal(presentedSpace.imagePosition, '80% 15%');
+assert.equal(presentedSpace.data, 'data-global-contact-workplace="studio-3"',
+  'Workplace card still opens its own space');
+const withoutDiscount = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр'}},
+  {key:'studio-4',card:{
+    appearance:cardAppearance,
+    fields:assigned.filter(({value})=>value!=='metaLeft'),
+    photo:'',photoPosition:'50% 50%',
+  }},
+)));
+assert.equal(withoutDiscount.fields.some(({value})=>value==='metaLeft'), false,
+  'User must never add a discount that Professional did not expose');
+const presentedAccount = JSON.parse(JSON.stringify(renderProgram({
+  type:'personal-account',title:'Личный счёт',
+  card:{appearance:cardAppearance,fields:assigned,photo:'/wallet.jpg',photoPosition:'70% 55%'},
+})));
+assert.deepEqual(presentedAccount.appearance, cardAppearance,
+  'Personal account must preserve Professional positions');
+assert.deepEqual(presentedAccount.fields, assigned,
+  'Personal account must preserve the exact provided values');
+assert.equal(presentedAccount.image, '/wallet.jpg');
+assert.equal(presentedAccount.data, 'data-global-contact-personal-account',
+  'Personal account continues opening its own ledger');
 const legacy = renderProgram({type:'deposit', title:'Старый депозит', depositId:'old-1', balance:3000});
 assert.ok(Array.isArray(legacy.fields), 'Existing API still renders without a presentation');
 console.log('PASS: User follows Professional program card presentation without shifting fields or photos');
