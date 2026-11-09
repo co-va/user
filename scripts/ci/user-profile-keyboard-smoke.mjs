@@ -461,18 +461,18 @@ try {
       const host = document.querySelector('#app');
       host.innerHTML = v2Shell({ header:'<header class="v2-header" data-v2-header>ABCD</header>', body:'Documents' });
       const rail = documentTiles([
-        documentTile({ title:'Условия использования учётной записи', version:1, meta:'Принято 21.09.2026' }),
+        documentTile({ title:'Условия использования учётной записи', version:1, meta:'21.09.26' }),
         documentTile({ title:'Политика обработки персональных данных', version:1 }),
       ], { layout:'rail' });
       const layer = mountModal(document.body, modal('<div class="v2-section">' + rail + '</div>', { variant:'q', title:'Документы / Уведомления' }));
       return {
         open: Boolean(layer?.isConnected),
-        protectedRail: Boolean(layer?.querySelector('[data-document-layout="rail"][data-v2-layer-gesture-ignore]')),
+        protectedRail: Boolean(layer?.querySelector('[data-document-layout="rail"][data-v2-horizontal-rail]')),
         date: layer?.querySelector('.document-tile__meta')?.textContent?.trim(),
       };
     });
     assert.ok(mounted.open && mounted.protectedRail, 'Document rail must own the horizontal gesture inside Q');
-    assert.equal(mounted.date, 'Принято 21.09.2026');
+    assert.equal(mounted.date, '21.09.26');
     // A real user begins interacting after the standard Q entrance settles.
     await docsPage.waitForTimeout(320);
     const railBox = await docsPage.locator('[data-document-layout="rail"]').boundingBox();
@@ -526,6 +526,71 @@ try {
       'Technical X stays anchored while content scrolls');
     await docsPage.locator('.document-viewer-sheet [data-modal-close]').click();
     assert.equal(await docsPage.locator('.document-viewer-sheet').count(), 0, 'Document close still works');
+
+    // Every technical modal must obey the same H/paper/X geometry, even when
+    // its content does not come from the Documents feature.
+    await docsPage.evaluate(async () => {
+      const { modal, mountModal } = await import('/ui/modals/index.js');
+      mountModal(document.body, modal(
+        '<div style="height:1500px">Generic technical information</div>',
+        { variant:'technical', title:'Technical smoke' },
+      ));
+    });
+    await docsPage.waitForTimeout(220);
+    const genericPaper = docsPage.locator('.v2-layer--technical:not(.document-viewer-sheet)');
+    const genericRect = await genericPaper.boundingBox();
+    const genericClose = await genericPaper.locator('[data-modal-close]').boundingBox();
+    const genericMetrics = await genericPaper.locator('.v2-layer__technical-body').evaluate((el) => ({
+      visible:el.clientHeight, total:el.scrollHeight, scrollTop:el.scrollTop,
+    }));
+    assert.ok(genericRect && genericRect.x>20 && genericRect.y>20 &&
+      genericRect.x+genericRect.width<370 && genericRect.y+genericRect.height<824,
+      'Every technical modal must float with H visible on four sides');
+    assert.ok(genericMetrics.total > genericMetrics.visible + 100,
+      'Every technical modal must scroll its own content');
+    await genericPaper.locator('.v2-layer__technical-body').evaluate((el) => { el.scrollTop=470; });
+    const genericAfter = await genericPaper.boundingBox();
+    const genericCloseAfter = await genericPaper.locator('[data-modal-close]').boundingBox();
+    assert.ok(Math.abs(genericAfter.y-genericRect.y)<=1 &&
+      Math.abs(genericCloseAfter.y-genericClose.y)<=1,
+      'Generic technical paper and X must remain fixed when text scrolls');
+    await genericPaper.locator('[data-modal-close]').click();
+
+    // Z owns its dismissal swipe outside rails, but NEVER inside any shared
+    // horizontal rail. This is one rule for Z and Q, not document CSS.
+    const zTestReady = await docsPage.evaluate(async () => {
+      document.querySelector('[data-v2-q="true"]')?.v2Close?.();
+      const { initV2Swipe } = await import('/ui/v2/swipe.js');
+      const { documentTiles, documentTile } = await import('/ui/documents/index.js');
+      const z = document.querySelector('[data-v2-z]');
+      const zBody = z.querySelector('[data-v2-z-body]');
+      zBody.innerHTML = documentTiles([
+        documentTile({ title:'Документ первый', version:1 }),
+        documentTile({ title:'Документ второй', version:1 }),
+      ], { layout:'rail' });
+      window.__zSwipes = 0;
+      window.__zSwipeDispose = initV2Swipe(z, {
+        onLeft: () => { window.__zSwipes += 1; },
+        edgeWidth:390, revealDeck:false,
+      });
+      return Boolean(zBody.querySelector('[data-v2-horizontal-rail]'));
+    });
+    assert.equal(zTestReady, true, 'Z fixture must use shared horizontal rail');
+    const zRail = await docsPage.locator('[data-v2-z-body] [data-v2-horizontal-rail]').boundingBox();
+    assert.ok(zRail, 'Z horizontal rail must render');
+    await docsPage.mouse.move(zRail.x+185, zRail.y+zRail.height/2);
+    await docsPage.mouse.down();
+    await docsPage.mouse.move(zRail.x+85, zRail.y+zRail.height/2, { steps:8 });
+    await docsPage.mouse.up();
+    assert.equal(await docsPage.evaluate(() => window.__zSwipes), 0,
+      'Horizontal scrolling inside Z may not trigger a Z-dismissal swipe');
+    await docsPage.mouse.move(280, 560);
+    await docsPage.mouse.down();
+    await docsPage.mouse.move(170, 560, { steps:8 });
+    await docsPage.mouse.up();
+    assert.equal(await docsPage.evaluate(() => window.__zSwipes), 1,
+      'Z dismissal swipe must still work OUTSIDE horizontal rails');
+    await docsPage.evaluate(() => window.__zSwipeDispose?.());
 
     const accountSource = await readFile(resolve(root, 'user/account-shell.js'), 'utf8');
     assert.ok(accountSource.includes('platformState?.acceptedAt') && accountSource.includes('meta: platformAccepted && acceptedDate'),
