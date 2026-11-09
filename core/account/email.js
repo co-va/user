@@ -20,7 +20,6 @@ export function confirmAccountEmailVerification(token) {
   return accountRequest(
     '/account/email-verification/confirm',
     {
-      auth: true,
       method: 'POST',
       body: JSON.stringify({ token: String(token || '').trim() }),
     },

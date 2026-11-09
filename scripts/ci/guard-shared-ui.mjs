@@ -13,6 +13,10 @@ const recordStyles = read('ui/record/record.css');
 const modalStyles = read('ui/modals/modal.css');
 const vStyles = read('ui/v2/v.css');
 const portal = read('ui/v2/modal-portal.js');
+const swipe = read('ui/v2/swipe.js');
+const horizontal = read('ui/v2/horizontal-affordance.js');
+const documentStyles = read('ui/documents/document.css');
+const documentUI = read('ui/documents/index.js');
 const profileStyles = read('ui/profile/profile.css');
 const userMain = read('user/main.js');
 const shellStyles = read('css/style.css');
@@ -98,5 +102,32 @@ assert(modalStyles.includes('.v2-layer--bottom .modal-actions{\n  position:stati
   'X action must be the terminal scroll item');
 assert(portal.includes('offsetTop: appRect.top'),
   'Q/X portal must use stable app coordinates');
+
+// One permanent Shared UI contract for ALL technical modals and horizontal rails.
+assert(v2.includes('.v2-layer--technical>.v2-layer__technical-body'),
+  'Every technical sheet must use the Shared scroll body');
+assert(v2.includes('.v2-layer--technical>.v2-layer__close'),
+  'Technical X must be fixed by Shared UI');
+assert(portal.includes('resolved === \'technical\'') && portal.includes('v2-layer__technical-body'),
+  'Technical modal body must be created by the shared portal');
+assert(!documentStyles.includes('.v2-layer--technical.document-viewer-sheet'),
+  'Document-specific technical geometry must not return');
+assert(!documentStyles.includes('.document-viewer-sheet .v2-layer__close'),
+  'Document-specific X positioning must not return');
+assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical)'),
+  'Technical paper must not inherit beige/grey app surface');
+assert(documentStyles.includes('.document-viewer__content{') &&
+  documentStyles.includes('overflow:visible;') &&
+  documentStyles.includes('.document-page{') &&
+  documentStyles.includes('background:transparent;'),
+  'Document must use shared technical scroll body without opaque nested paper');
+assert(!documentStyles.includes('overflow-y:auto;'),
+  'Document-specific nested scroll container must not return');
+assert(horizontal.includes('export function isV2HorizontalGestureTarget'),
+  'Shared nested horizontal rail gesture detection missing');
+assert(count(swipe, 'isV2HorizontalGestureTarget(event.target)') >= 3,
+  'Z, Q and sticker swipes must all respect nested horizontal rails');
+assert(documentUI.includes('data-v2-horizontal-rail'),
+  'Documents must declare the same rail contract as other components');
 
 finish('Shared UI');

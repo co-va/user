@@ -35,8 +35,11 @@ try {
     await offerAccountEmailVerificationReminder(root, state);
   });
   await page.locator('[data-user-email-verification-reminder]').waitFor({ state: 'visible', timeout: 12_000 });
+  await page.locator('[data-user-email-verification-status]').getByText('Письмо отправляется только по вашему запросу', { exact: false }).waitFor({ timeout: 12_000 });
+  assert.equal(requests, 0, 'Opening the confirmation reminder must not send email');
+  await page.locator('[data-user-email-verification-resend]').click();
   await page.locator('[data-user-email-verification-status]').getByText('Письмо принято почтовым сервером', { exact: false }).waitFor({ timeout: 12_000 });
-  assert.equal(requests, 1, 'Unverified account must receive exactly one initial request');
+  assert.equal(requests, 1, 'Clicking send must create exactly one manual request');
 
   await page.evaluate(() => window.dispatchEvent(new Event('user:auth-logout')));
   await page.locator('[data-user-email-verification-reminder]').waitFor({ state: 'detached', timeout: 12_000 });
@@ -53,18 +56,20 @@ try {
 
   let confirmations = 0;
   await page.route('**/account/email-verification/confirm', (route) => {
+    assert.equal(route.request().headers().authorization, undefined, 'Public confirmation must not require account login');
     confirmations += 1;
     return route.fulfill({
       status: 200, contentType: 'application/json',
       body: '{"verified":true,"email":"test@example.com"}',
     });
   });
+  await page.evaluate(() => localStorage.removeItem('user.account.token'));
   const link = new URL('/verify-email.html?kind=account&token=' + 'a'.repeat(40), base);
   const response = await page.goto(link.href, { waitUntil: 'domcontentloaded', timeout: 25_000 });
   assert.equal(response?.status(), 200, 'User deep link must return HTML');
   await page.getByText('Email подтверждён', { exact: true }).waitFor({ state: 'visible', timeout: 12_000 });
   assert.equal(confirmations, 1, 'Token confirmation must be sent exactly once');
-  console.log('User email verification: reminder, one send, verified skip, deep link: PASS');
+  console.log('User email verification: no automatic send, explicit request, verified skip, public deep link: PASS');
 } finally {
   await browser.close();
 }
