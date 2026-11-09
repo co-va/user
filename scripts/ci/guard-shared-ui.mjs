@@ -16,6 +16,7 @@ const portal = read('ui/v2/modal-portal.js');
 const swipe = read('ui/v2/swipe.js');
 const horizontal = read('ui/v2/horizontal-affordance.js');
 const documentStyles = read('ui/documents/document.css');
+const pageStyles = read('ui/page/page.css');
 const documentUI = read('ui/documents/index.js');
 const profileStyles = read('ui/profile/profile.css');
 const userMain = read('user/main.js');
@@ -129,5 +130,9 @@ assert(count(swipe, 'isV2HorizontalGestureTarget(event.target)') >= 3,
   'Z, Q and sticker swipes must all respect nested horizontal rails');
 assert(documentUI.includes('data-v2-horizontal-rail'),
   'Documents must declare the same rail contract as other components');
+
+// Data panels use the same Shared details geometry in every User Q/Z.
+assert(/\\.entity-details\\{[^}]*border-radius:0;/.test(pageStyles),
+  'Shared data details must have four 90-degree corners');
 
 finish('Shared UI');
