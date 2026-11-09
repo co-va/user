@@ -185,16 +185,6 @@ function relationshipProfile(relationship = {}) {
   };
 }
 
-// Read only the effective discount confirmed by the account-scoped Core API.
-// A hidden Deposit must not be inferred from public program cards, and a
-// missing field means 'not provided', NOT a client-side discount calculation.
-function relationshipDiscountPercent(relationship = {}) {
-  const value = relationship?.effectiveDiscountPercent;
-  if (value === null || value === undefined || value === '') return null;
-  const percent = Number(value);
-  return Number.isFinite(percent) && percent > 0 && percent <= 100 ? percent : null;
-}
-
 function relationshipTitle(relationship = {}) {
   const profile = relationshipProfile(relationship);
   return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профиль';
@@ -1244,19 +1234,13 @@ async function openGlobalContactDetailZ(root, state, handlers) {
   const workplaces = Array.isArray(relationship?.workplaces) ? relationship.workplaces : [];
   const allPrograms = Array.isArray(relationship?.programs) ? relationship.programs : [];
   const programs = contactProfessionalPrograms(allPrograms);
-  const discountPercent = relationshipDiscountPercent(relationship);
-  const discountSection = discountPercent == null
-    ? ''
-    : v2Section('Ваша скидка', details([
-        { label: 'Скидка', value: `${discountPercent}%` },
-      ]));
   const workplaceRail = workplaces.length
     ? v2Section('Пространства', entityCardRail(workplaces.map((workplace) => contactWorkplaceCard(relationship, workplace))))
     : '';
   const programRail = programs.length
     ? v2Section('Программы', entityCardRail(programs.map(contactProgramCard)))
     : '';
-  const relationshipBody = [discountSection, workplaceRail, programRail].filter(Boolean).join('')
+  const relationshipBody = [workplaceRail, programRail].filter(Boolean).join('')
     || emptyState('Пока пусто', 'Данные взаимодействия появятся здесь.');
   const body = `<div data-global-contact-record-action></div>${relationshipBody}`;
 
