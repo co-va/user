@@ -155,23 +155,22 @@ button.document-tile,.document-tile__open,.document-tile__toggle{cursor:pointer}
 /* Documents own only their typography and content formatting.
    Technical panel bounds, H backdrop and fixed X belong to Shared UI. */
 .document-viewer__content{
-  box-sizing:border-box;
   width:100%;
-  height:100%;
   min-height:0;
-  padding:0;
-  overflow-y:auto;
-  overscroll-behavior:contain;
-  -webkit-overflow-scrolling:touch;
-  background:#fff;
+  /* The shared technical body is the ONLY scroll container. */
+  overflow:visible;
+  background:transparent;
 }
 .document-page{
-  width:min(100%,680px);
+  width:100%;
   box-sizing:border-box;
-  margin:0 auto;
-  padding:18px 16px 24px;
-  background:#fff;
+  margin:0;
+  padding:0;
+  background:transparent;
   color:#111;
+}
+.document-viewer__content:has(.document-viewer__pdf){
+  height:100%;
 }
 .document-page__version{margin-bottom:12px;font-size:12px;color:#6f7478}
 .document-page h1{margin:0 0 24px;font-size:24px;line-height:1.15;overflow-wrap:anywhere}
