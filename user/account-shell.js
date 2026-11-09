@@ -337,11 +337,16 @@ async function openGlobalAccountControls(root, state) {
     ? platformState.privacyPolicy
     : null;
   const platformAccepted = Boolean(platformState?.accepted);
+  // The platform API already returns the actual recorded acceptance moment.
+  // Show its date; never substitute today's date or the document's issue date.
+  const acceptedDay = String(platformState?.acceptedAt || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const acceptedDate = acceptedDay ? `${acceptedDay[3]}.${acceptedDay[2]}.${acceptedDay[1]}` : '';
   const documentCards = [];
   if (platformDocument) {
     documentCards.push(documentTile({
       title: platformDocument.title || 'Условия использования учетной записи',
       version: platformDocument.version || 1,
+      meta: platformAccepted && acceptedDate ? `Принято ${acceptedDate}` : '',
       status: platformAccepted ? 'Принято' : 'Требует принятия',
       statusState: platformAccepted ? 'signed' : 'pending',
       data: 'data-account-platform-document',
