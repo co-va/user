@@ -1114,7 +1114,7 @@ function contactDepositDetails(deposit = {}, fallbackTitle = 'Депозит') {
         : 'Без дополнительной выгоды'
   );
   const termText = String(terms.termRule || 'Бессрочно')
-    .replace(/\\b(\\d{4})-(\\d{2})-(\\d{2})\\b/g, (_, year, month, day) => `${day}.${month}.${year.slice(-2)}`);
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, year, month, day) => `${day}.${month}.${year.slice(-2)}`);
   const description = String(terms.description || '').trim();
   return [
     { label: 'Депозит', value: String(deposit?.programName || fallbackTitle) },
