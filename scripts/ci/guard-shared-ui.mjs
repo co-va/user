@@ -131,8 +131,13 @@ assert(count(swipe, 'isV2HorizontalGestureTarget(event.target)') >= 3,
 assert(documentUI.includes('data-v2-horizontal-rail'),
   'Documents must declare the same rail contract as other components');
 
-// Data panels use the same Shared details geometry in every User Q/Z.
-assert(/\\.entity-details\\{[^}]*border-radius:0;/.test(pageStyles),
-  'Shared data details must have four 90-degree corners');
+// Shared data panels are always rectangles, as in Professional.
+// No feature may add rounded data containers as a local exception.
+for (const selector of ['.entity-details', '.agreements-summary']) {
+  const marker = `${selector}{`;
+  const declaration = pageStyles.split(marker)[1]?.split('}')[0] || '';
+  assert(declaration.includes('border-radius:0;'),
+    `Shared data panel ${selector} must have four 90-degree corners`);
+}
 
 finish('Shared UI');
