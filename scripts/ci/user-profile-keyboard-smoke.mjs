@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
+import { runInNewContext } from 'node:vm';
 
 // Serve the checked-out staging files, NOT the Amvera preview: CI must
 // measure the exact commit being tested, regardless of deployment delays.
@@ -37,6 +38,57 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
 const base = `http://127.0.0.1:${server.address().port}/__profile_smoke__`;
+// The Core deposit contract already carries benefit terms and discountPercent.
+// User must show them for the current person and never invent a discount after expiry.
+const accountShell = await readFile(resolve(root, 'user/account-shell.js'), 'utf8');
+const depositDetailsStart = accountShell.indexOf('function contactDepositDetails(');
+const depositDetailsEnd = accountShell.indexOf('\nfunction contactDepositHistory(', depositDetailsStart);
+assert.ok(depositDetailsStart > -1 && depositDetailsEnd > depositDetailsStart,
+  'User must expose one deposit-details projection of the Core payload');
+const depositDetails = runInNewContext(
+  accountShell.slice(depositDetailsStart, depositDetailsEnd) + '\ncontactDepositDetails',
+  {
+    shortDateTime: (value) => String(value).slice(0, 16),
+    money: (value) => String(Number(value || 0)) + ' ₽',
+    depositStatus: (value) => value === 'expired' ? 'Срок завершён' : 'Активен',
+  },
+);
+const demoDeposit = {
+  programName: 'Зима 2025 (все услуги)',
+  fundedAmount: 50000,
+  balance: 50000,
+  status: 'active',
+  benefitMode: 'discount',
+  discountPercent: 20,
+  terms: {
+    termRule: '2025-12-01 — 2026-11-30',
+    benefitType: 'discount',
+    benefitValue: 20,
+    benefit: 'На обслуживание 20%',
+    description: 'Все услуги по программе',
+  },
+};
+const labelled = (value) => Object.fromEntries(depositDetails(value).map(({label, value: text}) => [label, text]));
+const activeDetails = labelled(demoDeposit);
+assert.equal(activeDetails['Действующая скидка'], '20%', 'Current Core discount must be visible');
+assert.equal(activeDetails['Условие выгоды'], 'На обслуживание 20%', 'Program benefit retained');
+assert.equal(activeDetails['Условия программы'], 'Все услуги по программе', 'Program description retained');
+assert.equal(activeDetails['Срок'], '01.12.25 — 30.11.26', 'Program dates use DD.MM.YY');
+const endedDetails = labelled({ ...demoDeposit, status:'expired', discountPercent:0 });
+assert.equal(endedDetails['Действующая скидка'], undefined,
+  'Expired program cannot show an invented current discount');
+assert.equal(endedDetails['Условие выгоды'], 'На обслуживание 20%',
+  'Historical program terms remain visible after expiry');
+const accrualDetails = labelled({
+  ...demoDeposit, benefitMode:'accrual', discountPercent:0,
+  terms: { benefitType:'accrual', benefitValue:10 },
+});
+assert.equal(accrualDetails['Условие выгоды'], 'Начисление 10%',
+  'Non-discount program benefit must still be displayed');
+assert.equal(accrualDetails['Действующая скидка'], undefined,
+  'Accrual is not a discount');
+console.log('PASS: User deposit details show program terms and only Core-authorized active discount');
+
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 
 try {
