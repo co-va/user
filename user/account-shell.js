@@ -346,7 +346,7 @@ async function openGlobalAccountControls(root, state) {
     documentCards.push(documentTile({
       title: platformDocument.title || 'Условия использования учетной записи',
       version: platformDocument.version || 1,
-      meta: platformAccepted && acceptedDate ? `Принято ${acceptedDate}` : '',
+      meta: platformAccepted && acceptedDate ? acceptedDate : '',
       status: platformAccepted ? 'Принято' : 'Требует принятия',
       statusState: platformAccepted ? 'signed' : 'pending',
       data: 'data-account-platform-document',
