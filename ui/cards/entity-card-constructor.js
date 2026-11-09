@@ -67,7 +67,7 @@ function lineText(line,map){
   return line.uppercase?String(text).toLocaleUpperCase('ru-RU'):String(text);
 }
 
-export function entityVisualCard({appearance={},fields=[],image='',imagePosition='50% 50%',interactive=false,data='',aria='',className=''}={}) {
+export function entityVisualCard({appearance={},fields=[],image='',imagePosition='50% 50%',interactive=false,data='',aria='',className='',badge=''}={}) {
   const config=normalizeEntityCardAppearance(appearance);
   const map=fieldMap(fields);
   const style=[
@@ -91,7 +91,8 @@ export function entityVisualCard({appearance={},fields=[],image='',imagePosition
     ].filter(Boolean).join(' ');
     return `<span class="${classes}" data-entity-card-line="${index+1}">${escapeHtml(text)}</span>`;
   }).join('');
-  return `<${tag} class="entity-visual-card${image?' has-image':''}${className?` ${escapeHtml(className)}`:''}" style="${style}"${attrs}><span class="entity-visual-card__surface" aria-hidden="true"></span><span class="entity-visual-card__grid">${rows}</span></${tag}>`;
+  const badgeMarkup = badge ? `<span class="entity-visual-card__badge">${escapeHtml(String(badge))}</span>` : '';
+  return `<${tag} class="entity-visual-card${image?' has-image':''}${className?` ${escapeHtml(className)}`:''}" style="${style}"${attrs}><span class="entity-visual-card__surface" aria-hidden="true"></span><span class="entity-visual-card__grid">${rows}</span>${badgeMarkup}</${tag}>`;
 }
 
 function toolButton(label,key,active=false,title='',className=''){
