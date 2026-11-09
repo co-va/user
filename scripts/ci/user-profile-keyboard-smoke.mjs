@@ -448,6 +448,90 @@ try {
     'Multiple services remain inside a scrollable mini-card');
   console.log('PASS: confirmation lists workplace, time, exact/от prices, duration and total inside the shared mini-card');
 
+  // Shared document rail: dragging horizontally must never dismiss or move Q.
+  // Technical document: a centered floating paper, fixed X, scroll only text.
+  const docsPage = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+  try {
+    const loaded = await docsPage.goto(base, { waitUntil: 'load', timeout: 25_000 });
+    assert.equal(loaded?.status(), 200, 'Document fixture loads');
+    const mounted = await docsPage.evaluate(async () => {
+      const { v2Shell } = await import('/ui/v2/shell.js');
+      const { modal, mountModal } = await import('/ui/modals/index.js');
+      const { documentTiles, documentTile } = await import('/ui/documents/index.js');
+      const host = document.querySelector('#app');
+      host.innerHTML = v2Shell({ header:'<header class="v2-header" data-v2-header>ABCD</header>', body:'Documents' });
+      const rail = documentTiles([
+        documentTile({ title:'Условия использования учётной записи', version:1, meta:'Принято 21.09.2026' }),
+        documentTile({ title:'Политика обработки персональных данных', version:1 }),
+      ], { layout:'rail' });
+      const layer = mountModal(document.body, modal('<div class="v2-section">' + rail + '</div>', { variant:'q', title:'Документы / Уведомления' }));
+      return {
+        open: Boolean(layer?.isConnected),
+        protectedRail: Boolean(layer?.querySelector('[data-document-layout="rail"][data-v2-layer-gesture-ignore]')),
+        date: layer?.querySelector('.document-tile__meta')?.textContent?.trim(),
+      };
+    });
+    assert.ok(mounted.open && mounted.protectedRail, 'Document rail must own the horizontal gesture inside Q');
+    assert.equal(mounted.date, 'Принято 21.09.2026');
+    const railBox = await docsPage.locator('[data-document-layout="rail"]').boundingBox();
+    assert.ok(railBox, 'Document rail is visible');
+    const initialQ = await docsPage.locator('.v2-layer--standard').boundingBox();
+    await docsPage.evaluate(() => {
+      const rail = document.querySelector('[data-document-layout="rail"]');
+      rail.scrollLeft = 90;
+    });
+    await docsPage.mouse.move(railBox.x + 100, railBox.y + railBox.height / 2);
+    await docsPage.mouse.down();
+    await docsPage.mouse.move(railBox.x + 210, railBox.y + railBox.height / 2, { steps: 9 });
+    await docsPage.mouse.up();
+    await docsPage.waitForTimeout(210);
+    const qAfter = await docsPage.locator('.v2-layer--standard').boundingBox();
+    assert.ok(qAfter, 'Horizontal rail swipe must not dismiss the containing Q');
+    assert.ok(Math.abs(qAfter.x - initialQ.x) <= 1, 'Horizontal rail swipe must not translate Q');
+    assert.ok(!await docsPage.locator('.v2-layer--standard').evaluate((node) => node.classList.contains('is-dragging')),
+      'Q cannot retain drag state after document rail swipe');
+
+    const viewer = await docsPage.evaluate(async () => {
+      const { openDocumentViewer } = await import('/ui/documents/index.js');
+      const layer = openDocumentViewer({
+        title:'Условия использования учётной записи',
+        version:1,
+        content: ('Текст длинного юридического документа. '.repeat(30) + '\\n\\n').repeat(26),
+      });
+      return Boolean(layer?.querySelector('.document-viewer__content'));
+    });
+    assert.equal(viewer, true, 'Technical document viewer must open');
+    await docsPage.waitForTimeout(250);
+    const sheet = docsPage.locator('.document-viewer-sheet');
+    const paper = await sheet.boundingBox();
+    const close = await docsPage.locator('.document-viewer-sheet [data-modal-close]').boundingBox();
+    assert.ok(paper && close && paper.x > 20 && paper.y > 20 &&
+      paper.x + paper.width < 390 - 20 && paper.y + paper.height < 844 - 20,
+      'H background must remain visible on all four sides of technical paper');
+    const beforeScroll = await docsPage.locator('.document-viewer__content').evaluate((element) => ({
+      visible: element.clientHeight, total: element.scrollHeight, top: element.scrollTop,
+    }));
+    assert.ok(beforeScroll.total > beforeScroll.visible + 100, 'Long document must overflow inside paper');
+    await docsPage.locator('.document-viewer__content').evaluate((element) => { element.scrollTop = 550; });
+    const afterScroll = await docsPage.locator('.document-viewer__content').evaluate((element) => element.scrollTop);
+    const paperAfter = await sheet.boundingBox();
+    const closeAfter = await docsPage.locator('.document-viewer-sheet [data-modal-close]').boundingBox();
+    assert.ok(afterScroll > 300, 'Only technical document text scrolls');
+    assert.ok(Math.abs(paperAfter.y - paper.y) <= 1 && Math.abs(paperAfter.height - paper.height) <= 1,
+      'Document paper stays fixed while content scrolls');
+    assert.ok(Math.abs(closeAfter.y - close.y) <= 1,
+      'Technical X stays anchored while content scrolls');
+    await docsPage.locator('.document-viewer-sheet [data-modal-close]').click();
+    assert.equal(await docsPage.locator('.document-viewer-sheet').count(), 0, 'Document close still works');
+
+    const accountSource = await readFile(resolve(root, 'user/account-shell.js'), 'utf8');
+    assert.ok(accountSource.includes('platformState?.acceptedAt') && accountSource.includes('meta: platformAccepted && acceptedDate'),
+      'Account documents must expose their actual server-recorded consent date');
+    console.log('PASS: document rail scroll does not move Q; consent date; bounded H technical paper and fixed X');
+  } finally {
+    await docsPage.close();
+  }
+
   console.log('PASS: all six real User editor flows keep Z/Q fixed and X white to bottom during keyboard');
 
 } finally {
