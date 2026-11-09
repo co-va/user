@@ -264,7 +264,7 @@
 }
 .v2-layer--technical>.v2-layer__technical-body{
   flex:1 1 auto;min-height:0;
-  display:flex;flex-direction:column;
+  display:block;
   box-sizing:border-box;
   overflow-y:auto;overscroll-behavior:contain;
   padding:54px 20px 24px;
