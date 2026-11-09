@@ -480,13 +480,30 @@ try {
       const rail = document.querySelector('[data-document-layout="rail"]');
       rail.scrollLeft = 90;
     });
+    const pointerTarget = await docsPage.evaluate(({ x, y }) => {
+      const node = document.elementFromPoint(x, y);
+      const sheet = document.querySelector('.v2-layer--standard');
+      return {
+        tag: node?.tagName, className: String(node?.className || '').slice(0, 140),
+        insideRail: Boolean(node?.closest?.('[data-document-layout="rail"]')),
+        ignored: Boolean(node?.closest?.('[data-v2-layer-gesture-ignore]')),
+        insideQ: Boolean(sheet?.contains(node)),
+        bounds: sheet ? { x: sheet.getBoundingClientRect().x, y:sheet.getBoundingClientRect().y } : null,
+      };
+    }, { x: railBox.x + 100, y: railBox.y + railBox.height / 2 });
+    console.log('DOCUMENT POINTER TARGET:', JSON.stringify(pointerTarget));
     await docsPage.mouse.move(railBox.x + 100, railBox.y + railBox.height / 2);
     await docsPage.mouse.down();
     await docsPage.mouse.move(railBox.x + 210, railBox.y + railBox.height / 2, { steps: 9 });
     await docsPage.mouse.up();
     await docsPage.waitForTimeout(210);
+    const countQ = await docsPage.locator('.v2-layer--standard').count();
+    console.log('DOCUMENT AFTER SWIPE:', JSON.stringify({
+      countQ, initialQ, railBox,
+      remainingLayers: await docsPage.locator('[data-v2-layer]').count(),
+    }));
+    assert.equal(countQ, 1, 'Horizontal rail swipe must not dismiss the containing Q');
     const qAfter = await docsPage.locator('.v2-layer--standard').boundingBox();
-    assert.ok(qAfter, 'Horizontal rail swipe must not dismiss the containing Q');
     assert.ok(Math.abs(qAfter.x - initialQ.x) <= 1, 'Horizontal rail swipe must not translate Q');
     assert.ok(!await docsPage.locator('.v2-layer--standard').evaluate((node) => node.classList.contains('is-dragging')),
       'Q cannot retain drag state after document rail swipe');
