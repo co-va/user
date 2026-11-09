@@ -114,6 +114,15 @@ assert(!documentStyles.includes('.v2-layer--technical.document-viewer-sheet'),
   'Document-specific technical geometry must not return');
 assert(!documentStyles.includes('.document-viewer-sheet .v2-layer__close'),
   'Document-specific X positioning must not return');
+assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical)'),
+  'Technical paper must not inherit beige/grey app surface');
+assert(documentStyles.includes('.document-viewer__content{') &&
+  documentStyles.includes('overflow:visible;') &&
+  documentStyles.includes('.document-page{') &&
+  documentStyles.includes('background:transparent;'),
+  'Document must use shared technical scroll body without opaque nested paper');
+assert(!documentStyles.includes('overflow-y:auto;'),
+  'Document-specific nested scroll container must not return');
 assert(horizontal.includes('export function isV2HorizontalGestureTarget'),
   'Shared nested horizontal rail gesture detection missing');
 assert(count(swipe, 'isV2HorizontalGestureTarget(event.target)') >= 3,
