@@ -190,14 +190,30 @@ function relationshipTitle(relationship = {}) {
   return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профиль';
 }
 
+// Core projects the precise Professional card: its nine lines, ordered values,
+// photo and crop. User must never rearrange or fill any missing positioned field.
+// A legacy fallback is used only while an older API omits card entirely.
+function professionalContactCard(card = null) {
+  if (!card || !Array.isArray(card?.appearance?.lines) || !Array.isArray(card?.fields)) return null;
+  return {
+    appearance: card.appearance,
+    fields: card.fields,
+    image: String(card.photo || ''),
+    imagePosition: String(card.photoPosition || '50% 50%'),
+  };
+}
+
 function relationshipCard(relationship = {}, { interactive = true, data = '' } = {}) {
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
-  return entityVisualCard({
+  const view = professionalContactCard(profile.card) || {
     appearance: profileCardAppearance(profile),
     fields: profileCardFields(profile, []),
     image: String(profile.photo || ''),
-    imagePosition: `${Number(profile.photoCropX || 50)}% ${Number(profile.photoCropY || 50)}%`,
+    imagePosition: `${Number(profile.photoCropX ?? 50)}% ${Number(profile.photoCropY ?? 50)}%`,
+  };
+  return entityVisualCard({
+    ...view,
     interactive,
     data: interactive ? (data || `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"`) : '',
     aria: interactive ? `Открыть ${title}` : title,
@@ -823,11 +839,14 @@ function requestStatuses(request = {}) {
 
 function contactWorkplaceCard(relationship, workplace, { interactive = true } = {}) {
   const profile = relationshipProfile(relationship);
-  return entityVisualCard({
+  const view = professionalContactCard(workplace?.card) || {
     appearance: workplaceCardAppearance(workplace),
     fields: workplaceCardFields(workplace, profile),
     image: String(workplace?.photo || ''),
-    imagePosition: `${Number(workplace?.photoCropX || 50)}% ${Number(workplace?.photoCropY || 50)}%`,
+    imagePosition: `${Number(workplace?.photoCropX ?? 50)}% ${Number(workplace?.photoCropY ?? 50)}%`,
+  };
+  return entityVisualCard({
+    ...view,
     interactive,
     data: interactive ? `data-global-contact-workplace="${escapeHtml(String(workplace?.key || ''))}"` : '',
     aria: interactive ? `Открыть ${String(workplace?.name || 'пространство')}` : String(workplace?.name || 'Пространство'),
@@ -850,21 +869,18 @@ function contactProgramCard(program = {}) {
   const meta = personal && Number(program.debtTotal || 0) > 0.009
     ? `Задолженность ${money(program.debtTotal)}`
     : personal ? 'Программа' : String(program.status || '');
-  // The professional owns the card's nine rows, positions, colors and photo.
-  // Core may project that tenant-owned template and its visible fields into
-  // program.card; User must pass it unchanged to the existing Shared UI card.
-  const card = program.card && typeof program.card === 'object' && !Array.isArray(program.card)
-    ? program.card : null;
-  const hasCard = Array.isArray(card?.appearance?.lines) && Array.isArray(card?.fields);
-  return entityVisualCard({
-    appearance: hasCard ? card.appearance : CONTACT_PROGRAM_CARD_APPEARANCE,
-    fields: hasCard ? card.fields : [
+  const view = professionalContactCard(program.card) || {
+    appearance: CONTACT_PROGRAM_CARD_APPEARANCE,
+    fields: [
       { value: 'title', label: 'Программа', text: title },
       { value: 'balance', label: 'Остаток', text: money(program.balance) },
       { value: 'meta', label: 'Состояние', text: meta },
     ],
-    image: hasCard ? String(card.photo || '') : '',
-    imagePosition: hasCard ? String(card.photoPosition || '50% 50%') : '50% 50%',
+    image: '',
+    imagePosition: '50% 50%',
+  };
+  return entityVisualCard({
+    ...view,
     interactive: true,
     data: personal
       ? 'data-global-contact-personal-account'
