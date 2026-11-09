@@ -850,13 +850,21 @@ function contactProgramCard(program = {}) {
   const meta = personal && Number(program.debtTotal || 0) > 0.009
     ? `Задолженность ${money(program.debtTotal)}`
     : personal ? 'Программа' : String(program.status || '');
+  // The professional owns the card's nine rows, positions, colors and photo.
+  // Core may project that tenant-owned template and its visible fields into
+  // program.card; User must pass it unchanged to the existing Shared UI card.
+  const card = program.card && typeof program.card === 'object' && !Array.isArray(program.card)
+    ? program.card : null;
+  const hasCard = Array.isArray(card?.appearance?.lines) && Array.isArray(card?.fields);
   return entityVisualCard({
-    appearance: CONTACT_PROGRAM_CARD_APPEARANCE,
-    fields: [
+    appearance: hasCard ? card.appearance : CONTACT_PROGRAM_CARD_APPEARANCE,
+    fields: hasCard ? card.fields : [
       { value: 'title', label: 'Программа', text: title },
       { value: 'balance', label: 'Остаток', text: money(program.balance) },
       { value: 'meta', label: 'Состояние', text: meta },
     ],
+    image: hasCard ? String(card.photo || '') : '',
+    imagePosition: hasCard ? String(card.photoPosition || '50% 50%') : '50% 50%',
     interactive: true,
     data: personal
       ? 'data-global-contact-personal-account'
