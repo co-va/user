@@ -167,6 +167,11 @@ assert(!read('ui/repeated-fields/index.js').includes("button('+',") &&
   !read('ui/links/index.js').includes("button('+',"),
   'Repeated fields and links must not render compact + as a full-size button');
 
+assert(read('ui/profile/index.js').includes("button('Удалить фото', { variant: 'danger'"),
+  'Delete-photo control must use the canonical pink danger button');
+assert(!read('ui/buttons/buttons.css').includes('ui-button--delete-outline'),
+  'Removed white delete-photo variant must not return');
+
 const cardRenderer = read('ui/cards/entity-card-constructor.js');
 assert(cardRenderer.includes('row.cells[col]') && cardRenderer.includes('data-entity-card-column='),
   'User must render Professional 9x3 card cells, not the retired row-only card');

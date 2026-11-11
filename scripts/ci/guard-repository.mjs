@@ -26,7 +26,9 @@ assert(manifest.scope === '/', 'Installed User app scope must remain /');
 const nginx = read('nginx.conf');
 assert(nginx.includes('server_name user.va-tools.ru _;'), 'Production User host missing');
 assert(nginx.includes('server_name ~^.+\\.amvera\\.tech$;'), 'Amvera staging preview host missing');
-assert(nginx.includes("if ($request_method !~ ^(GET|HEAD)$) { return 405; }"), 'Preview must remain read-only');
+assert(!nginx.includes("if ($request_method !~ ^(GET|HEAD)$) { return 405; }"), 'Staging API must never silently reject all user writes');
+assert(nginx.includes('proxy_pass https://api.va-tools.ru/;'), 'Staging must use the existing Core API bridge');
+assert(nginx.includes('proxy_set_header Authorization $http_authorization;'), 'Staging must forward the real account authorization');
 assert(nginx.includes('location = /api/account/login'), 'Preview login exception missing');
 assert(nginx.includes('raw.githubusercontent.com/co-va/user/staging'), 'Preview must serve User staging');
 
