@@ -47,4 +47,6 @@ for (const file of bridges) {
 
 assert(!fs.existsSync(path.join(ROOT, '__noop__')), 'Temporary noop file must not exist');
 
+await import('./guard-ui-graph.mjs');
+
 finish('Repository');
