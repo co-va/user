@@ -235,6 +235,35 @@ try {
       header: '<header class="v2-header" data-v2-header>ABCD</header>',
       body: '<div>Journal</div>',
     });
+    // Actual approved Professional grid: three cells per row. This regression
+    // test protects User from silently drawing a blank legacy single-field card.
+    const { entityVisualCard } = await import('/ui/cards/entity-card-constructor.js');
+    const cardFixture = document.createElement('div');
+    cardFixture.innerHTML = entityVisualCard({
+      appearance: {
+        lines: [{ cells: {
+          left: { field:'name', size:'l', color:'#FFFFFF' },
+          center: { field:'profession', color:'#AAAAAA' },
+          right: { field:'phone', align:'right', color:'#FFFFFF' },
+        }}],
+      },
+      fields: [
+        {value:'name',text:'Александр'},
+        {value:'profession',text:'Парикмахер'},
+        {value:'phone',text:'+79990000000'},
+      ],
+    });
+    mount.appendChild(cardFixture);
+    const cardRows = cardFixture.querySelectorAll('.entity-visual-card__row');
+    const cardCells = cardFixture.querySelectorAll('.entity-visual-card__cell');
+    if (cardRows.length !== 9 || cardCells.length !== 27 ||
+        !cardFixture.textContent.includes('Александр') ||
+        !cardFixture.textContent.includes('Парикмахер') ||
+        !cardFixture.textContent.includes('+79990000000') ||
+        getComputedStyle(cardRows[0]).display !== 'grid') {
+      throw new Error('User must render the Professional 9x3 card and its visible fields');
+    }
+    cardFixture.remove();
     // The local fixture does not run the app bootstrap. Mount its one
     // production keyboard controller explicitly after creating the shell.
     await import('/ui/inputs/keyboard-runtime.js');

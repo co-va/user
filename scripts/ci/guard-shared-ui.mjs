@@ -166,4 +166,12 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
 assert(actionButtonCss.includes('.array-row__add,.ui-links__add'),
   'Compact add controls must be excluded from full-size shared action centering');
 
+const cardRenderer = read('ui/cards/entity-card-constructor.js');
+assert(cardRenderer.includes('row.cells[col]') && cardRenderer.includes('data-entity-card-column='),
+  'User must render Professional 9x3 card cells, not the retired row-only card');
+assert(!cardRenderer.includes('mountEntityCardConstructor('),
+  'User is read-only and must not restore a second Professional card editor');
+assert(entity.includes('.entity-visual-card__row{display:grid;grid-template-columns:repeat(3'),
+  'Professional card grid must preserve three-cell geometry in User');
+
 finish('Shared UI');
