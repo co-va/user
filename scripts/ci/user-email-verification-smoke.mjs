@@ -6,8 +6,23 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 const page = await browser.newPage({ serviceWorkers: 'block', ignoreHTTPSErrors: false });
 
 try {
-  await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 25_000 });
-  await page.locator('[data-global-account-entry]').waitFor({ state: 'visible', timeout: 20_000 });
+  // Amvera can briefly serve mismatched assets while staging is republished.
+  // Retry the complete real login bootstrap, never skip the requirement.
+  let bootError = null;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const response = await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 25_000 });
+      assert.equal(response?.status(), 200, 'Staging User login HTML must load');
+      await page.locator('[data-global-account-entry]').waitFor({ state: 'visible', timeout: 18_000 });
+      bootError = null;
+      break;
+    } catch (error) {
+      bootError = error;
+      console.error('Email smoke login attempt ' + attempt + '/4: ' + String(error?.message || error));
+      if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 3_000));
+    }
+  }
+  if (bootError) throw bootError;
   await page.evaluate(() => localStorage.setItem('user.account.token', 'mock-email-verification-session'));
 
   let verified = false;
