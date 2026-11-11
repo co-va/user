@@ -169,3 +169,10 @@
 - The User frontend now calls `https://api.va-tools.ru` directly from the Amvera preview. The Core application (read-only inspection, **not changed**) explicitly includes this exact preview origin in production CORS allowed origins. Login/session and all writes remain Core-owned. The old local fallback remains read-only.
 - IMPORTANT: preview currently writes into the same Core backend as production; tests with real credentials persist real account changes. Do not claim isolation, invent a staging database, or relax Core auth. Keep a browser/CORS regression gate and never promote a mere static smoke PASS as proof of authenticated writes.
 - User photo delete must use canonical pink `danger` action. Protect against regression.
+
+## Единый источник юридических документов — 2026-11-11 (staging)
+- Единственный владелец юридических документов и подписанных редакций — `co-va/core` / PostgreSQL (`PlatformDocument`, `PlatformDocumentVersion`, `AccountDocumentEvent`); `co-va/user` не хранит тексты документов, не создаёт локальные редакции или дубликаты.
+- Удалён `core/account/platform-documents.js` с локальной копией `PLATFORM_PRIVACY_POLICY`. `getGlobalAccountPlatformState()` получает политику ПДН и условия аккаунта из `GET /account/platform-state`; первый API отдаёт `privacyPolicy` из core DB после миграции `20261111190000_platform_user_privacy_policy`. Исторический текст политики редакции 1 от 01.11.2026 перенесён в core без изменений.
+- **Deployment dependency:** User staging preview currently calls production `https://api.va-tools.ru`. Until the core backend that includes the migration and `privacyPolicy` API field is deployed, User staging must NOT be declared end-to-end verified: the privacy document may be missing there. Do not restore the copied file or substitute Professional's different policy as a workaround. Coordinate release and verify both documents after Core API deployment; keep `main` unchanged without explicit approval.
+- Professional's tenant consent templates and RKN are separate legal documents sourced from core DB. This change does not edit their contents or signing history.
+
