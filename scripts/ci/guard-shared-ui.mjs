@@ -140,4 +140,27 @@ for (const selector of ['.entity-details', '.agreements-summary']) {
     `Shared data panel ${selector} must have four 90-degree corners`);
 }
 
+
+/* Full-size Shared actions and form/picker controls use one geometry. Compact
+   header, icon, and editor controls intentionally keep their own sizes. */
+const actionButtonCss = read('ui/buttons/buttons.css');
+const selectorCss = read('ui/selectors/selectors.css');
+assert(shellStyles.includes('--ui-control-height:48px'), 'Shared control height token missing');
+assert(actionButtonCss.includes('height:var(--ui-button-height);min-height:var(--ui-button-height)'),
+  'Shared full-size buttons must use one fixed height');
+assert(actionButtonCss.includes('@container ui-action-surface') && actionButtonCss.includes('max-inline-size:calc(100cqi'),
+  'Shared action buttons must align with their footer');
+assert(v2.includes('--v2-z-viewport-overscan:24px') &&
+  v2.includes('container-name:ui-action-surface;container-type:inline-size;') &&
+  read('ui/v2/z-layout.js').includes('var(--v2-z-viewport-overscan)'),
+  'Shared Z/Q/X action geometry and Z overscan must use the same tokens');
+assert(modalStyles.includes('[data-v2-z-body]{--ui-action-shift:') &&
+  modalStyles.includes('var(--ui-action-inset)'),
+  'Shared footer must keep centered token-based Z/Q alignment');
+assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
+  read('ui/time/time.css').includes('.time-picker__button{width:100%;min-height:var(--ui-control-height)') &&
+  read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;min-height:var(--ui-control-height)') &&
+  read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
+  'Full-size form and picker controls must match button height');
+
 finish('Shared UI');
