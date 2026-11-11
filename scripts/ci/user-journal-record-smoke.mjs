@@ -169,7 +169,12 @@ try {
   assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);
   await page.locator('[data-v2-z-header-row="0"] [data-view="list"]').click();
   await page.locator('.journal-list-record--deleted').waitFor();
-  console.log('PASS: unread dot belongs to List only, without duplicate Day/Month panel');
+  // Deletion history remains visible when the List layout changes; no re-fetch flicker.
+  await page.locator('[data-v2-z-header-row="1"] [data-view="time"]').click();
+  assert.equal(await page.locator('.journal-list-record--deleted').count(), 1);
+  await page.locator('[data-v2-z-header-row="1"] [data-view="flow"]').click();
+  assert.equal(await page.locator('.journal-list-record--deleted').count(), 1);
+  console.log('PASS: unread dot belongs to List only; deleted entries persist across List modes');
 
 
   // The shared Z Header must keep the first list row clear of its controls.

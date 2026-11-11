@@ -625,10 +625,10 @@ function bindListItems(root, records, events, deletedNotices, rerender) {
   }));
 }
 
-function renderList(root, { records, mode, hiddenKeys }) {
+function renderList(root, { records, mode, hiddenKeys, deletedHistory, loadDeletedHistory }) {
   let disposed = false;
-  let deletedNotices = [];
-  let deletionHistoryError = false;
+  // Keep the same deleted rows while switching List modes; never flash them away.
+  let deletedNotices = deletedHistory.items;
 
   const draw = () => {
     if (disposed || !root.isConnected) return;
@@ -699,18 +699,24 @@ function renderList(root, { records, mode, hiddenKeys }) {
   };
 
   draw();
-  void loadDeletedRecordHistory().then((items) => {
+  void loadDeletedHistory().then((items) => {
     if (disposed) return;
-    deletedNotices = items;
-    draw();
-    // These cards are now displayed in Journal List; read state changes but history remains.
+    if (deletedNotices !== items) {
+      deletedNotices = items;
+      draw();
+    }
+    // A deleted record is acknowledged once only after it is present in List.
     const ids = [...new Set(items.filter((notice) => !notice.read)
-      .map((notice) => String(notice.recordId || '')).filter(Boolean))];
+      .map((notice) => String(notice.recordId || '')).filter(Boolean))]
+      .filter((id) => !deletedHistory.seen.has(id) && !deletedHistory.marking.has(id));
     for (let i = 0; i < ids.length; i += 100) {
-      void markRecordsSeen(ids.slice(i, i + 100), { force: true });
+      const batch = ids.slice(i, i + 100);
+      batch.forEach((id) => deletedHistory.marking.add(id));
+      void markRecordsSeen(batch, { force: true }).then((success) => {
+        if (success) batch.forEach((id) => deletedHistory.seen.add(id));
+      }).finally(() => batch.forEach((id) => deletedHistory.marking.delete(id)));
     }
   }).catch(() => {
-    deletionHistoryError = true;
     if (!disposed && root.isConnected) {
       const error = document.createElement('div');
       error.className = 'muted';
@@ -733,6 +739,20 @@ export function renderJournal(root, options = {}) {
   let disposeView = () => {};
   const records = options.records;
   const hiddenKeys = new Set();
+  // One Account history request per mounted Journal; List modes share its
+  // result and don't replay the same expensive Core call.
+  const deletedHistory = { items: [], loaded: false, promise: null, seen: new Set(), marking: new Set() };
+  const loadDeletedHistory = () => {
+    if (deletedHistory.loaded) return Promise.resolve(deletedHistory.items);
+    if (!deletedHistory.promise) {
+      deletedHistory.promise = loadDeletedRecordHistory().then((items) => {
+        deletedHistory.items = items;
+        deletedHistory.loaded = true;
+        return items;
+      }).finally(() => { deletedHistory.promise = null; });
+    }
+    return deletedHistory.promise;
+  };
   const visibleRecords = () => readRecords(records).filter((record) => !hiddenKeys.has(recordKey(record)));
 
   const render = () => {
@@ -778,7 +798,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys });
+      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys, deletedHistory, loadDeletedHistory });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
