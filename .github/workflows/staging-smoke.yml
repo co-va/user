@@ -59,8 +59,22 @@ jobs:
           test "$status" = '401' -o "$status" = '403'
           grep -qi '^x-co-va-preview: staging' "$tmp/api.headers"
 
-          # Non-destructive write-route checks: invalid credentials MUST be
-          # rejected by Core (401/403), never by preview nginx (405).
+          # The old same-origin /api bridge remains read-only for safety.
+          blocked_status="$(fetch -o /dev/null -w '%{http_code}' \
+            -X PUT "$base/api/account/me")"
+          test "$blocked_status" = '405'
+
+          # User's actual runtime talks directly to Core. Its CORS allowlist
+          # includes this exact Amvera origin. Use invalid credentials so these
+          # checks can NEVER write user data.
+          api='https://api.va-tools.ru'
+          cors_status="$(fetch -D "$tmp/cors.headers" -o /dev/null -w '%{http_code}' \
+            -X OPTIONS "$api/account/me" \
+            -H "Origin: $base" \
+            -H 'Access-Control-Request-Method: PUT' \
+            -H 'Access-Control-Request-Headers: authorization,content-type')"
+          test "$cors_status" = '200' -o "$cors_status" = '204'
+          grep -Fqi "access-control-allow-origin: $base" "$tmp/cors.headers"
           for route in \
             'PUT /account/me' \
             'PUT /account/events/ci-denied-id' \
@@ -68,13 +82,13 @@ jobs:
             'POST /account/contacts/ci-denied-id/records'; do
             method="${route%% *}"
             path="${route#* }"
-            write_status="$(fetch \
-              -o /dev/null -w '%{http_code}' \
+            write_status="$(fetch -o /dev/null -w '%{http_code}' \
+              -X "$method" "$api$path" \
               -H 'Authorization: Bearer ci-invalid-user-token' \
-              -H 'Content-Type: application/json' \
-              -d '{}' -X "$method" "$base/api$path")"
+              -H "Origin: $base" \
+              -H 'Content-Type: application/json' -d '{}')"
             case "$write_status" in
               401|403) ;;
-              *) echo "Write bridge failed: $method $path -> HTTP $write_status"; exit 1 ;;
+              *) echo "Core write contract failed: $method $path -> $write_status"; exit 1 ;;
             esac
           done

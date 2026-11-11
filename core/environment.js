@@ -6,7 +6,9 @@ export const PLATFORM_APP_ORIGIN = APP_ORIGIN;
 export const ACCOUNT_APP_ORIGIN = USER_ORIGIN;
 export const LOCAL_STAGING_API_BASE = 'http://localhost:3000';
 export const CODESPACES_STAGING_API_BASE = '/api';
-export const AMVERA_PREVIEW_API_BASE = '/api';
+// Use the Core API's existing explicit CORS allowance for the User preview.
+// The local /api bridge on the preview host is intentionally read-only.
+export const AMVERA_PREVIEW_API_BASE = PRODUCTION_API_BASE;
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const PRODUCTION_HOSTS = new Set([

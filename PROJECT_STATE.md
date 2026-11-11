@@ -162,3 +162,10 @@
 - Retired markers и Shared guard защищают единственных владельцев UI от возврата дубликатов; main, core и professional не изменялись.
 
 **CI-привязка после фазы B:** старое условие для удалённой панели согласий заменено проверкой действующего `entity-details`. Историческая ссылка из комментария WLIST2 на удалённый генератор `entityCard()` заменена на канонический `entityVisualCard()`, код списка не менялся.
+
+
+### User staging API routing and regression 2026-11-11
+- The public Amvera preview domain `user-volokovykh.msk1.amvera.tech` runs a real authenticated User application; its old local `/api` proxy intentionally rejects non-GET requests with HTTP 405. The preview previously used this read-only route, breaking profile saves, events, notes and bookings.
+- The User frontend now calls `https://api.va-tools.ru` directly from the Amvera preview. The Core application (read-only inspection, **not changed**) explicitly includes this exact preview origin in production CORS allowed origins. Login/session and all writes remain Core-owned. The old local fallback remains read-only.
+- IMPORTANT: preview currently writes into the same Core backend as production; tests with real credentials persist real account changes. Do not claim isolation, invent a staging database, or relax Core auth. Keep a browser/CORS regression gate and never promote a mere static smoke PASS as proof of authenticated writes.
+- User photo delete must use canonical pink `danger` action. Protect against regression.
