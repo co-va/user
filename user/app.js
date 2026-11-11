@@ -213,7 +213,9 @@ async function renderHome(root, state) {
   const records = await getGlobalAccountRecords().catch(() => []);
   if (!root.isConnected) return;
   state.accountRecords = Array.isArray(records) ? records : [];
-  await renderShell(root, state, callbacks);
+  const journal = root.querySelector('[data-account-journal-root]');
+  if (typeof journal?.userJournalRefresh === 'function') journal.userJournalRefresh();
+  else await renderShell(root, state, callbacks);
 }
 
 async function continueIdentity(root, state) {

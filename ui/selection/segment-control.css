@@ -12,6 +12,7 @@
   overflow:hidden;
 }
 .segment-control button{
+  position:relative;
   flex:1 1 0;
   min-width:0;
   min-height:30px;
@@ -35,3 +36,6 @@
 .segment-control button:disabled{background:var(--button-secondary);color:var(--text-secondary)}
 
 .segment-control--two{grid-template-columns:repeat(2,1fr);width:min(100%,430px);margin:0 auto 20px}
+
+/* One red unread dot on the view tab, never a separate Journal panel. */
+.segment-control button.has-notification::after{content:"";position:absolute;top:5px;right:7px;width:8px;height:8px;border-radius:50%;background:#B42318;pointer-events:none}
