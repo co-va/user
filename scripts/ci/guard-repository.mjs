@@ -16,7 +16,7 @@ for (const file of textFiles()) {
 
 const environment = read('core/environment.js');
 assert(environment.includes("export const USER_ORIGIN = 'https://user.va-tools.ru';"), 'User production origin changed');
-assert(environment.includes("export const AMVERA_PREVIEW_API_BASE = '/api';"), 'Amvera preview API bridge missing');
+assert(environment.includes('export const AMVERA_PREVIEW_API_BASE = PRODUCTION_API_BASE;'), 'User preview must use the Core CORS-authorized direct API, not read-only /api');
 assert(environment.includes("if (host.endsWith(AMVERA_SUFFIX)) return AMVERA_PREVIEW_API_BASE;"), 'Amvera preview must stay on preview API bridge');
 
 const manifest = JSON.parse(read('manifest.webmanifest'));
@@ -26,7 +26,8 @@ assert(manifest.scope === '/', 'Installed User app scope must remain /');
 const nginx = read('nginx.conf');
 assert(nginx.includes('server_name user.va-tools.ru _;'), 'Production User host missing');
 assert(nginx.includes('server_name ~^.+\\.amvera\\.tech$;'), 'Amvera staging preview host missing');
-assert(nginx.includes("if ($request_method !~ ^(GET|HEAD)$) { return 405; }"), 'Preview must remain read-only');
+assert(nginx.includes("if ($request_method !~ ^(GET|HEAD)$) { return 405; }"), 'The obsolete local preview API bridge must remain read-only');
+assert(nginx.includes('proxy_pass https://api.va-tools.ru/;'), 'Legacy preview fallback bridge must not point to a different API');
 assert(nginx.includes('location = /api/account/login'), 'Preview login exception missing');
 assert(nginx.includes('raw.githubusercontent.com/co-va/user/staging'), 'Preview must serve User staging');
 
@@ -46,5 +47,8 @@ for (const file of bridges) {
 }
 
 assert(!fs.existsSync(path.join(ROOT, '__noop__')), 'Temporary noop file must not exist');
+
+await import('./guard-ui-graph.mjs');
+await import('./guard-css-owners.mjs');
 
 finish('Repository');

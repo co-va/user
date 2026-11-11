@@ -1,4 +1,4 @@
-import { button } from '../buttons/index.js';
+import { compactAddControl } from '../buttons/index.js';
 import { escapeHtml } from '../utils/escape-html.js';
 import { select } from '../selectors/index.js';
 
@@ -10,7 +10,7 @@ function linkRow(link = {}) {
 
 export function links({ links: values = [], name = 'links', label = '', addInHeader = false } = {}) {
   const rows = values.length ? values : (addInHeader ? [] : [{ type: 'Instagram', url: '' }]);
-  const addControl = button('+', {
+  const addControl = compactAddControl({
     className:'ui-links__add',
     data:`data-add-link="${escapeHtml(name)}"`,
     aria:'Добавить ссылку',

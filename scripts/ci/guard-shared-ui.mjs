@@ -131,14 +131,11 @@ assert(count(swipe, 'isV2HorizontalGestureTarget(event.target)') >= 3,
 assert(documentUI.includes('data-v2-horizontal-rail'),
   'Documents must declare the same rail contract as other components');
 
-// Shared data panels are always rectangles, as in Professional.
-// No feature may add rounded data containers as a local exception.
-for (const selector of ['.entity-details', '.agreements-summary']) {
-  const marker = `${selector}{`;
-  const declaration = pageStyles.split(marker)[1]?.split('}')[0] || '';
-  assert(declaration.includes('border-radius:0;'),
-    `Shared data panel ${selector} must have four 90-degree corners`);
-}
+// The approved active data panel remains rectangular; the dead agreement
+// table must not be kept alive merely to satisfy an obsolete guard.
+const detailsDeclaration = pageStyles.split('.entity-details{')[1]?.split('}')[0] || '';
+assert(detailsDeclaration.includes('border-radius:0;'),
+  'Shared entity details must retain four 90-degree corners');
 
 
 /* Full-size Shared actions and form/picker controls use one geometry. Compact
@@ -162,5 +159,140 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;min-height:var(--ui-control-height)') &&
   read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
   'Full-size form and picker controls must match button height');
+
+assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
+  read('ui/buttons/index.js').includes('export function compactAddControl('),
+  'Compact + must have a separate Shared control owner, reusing canonical button geometry');
+assert(!read('ui/repeated-fields/index.js').includes("button('+',") &&
+  !read('ui/links/index.js').includes("button('+',"),
+  'Repeated fields and links must not render compact + as a full-size button');
+
+assert(read('ui/profile/index.js').includes("button('Удалить фото', { variant: 'danger'"),
+  'Delete-photo control must use the canonical pink danger button');
+assert(!read('ui/buttons/buttons.css').includes('ui-button--delete-outline'),
+  'Removed white delete-photo variant must not return');
+
+const cardRenderer = read('ui/cards/entity-card-constructor.js');
+assert(cardRenderer.includes('row.cells[col]') && cardRenderer.includes('data-entity-card-column='),
+  'User must render Professional 9x3 card cells, not the retired row-only card');
+assert(!cardRenderer.includes('mountEntityCardConstructor('),
+  'User is read-only and must not restore a second Professional card editor');
+assert(entity.includes('.entity-visual-card__row{display:grid;grid-template-columns:repeat(3'),
+  'Professional card grid must preserve three-cell geometry in User');
+
+
+// A retired accordion has no product owner; the obsolete CSS must never return.
+assert(!walk('ui').includes('ui/accordion/accordion.css'),
+  'Retired accordion stylesheet must not exist');
+assert(!read('index.html').includes('ui/accordion/'),
+  'Do not load the retired accordion at bootstrap');
+const accordionReferences = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\baccordion(?:[-_]|\b)/i.test(read(file)));
+assert(accordionReferences.length === 0,
+  'A retired accordion must not return as a parallel UI: ' + accordionReferences.join(', '));
+
+
+const retiredPureCss = [
+  'ui/cards/folder-card.css', 'ui/layout/layout.css',
+];
+for (const stylesheet of retiredPureCss) {
+  assert(!walk('ui').includes(stylesheet) && !read('index.html').includes(stylesheet),
+    'Dead standalone UI stylesheet must not be restored: ' + stylesheet);
+}
+const retiredUiClassReferences = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\b(?:ui-folder-(?:grid|card|list)|two-column-layout|column-layout)(?:\b|__|--)/.test(read(file)));
+assert(retiredUiClassReferences.length === 0,
+  'Retired folder/column layout UI must not come back: ' + retiredUiClassReferences.join(', '));
+
+
+const bootstrapCss = read('index.html');
+assert(bootstrapCss.includes('ui/selection/segment-control.css') &&
+  read('ui/view-navigation/view-navigation.js').includes('class="segment-control"'),
+  'Journal switch must retain its canonical CSS even when obsolete segment JS is removed');
+assert(bootstrapCss.includes('ui/lists/list-entry.css') &&
+  read('ui/lists/list-entry.css').includes('.list-entry{position:relative;'),
+  'Approved WLIST2 styles must not be removed by generic CSS cleanup');
+
+
+const retiredSourceFiles = [
+  'ui/states/state-view.js', 'ui/states/state-view.css',
+  'ui/selection/check-list.js', 'ui/selection/check-list.css',
+  'ui/selection/segment-control.js',
+];
+for (const file of retiredSourceFiles) assert(!walk('ui').includes(file),
+  'Retired disconnected Shared UI implementation must not be restored: ' + file);
+assert(read('index.html').includes('ui/states/empty-state.css') &&
+  read('ui/states/empty-state.css').startsWith('.empty-state{') &&
+  read('ui/states/index.js').includes('export function emptyState('),
+  'Keep the active Shared emptyState component and its original CSS');
+assert(!read('ui/user-ui.js').includes('initSegmentControls') &&
+  !read('ui/selection/index.js').includes('segment-control.js'),
+  'Unused legacy segment JS must not be re-exported as a second UI owner');
+
+
+const retiredBusinessFormCss = [
+  'ui/cost/cost.css', 'ui/payment/payment.css', 'ui/workplaces/workplaces.css',
+];
+for (const file of retiredBusinessFormCss) {
+  assert(!walk('ui').includes(file) && !read('index.html').includes(file),
+    'Retired legacy business-form CSS must not return: ' + file);
+}
+const retiredBusinessClassOwners = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\b(?:cost-field|cost-range|cost-modes|work-time-row|workplace-content|workplace-control|workplace-selector|workplace-select-row|payment-summary-mini-card|payment-item-head|record-payment-actions)(?:\b|__|--)/.test(read(file)));
+assert(retiredBusinessClassOwners.length === 0,
+  'Unused payment/cost/workplace UI cannot remain referenced: ' + retiredBusinessClassOwners.join(', '));
+
+assert(count(read('ui/inputs/inputs.css'), '.password-field__toggle{') === 1,
+  'Password control must not have duplicate CSS declarations');
+assert(count(read('ui/buttons/buttons.css'), '.sheet-icon-button{') === 1,
+  'Sheet icon button must have one canonical geometry block');
+
+
+const retiredStandaloneCss = [
+  'ui/cards/entity-card-details.css', 'ui/lists/list.css',
+  'ui/info/info.css', 'ui/tags/tags.css',
+];
+const indexedCssLinks = [...read('index.html').matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map((match) => match[1]);
+const actualCssSources = ['css/style.css', ...walk('ui').filter((file) => file.endsWith('.css'))].sort();
+assert(new Set(indexedCssLinks).size === indexedCssLinks.length,
+  'Every approved CSS stylesheet must be linked only once');
+assert(JSON.stringify([...indexedCssLinks].sort()) === JSON.stringify(actualCssSources),
+  'Shared CSS must have one registered bootstrap owner per actual file');
+for (const file of retiredStandaloneCss) {
+  assert(!walk('ui').includes(file) && !indexedCssLinks.includes(file),
+    'Retired standalone CSS returned: ' + file);
+}
+const staleClassRefs = [...walk('core'), ...walk('user'), ...walk('ui')].filter((file) =>
+  /\.(js|css|html)$/.test(file) &&
+  /(?:ui-list(?:__|--|\{|\s)|ui-info(?:__|--|\{|\s)|ui-tags(?:__|--|\{|\s)|tag-manager-list|entity-card__details|ui-list-toolbar)/.test(read(file)));
+assert(staleClassRefs.length === 0, 'Retired list/tag/info/details UI still referenced: ' + staleClassRefs.join(', '));
+
+
+const sharedHeader = read('ui/header/index.js');
+const sharedPage = read('ui/page/page.js');
+const sharedCards = read('ui/cards/index.js');
+assert(sharedHeader.includes('export function workspaceHeaderContext(') &&
+  read('ui/header/header.css').includes('.workspace-header-context{display:none!important}'),
+  'Active V2 workspace header metadata must not be removed during legacy header cleanup');
+assert(!sharedHeader.includes('export function pageHeader(') &&
+  !sharedHeader.includes('export function headerToggle(') &&
+  !sharedHeader.includes('export function headerControl('),
+  'Retired duplicate page/header control owners must not return');
+assert(sharedPage.includes('export function details(') &&
+  sharedPage.includes('export function setSharedActionVisible(') &&
+  sharedPage.includes('export function actionBlock(') &&
+  !sharedPage.includes('export function dataTable('),
+  'Keep active Shared page/record detail and action helpers, not the retired table');
+assert(sharedCards.includes('export function entityCardRail(') &&
+  sharedCards.includes('export function entityCardStack(') &&
+  !sharedCards.includes('export function entityCard('),
+  'Active card stack/rail must remain; obsolete duplicate entityCard must not return');
+assert(read('ui/page/page.css').includes('.entity-details{') &&
+  read('ui/page/page.css').includes('.profile-actions{') &&
+  !read('ui/page/page.css').includes('.page-header{'),
+  'Active page details and action geometry must survive header cleanup');
 
 finish('Shared UI');

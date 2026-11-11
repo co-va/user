@@ -1,6 +1,6 @@
 export { button, copyTextToClipboard } from './buttons/index.js';
 export { datePicker, initCalendar, initDateNavigator, initDatePickers } from './calendar/index.js';
-export { entityVisualCard, normalizeEntityCardAppearance } from './cards/entity-card-constructor.js';
+export { entityVisualCard, normalizeEntityCardAppearance, hasConfiguredEntityCardAppearance } from './cards/entity-card-constructor.js';
 export { entityCardRail, entityCardStack } from './cards/index.js';
 export { miniCard, miniCardRail, miniCardStack } from './cards/mini-card.js';
 export { documentTile, documentTiles, openDocumentViewer } from './documents/index.js';
@@ -15,7 +15,7 @@ export { openSharedPasswordAction, openSharedPhotoAction, openSharedProfileSetti
 export { openRecordCreationOwner, recordCreationTimeRows } from './record/creation-flow.js';
 export { recordMiniCard, recordContactList, recordProcedureList, recordTimeRows, recordWorkplaceCards } from './record/runtime.js';
 export { collectRepeatedField, initRepeatedFields, repeatedField } from './repeated-fields/index.js';
-export { initMultiSelect, initSegmentControls, segmentControl } from './selection/index.js';
+export { initMultiSelect } from './selection/index.js';
 export { select } from './selectors/index.js';
 export { emptyState } from './states/index.js';
 export { initJournalDayTimeline, journalDayTimeline } from './time/journal-day.js';

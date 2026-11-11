@@ -1,3 +1,4 @@
+import { rootApp } from './root-app.js';
 export { v2Header } from './header.js';
 export { v2CardDeck } from './card-deck.js';
 export { v2Shell, v2Section, v2HorizontalRail, v2RailCard } from './shell.js';
@@ -17,12 +18,6 @@ import { setV2MenuHeaderState, bindV2MenuHeaderState } from './header-state.js';
 import { bindV2HorizontalAffordances } from './horizontal-affordance.js';
 import { bindV2VContext } from './v-host.js';
 import { setV2DeckOpen as setV2DeckOpenOwner, initV2WorkspaceInteraction as initV2WorkspaceInteractionOwner } from './workspace-navigation.js';
-
-function rootApp(root) {
-  return root?.matches?.('[data-v2-app]')
-    ? root
-    : root?.closest?.('[data-v2-app]') || root?.querySelector?.('[data-v2-app]');
-}
 
 export function setV2DeckOpen(root, open) {
   const next = setV2DeckOpenOwner(root, open);

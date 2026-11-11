@@ -20,6 +20,11 @@ assert(personal.includes('updateGlobalAccount(payload)'), 'Profile data must sav
 assert(personal.includes('changeAccountEmail(requestedEmail)'), 'Email change must keep verification flow');
 
 assert(count(presentation, 'export function profileCardAppearance') === 1, 'Profile card appearance must have one owner');
+assert(presentation.includes('return hasConfiguredEntityCardAppearance(value)'),
+  'Professional 9x3 appearances must not be mistaken for missing legacy row-only cards');
+assert(shell.includes('hasConfiguredEntityCardAppearance(card?.appearance)') &&
+  shell.includes('hasConfiguredEntityCardAppearance(source.appearance)'),
+  'A blank Core projection must not hide an existing saved Professional layout');
 assert(presentation.includes("{row:7,field:'name',zone:'full',align:'left',size:'l',bold:true}"), 'Approved profile name row changed');
 assert(presentation.includes("{row:9,field:'phone',zone:'full',align:'left',size:'m'}"), 'Approved profile phone row changed');
 

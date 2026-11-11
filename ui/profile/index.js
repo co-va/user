@@ -234,7 +234,7 @@ export async function openSharedPhotoAction({
 
   const body = `<div class="form-grid">
     ${button('Заменить фото', { variant: 'outline', data: 'data-shared-photo-replace' })}
-    ${button('Удалить фото', { variant: 'outline', className: 'ui-button--delete-outline', data: 'data-shared-photo-delete' })}
+    ${button('Удалить фото', { variant: 'danger', data: 'data-shared-photo-delete' })}
   </div>`;
   const layer = mountModal(document.body, modal(body, {
     variant: 'x',

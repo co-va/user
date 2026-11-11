@@ -107,11 +107,20 @@ const contactCards = runInNewContext(
   ].join('\n'),
   {
     normalizeEntityCardAppearance: (config) => config,
+    hasConfiguredEntityCardAppearance: (appearance) => Array.isArray(appearance?.lines) &&
+      appearance.lines.some(row => Boolean(row?.field) || ['left', 'center', 'right']
+        .some(column => Boolean(row?.cells?.[column]?.field))),
     entityVisualCard: (config) => config,
     profileCardAppearance: () => ({ lines: [] }),
-    profileCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    profileCardFields: (profile) => [
+      { value:'name', text:[profile.name,profile.surname].filter(Boolean).join(' ') },
+      { value:'profession', text:profile.profession||'' },
+    ],
     workplaceCardAppearance: () => ({ lines: [] }),
-    workplaceCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    workplaceCardFields: (workplace) => [
+      { value:'workplaceName', text:workplace.name||'' },
+      { value:'address', text:workplace.address||'' },
+    ],
     money: (amount) => String(amount || 0) + ' ₽',
     escapeHtml: (value) => value,
   },
@@ -181,6 +190,74 @@ assert.equal(presentedSpace.image, '/studio.jpg');
 assert.equal(presentedSpace.imagePosition, '80% 15%');
 assert.equal(presentedSpace.data, 'data-global-contact-workplace="studio-3"',
   'Workplace card still opens its own space');
+const savedProfileAppearance = {
+  gradient: { from:'#141414', mid:'#555555', to:'#dddddd', angle:120 },
+  lines: [{ cells: {
+    left: {field:'name',bold:true,color:'#ffffff'},
+    right: {field:'profession',align:'right',color:'#ffffff'},
+  }}],
+};
+const profileWithEmptyProjection = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId:'tenant-incomplete',
+  profile: {
+    name:'Александр',surname:'Профессионал',profession:'Парикмахер',
+    cardAppearance:savedProfileAppearance,
+    card:{appearance:{lines:[]},fields:[],photo:'/saved-photo.jpg',photoPosition:'40% 60%'},
+  },
+})));
+assert.deepEqual(profileWithEmptyProjection.appearance,savedProfileAppearance,
+  'Empty projected card must use the saved Professional profile appearance, not a made-up design');
+assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='name')?.text,'Александр Профессионал',
+  'Public profile name must not disappear when card.fields is empty');
+assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='profession')?.text,'Парикмахер',
+  'Public profile profession must not disappear when card.fields is empty');
+assert.equal(profileWithEmptyProjection.image,'/saved-photo.jpg','Keep the Professional photo');
+const nineEmptyProjectionFields = Array.from({length:9}, (_,index) => ({
+  value:index===0?'name':'empty-field-'+index, text:'',
+}));
+const profileWithNineBlankFields = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId:'tenant-nine-empty',
+  profile:{
+    name:'Александр',surname:'Профессионал',profession:'Парикмахер',
+    cardAppearance:savedProfileAppearance,
+    card:{appearance:savedProfileAppearance,fields:nineEmptyProjectionFields},
+  },
+})));
+assert.equal(profileWithNineBlankFields.fields.find(x=>x.value==='name')?.text,'Александр Профессионал',
+  'Nine blank projected values must not hide public profile name');
+assert.equal(profileWithNineBlankFields.fields.find(x=>x.value==='profession')?.text,'Парикмахер',
+  'Nine blank projected values must not hide public profile profession');
+const savedSpaceAppearance = {
+  lines:[{cells:{center:{field:'workplaceName',color:'#ffffff'}}},
+         {cells:{left:{field:'address',color:'#ffffff'}}}],
+};
+const spaceWithEmptyProjection = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр',surname:'Профессионал'}},
+  {key:'space-incomplete',name:'Студия',address:'Москва, Тверская',
+    cardAppearance:savedSpaceAppearance,
+    card:{appearance:{lines:[]},fields:[],photo:'/space.jpg',photoPosition:'35% 25%'}},
+)));
+assert.deepEqual(spaceWithEmptyProjection.appearance,savedSpaceAppearance,
+  'Empty projected card must not discard the saved workplace appearance');
+assert.equal(spaceWithEmptyProjection.fields.find(x=>x.value==='workplaceName')?.text,'Студия',
+  'Public workplace name must reach configured cell');
+assert.equal(spaceWithEmptyProjection.fields.find(x=>x.value==='address')?.text,'Москва, Тверская',
+  'Public workplace address must reach configured cell');
+assert.equal(spaceWithEmptyProjection.imagePosition,'35% 25%');
+const spaceWithConfiguredProjection = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр'}},
+  {key:'space-projected',name:'Студия',cardAppearance:savedSpaceAppearance,card:{
+    appearance:{lines:[{cells:{left:{field:'workplaceName',color:'#00AA00'}}}]},
+    fields:[{value:'workplaceName',text:'Название от сервера'}],
+    photo:'/space.jpg',photoPosition:'50% 50%',
+  }},
+)));
+assert.equal(spaceWithConfiguredProjection.fields.length,1,
+  'Complete Core card projection must remain authoritative and unmodified');
+assert.equal(spaceWithConfiguredProjection.fields[0].text,'Название от сервера');
+assert.equal(spaceWithConfiguredProjection.appearance.lines[0].cells.left.color,'#00AA00',
+  'Correct Professional projection has priority over redundant source appearance');
+
 const withoutDiscount = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
   {profile:{name:'Александр'}},
   {key:'studio-4',card:{
@@ -202,6 +279,16 @@ assert.deepEqual(presentedAccount.fields, assigned,
 assert.equal(presentedAccount.image, '/wallet.jpg');
 assert.equal(presentedAccount.data, 'data-global-contact-personal-account',
   'Personal account continues opening its own ledger');
+const programWithNineBlankFields = JSON.parse(JSON.stringify(renderProgram({
+  type:'deposit',title:'Публичный депозит',balance:1500,
+  card:{appearance:cardAppearance,fields:nineEmptyProjectionFields,photo:'/deposit.jpg'},
+})));
+assert.equal(programWithNineBlankFields.fields.find(x=>x.value==='title')?.text,'Публичный депозит',
+  'Blank projected deposit card must retain already-public title');
+assert.ok(programWithNineBlankFields.fields.some(x=>x.value==='balance' && String(x.text).trim()),
+  'Blank projected deposit card must retain already-public balance');
+assert.equal(programWithNineBlankFields.image,'/deposit.jpg',
+  'Blank projected deposit card must retain Professional photo');
 const legacy = renderProgram({type:'deposit', title:'Старый депозит', depositId:'old-1', balance:3000});
 assert.ok(Array.isArray(legacy.fields), 'Existing API still renders without a presentation');
 console.log('PASS: User follows Professional program card presentation without shifting fields or photos');
@@ -235,6 +322,35 @@ try {
       header: '<header class="v2-header" data-v2-header>ABCD</header>',
       body: '<div>Journal</div>',
     });
+    // Actual approved Professional grid: three cells per row. This regression
+    // test protects User from silently drawing a blank legacy single-field card.
+    const { entityVisualCard } = await import('/ui/cards/entity-card-constructor.js');
+    const cardFixture = document.createElement('div');
+    cardFixture.innerHTML = entityVisualCard({
+      appearance: {
+        lines: [{ cells: {
+          left: { field:'name', size:'l', color:'#FFFFFF' },
+          center: { field:'profession', color:'#AAAAAA' },
+          right: { field:'phone', align:'right', color:'#FFFFFF' },
+        }}],
+      },
+      fields: [
+        {value:'name',text:'Александр'},
+        {value:'profession',text:'Парикмахер'},
+        {value:'phone',text:'+79990000000'},
+      ],
+    });
+    mount.appendChild(cardFixture);
+    const cardRows = cardFixture.querySelectorAll('.entity-visual-card__row');
+    const cardCells = cardFixture.querySelectorAll('.entity-visual-card__cell');
+    if (cardRows.length !== 9 || cardCells.length !== 27 ||
+        !cardFixture.textContent.includes('Александр') ||
+        !cardFixture.textContent.includes('Парикмахер') ||
+        !cardFixture.textContent.includes('+79990000000') ||
+        getComputedStyle(cardRows[0]).display !== 'grid') {
+      throw new Error('User must render the Professional 9x3 card and its visible fields');
+    }
+    cardFixture.remove();
     // The local fixture does not run the app bootstrap. Mount its one
     // production keyboard controller explicitly after creating the shell.
     await import('/ui/inputs/keyboard-runtime.js');
@@ -247,6 +363,30 @@ try {
     };
     const layer = openAccountPersonalDataZ(mount, state);
     if (!layer) throw new Error('Shared personal data editor failed to mount');
+    // The approved shared Q form keeps compact + controls flush right in
+    // each field header. Full-size footer centering must never reach them.
+    const compactHeaders = [...layer.querySelectorAll(
+      '.profile-editor .array-group__header, .profile-editor .ui-links__header',
+    )];
+    if (compactHeaders.length !== 4) {
+      throw new Error('Profile must retain four existing compact add controls');
+    }
+    for (const compactHeader of compactHeaders) {
+      const control = compactHeader.querySelector('.array-row__add, .ui-links__add');
+      if (!control) throw new Error('Missing compact plus control in profile field header');
+      const h = compactHeader.getBoundingClientRect();
+      const c = control.getBoundingClientRect();
+      if (Math.abs(h.right - c.right) > 3) {
+        throw new Error('Profile compact + shifted from the right edge of its field header');
+      }
+      if (!control.classList.contains('ui-add-control') || control.classList.contains('ui-button')) {
+        throw new Error('Compact Profile + must use its own shared control class, not full-size button');
+      }
+      const style = getComputedStyle(control);
+      if (style.marginInlineStart !== '0px' || style.marginInlineEnd !== '0px') {
+        throw new Error('Profile compact + inherited full-size action auto margins');
+      }
+    }
     const input = layer.querySelector('[name="name"]');
     const save = layer.querySelector('[data-account-personal-save]');
     const actions = save?.closest('.modal-actions');

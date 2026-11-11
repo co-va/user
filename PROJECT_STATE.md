@@ -91,3 +91,81 @@
 - Контейнер `ui-action-surface` выравнивает ширину кнопок относительно нижнего действия в Z/Q/X. Для Z сохранён существующий правый viewport overscan 24 px; он теперь задан общим токеном.
 - Селекторы, поля ввода, выбор времени и длительности приведены к одной высоте. Компактные кнопки, иконки, кнопки заголовка и парные кнопки редактора карточек сохраняют собственную геометрию.
 - Исправление затрагивает только Shared UI `co-va/user/staging` и проверку геометрии. UI/Record/Profile-логика, API и другие репозитории не менялись. Внешняя проверка на устройстве требуется отдельно.
+
+### Q-профиль: компактные кнопки добавления — 2026-11-11
+- Исправлен регресс, занесённый в `ui/buttons/buttons.css` коммитом `213ba5f`: общий `@container ui-action-surface` центрировал кнопки «+» в заголовках телефона, email, Telegram и ссылок.
+- Контракт: общие полноразмерные действия центрируются, но существующие `.array-row__add` и `.ui-links__add` остаются справа от заголовков. Визуальный формат и обработчики не изменяются.
+- Зафиксирована геометрическая проверка всех четырёх кнопок «+» в реальном Q профиля и Shared UI guard.
+- Исправление — только в `co-va/user/staging`; `main` не изменяется без разрешения.
+
+### Карты Professional → User: каноническая сетка 9×3 — 2026-11-11
+- User теперь отображает тот же 9-строчный/трёхколоночный формат карты, что утверждён в Professional. Сохранены цвет, размер, позиция, фото, значения, старые карты со строковым `field`.
+- Старый read-only однострочный рендер заменён, не наложен поверх. Старая, неиспользуемая в User форма редактирования карты удалена из этого UI-файла и CSS; редактирование карты принадлежит Professional.
+- Core/staging projection дополняет контур передачи, сохраняет только публичные поля каждой ячейки без выдумывания данных.
+- Журнал, WLIST2, Z/Q/X, списки и кнопки не менялись. Браузерный Q-тест дополнен проверкой реального содержимого и геометрии 9×3.
+- Только staging; main запрещён без подтверждения владельца.
+
+### Компактный «+» как отдельный Shared control — 2026-11-11
+- Кнопка добавления в форме Q не является полноразмерной `ui-button`. Создан один `compactAddControl()` в Shared Buttons; используется для телефона, Email, Telegram и ссылок, а также других repeated-fields.
+- Общие базовые декларации кнопок не дублируются; центрирование полноразмерных действий применяется только к `.ui-button`. Конкретные размеры и существующий вид «+» в Q сохранены.
+- CI проверяет классы и положение всех четырёх кнопок. Никакие WLIST2, Журнал или V2-системы при этом не изменены.
+
+### Удаление действительно неиспользуемого Accordion — 2026-11-11
+- Подтверждено отсутствие источников и вызовов `accordion` в действующих Core/User/Shared JS и CSS; единственная bootstrap-ссылка находилась в `index.html`.
+- Удалён физический `ui/accordion/accordion.css` и подключение из `index.html`. Все действующие стили Журнала, Q/Z/X, V2, WLIST2, сегментов и списков оставлены без изменений.
+- CI предотвращает возвращение старого Accordion. Это точечная очистка; другие предполагаемые устаревшие компоненты до отдельной проверки не удаляются.
+
+### Очистка неиспользуемых Folder/Column UI — 2026-11-11
+- `ui/cards/folder-card.css` и `ui/layout/layout.css` не имеют потребителей в Product JS/HTML или других CSS; удалены физически вместе с загрузкой из `index.html`.
+- Активные общие Card, MiniCard, List Entry, Z/Q/X, WLIST2, переключатель День/Месяц/Список и размеры экранов не изменены. Никаких новых UI не введено.
+- Shared UI guard запрещает возвращение старых классов и файлов.
+
+### Браузерная защита утверждённых переключателей и WLIST2 — 2026-11-11
+- `user-journal-record-smoke` проверяет computed CSS переключателя День/Месяц/Список и геометрию/тень WLIST2 в Chromium.
+- Shared guard запрещает отключение этих двух активных CSS источников при дальнейшей очистке.
+
+### Точечная декомпозиция устаревших Selection/States UI — 2026-11-11
+- `viewNavigation()` остаётся действующим переключателем День/Месяц/Список; его оформление `ui/selection/segment-control.css` сохраняется в исходном порядке. Удалена только неиспользуемая JS-реализация `segmentControl()` и её реэкспорт.
+- Старый `checkList` не имеет Product-потребителей: удалены JS/CSS и экспорты.
+- Старый `stateView` не имеет Product-потребителей: удалены JS и неиспользуемый CSS. Используемый `emptyState()` сохранён, декларации `.empty-state` перенесены без изменения CSS в `ui/states/empty-state.css` на ту же позицию загрузки.
+- Запрет на возвращение удалённых источников закреплён в Shared UI guard; браузерный визуальный тест переключателя и WLIST2 действует.
+
+### Удаление неиспользуемых старых Cost/Payment/Workplace UI — 2026-11-11
+- По графу вызовов User, Core и Shared UI эти CSS-модули не имеют действующих экранов; удалены вместе с `index.html` ссылками. Их старые бизнес-классы не должны возвращаться.
+- Действующие Price/Record/Finance и типовые кнопки не перерабатывались. Сохранены все активные селекторы Журнала, WLIST2, Q/Z/X и карточек.
+- Контракт отсутствия потребителей закреплён Shared UI guard. CSS других компонентов не переопределён.
+
+**Корректировка:** старые `.work-time-row` правила обнаружены также в `ui/time/time.css`. Неиспользуемый блок удалён из Time CSS после проверки отсутствия генератора этих классов; действующие правила выбора времени сохранены.
+
+### Устранение точных CSS-дубликатов — 2026-11-11
+- В `ui/inputs/inputs.css` удалён второй полностью идентичный блок правил `password-field`.
+- В `ui/buttons/buttons.css` два последовательных объявления `.sheet-icon-button` объединены в одно с тем же конечным `font-size:23px`. Отображаемые CSS-значения не изменились.
+- CI запрещает повторное дублирование. Active UI и бизнес-логика не менялись.
+
+### Пустые публичные карточки профиля и пространства (User) — 2026-11-11
+- Источник дефекта: `professionalContactCard` считал пустой `card.fields: []` и 9 пустых строк Core готовой карточкой, прекращая чтение уже переданных полей профиля и пространства. Старая проверка конфигурации не распознавала новый формат `lines[].cells.left/center/right`.
+- Используется одна существующая Shared 9×3 сетка. Сохранённый `cardAppearance` из профиля/пространства имеет приоритет, только если серверная проекция пустая. Публичные значения из уже полученного payload используются исключительно при полностью пустом `card.fields`. Корректная непустая проекция Core не меняется.
+- User не создаёт новый вид карточки и не добавляет служебные поля. Если API не передал ни конфигурацию карты, ни сохранённый вид, восстановить её из фотографии нельзя — это проблема исходного контракта, не повод строить вторую карту в User.
+- Изменения только в `co-va/user/staging`; `co-va/core`, `co-va/professional`, `main` не менялись.
+
+### Фаза A: доказанное удаление неподключённых UI-источников — 2026-11-11
+- Полный просмотр исполняемого JS выявил отсутствие потребителей `ui-list`, `ui-info`, старого `tag-manager` и `entity-card__details`; их отдельные CSS удалены вместе с четырьмя ссылками bootstrap.
+- Из действующего `list-entry.css` удалено только неиспользуемое правило старой панели `ui-list-toolbar`; оформление WLIST2 `.list-entry` и `.list-entries` не менялось.
+- Из `modal.css` удалено только зависимое правило для неиспользуемой `.ui-info`; X/Q/Z и активные модали не переписаны.
+- Shared UI CI проверяет отсутствие этих классов в Product и однозначное 1:1 соответствие подключений реальным CSS-файлам, запрещает дубли ссылок.
+
+### Фаза B: убрать параллельные Header/Page/Table/EntityCard owners — 2026-11-11
+- Из `ui/header/index.js` удалены недостижимые `pageHeader`, `headerControl`, `headerToggle`, их группы и модальный wrapper. Активный `workspaceHeaderContext` и его CSS сохранены.
+- Из `ui/page/page.js` удалены устаревшие `agreementBlock`, `dataTable`, `sortedTableRows`, `bindDataTable`; работающие `page`, `details`, `setSharedActionVisible`, `actionBlock` оставлены без изменений.
+- Из `ui/cards/index.js` удалён отдельный неиспользуемый генератор `entityCard`; существующая карта Professional→User, `entityCardStack` и `entityCardRail` не переписывались.
+- В CSS убраны только соответствующие старые правила заголовков, таблиц и `booking-account` из Page/Header/Calendar/V2/Settings/Forms. Стили `entity-details`, `profile-actions` и активный `.app-header` сохранены.
+- Retired markers и Shared guard защищают единственных владельцев UI от возврата дубликатов; main, core и professional не изменялись.
+
+**CI-привязка после фазы B:** старое условие для удалённой панели согласий заменено проверкой действующего `entity-details`. Историческая ссылка из комментария WLIST2 на удалённый генератор `entityCard()` заменена на канонический `entityVisualCard()`, код списка не менялся.
+
+
+### User staging API routing and regression 2026-11-11
+- The public Amvera preview domain `user-volokovykh.msk1.amvera.tech` runs a real authenticated User application; its old local `/api` proxy intentionally rejects non-GET requests with HTTP 405. The preview previously used this read-only route, breaking profile saves, events, notes and bookings.
+- The User frontend now calls `https://api.va-tools.ru` directly from the Amvera preview. The Core application (read-only inspection, **not changed**) explicitly includes this exact preview origin in production CORS allowed origins. Login/session and all writes remain Core-owned. The old local fallback remains read-only.
+- IMPORTANT: preview currently writes into the same Core backend as production; tests with real credentials persist real account changes. Do not claim isolation, invent a staging database, or relax Core auth. Keep a browser/CORS regression gate and never promote a mere static smoke PASS as proof of authenticated writes.
+- User photo delete must use canonical pink `danger` action. Protect against regression.
