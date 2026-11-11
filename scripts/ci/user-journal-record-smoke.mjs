@@ -155,19 +155,19 @@ try {
     };
     window.dispatchEvent(new CustomEvent('va-tools:service-unseen'));
   });
-  const listTab = page.locator('[data-v2-z-header-row="1"] [data-view="list"]');
-  await page.waitForFunction(() => document.querySelector('[data-v2-z-header-row="1"] [data-view="list"]')?.classList.contains('has-notification'));
+  const listTab = page.locator('[data-v2-z-header-row="0"] [data-view="list"]');
+  await page.waitForFunction(() => document.querySelector('[data-v2-z-header-row="0"] [data-view="list"]')?.classList.contains('has-notification'));
   assert.equal(await listTab.getAttribute('aria-label'), 'Список, есть изменения');
   assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
   assert.equal(await page.getByText('Изменения в записях', { exact: false }).count(), 0);
-  await page.locator('[data-v2-z-header-row="1"] [data-view="day"]').click();
+  await page.locator('[data-v2-z-header-row="0"] [data-view="day"]').click();
   assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
-  assert.equal(await page.locator('[data-v2-z-header-row="1"] [data-view="day"].has-notification').count(), 0);
-  assert.equal(await page.locator('[data-v2-z-header-row="1"] [data-view="list"].has-notification').count(), 1);
-  await page.locator('[data-v2-z-header-row="1"] [data-view="month"]').click();
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="day"].has-notification').count(), 0);
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);
+  await page.locator('[data-v2-z-header-row="0"] [data-view="month"]').click();
   assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
-  assert.equal(await page.locator('[data-v2-z-header-row="1"] [data-view="list"].has-notification').count(), 1);
-  await page.locator('[data-v2-z-header-row="1"] [data-view="list"]').click();
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);
+  await page.locator('[data-v2-z-header-row="0"] [data-view="list"]').click();
   await page.locator('.journal-list-record--deleted').waitFor();
   console.log('PASS: unread dot belongs to List only, without duplicate Day/Month panel');
 
