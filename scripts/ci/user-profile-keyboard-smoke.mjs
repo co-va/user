@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
+import { runInNewContext } from 'node:vm';
 
 // Serve the checked-out staging files, NOT the Amvera preview: CI must
 // measure the exact commit being tested, regardless of deployment delays.
@@ -37,6 +38,174 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
 const base = `http://127.0.0.1:${server.address().port}/__profile_smoke__`;
+// The Core deposit contract already carries benefit terms and discountPercent.
+// User must show them for the current person and never invent a discount after expiry.
+const accountShell = await readFile(resolve(root, 'user/account-shell.js'), 'utf8');
+const depositDetailsStart = accountShell.indexOf('function contactDepositDetails(');
+const depositDetailsEnd = accountShell.indexOf('\nfunction contactDepositHistory(', depositDetailsStart);
+assert.ok(depositDetailsStart > -1 && depositDetailsEnd > depositDetailsStart,
+  'User must expose one deposit-details projection of the Core payload');
+const depositDetails = runInNewContext(
+  accountShell.slice(depositDetailsStart, depositDetailsEnd) + '\ncontactDepositDetails',
+  {
+    shortDateTime: (value) => String(value).slice(0, 16),
+    money: (value) => String(Number(value || 0)) + ' ₽',
+    depositStatus: (value) => value === 'expired' ? 'Срок завершён' : 'Активен',
+  },
+);
+const demoDeposit = {
+  programName: 'Зима 2025 (все услуги)',
+  fundedAmount: 50000,
+  balance: 50000,
+  status: 'active',
+  benefitMode: 'discount',
+  discountPercent: 20,
+  terms: {
+    termRule: '2025-12-01 — 2026-11-30',
+    benefitType: 'discount',
+    benefitValue: 20,
+    benefit: 'На обслуживание 20%',
+    description: 'Все услуги по программе',
+  },
+};
+const labelled = (value) => Object.fromEntries(depositDetails(value).map(({label, value: text}) => [label, text]));
+const activeDetails = labelled(demoDeposit);
+assert.equal(activeDetails['Действующая скидка'], '20%', 'Current Core discount must be visible');
+assert.equal(activeDetails['Условие выгоды'], 'На обслуживание 20%', 'Program benefit retained');
+assert.equal(activeDetails['Условия программы'], 'Все услуги по программе', 'Program description retained');
+assert.equal(activeDetails['Срок'], '01.12.25 — 30.11.26', 'Program dates use DD.MM.YY');
+const endedDetails = labelled({ ...demoDeposit, status:'expired', discountPercent:0 });
+assert.equal(endedDetails['Действующая скидка'], undefined,
+  'Expired program cannot show an invented current discount');
+assert.equal(endedDetails['Условие выгоды'], 'На обслуживание 20%',
+  'Historical program terms remain visible after expiry');
+const accrualDetails = labelled({
+  ...demoDeposit, benefitMode:'accrual', discountPercent:0,
+  terms: { benefitType:'accrual', benefitValue:10 },
+});
+assert.equal(accrualDetails['Условие выгоды'], 'Начисление 10%',
+  'Non-discount program benefit must still be displayed');
+assert.equal(accrualDetails['Действующая скидка'], undefined,
+  'Accrual is not a discount');
+console.log('PASS: User deposit details show program terms and only Core-authorized active discount');
+
+// The User does not own program-card positions. It consumes a safe projection
+// of Professional's canonical nine-line card and sends it to Shared UI intact.
+const profileCardStart = accountShell.indexOf('function relationshipProfile(');
+const profileCardEnd = accountShell.indexOf('\nconst ACCOUNT_PROFILE_CARD_APPEARANCE =', profileCardStart);
+const workplaceCardStart = accountShell.indexOf('function contactWorkplaceCard(');
+const programStart = accountShell.indexOf('const CONTACT_PROGRAM_CARD_APPEARANCE =', workplaceCardStart);
+const programEnd = accountShell.indexOf('\nfunction programWorkplaceKeys(', programStart);
+assert.ok(profileCardStart > -1 && profileCardEnd > profileCardStart &&
+  workplaceCardStart > -1 && programStart > workplaceCardStart &&
+  programEnd > programStart, 'Core-backed contact card renderers exist');
+const contactCards = runInNewContext(
+  [
+    accountShell.slice(profileCardStart, profileCardEnd),
+    accountShell.slice(workplaceCardStart, programEnd),
+    '({ relationshipCard, contactWorkplaceCard, contactProgramCard })',
+  ].join('\n'),
+  {
+    normalizeEntityCardAppearance: (config) => config,
+    entityVisualCard: (config) => config,
+    profileCardAppearance: () => ({ lines: [] }),
+    profileCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    workplaceCardAppearance: () => ({ lines: [] }),
+    workplaceCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    money: (amount) => String(amount || 0) + ' ₽',
+    escapeHtml: (value) => value,
+  },
+);
+const renderProgram = contactCards.contactProgramCard;
+const cardAppearance = {
+  gradient: { from: '#123456', mid: '#456789', to: '#ABCDEF', angle: 110 },
+  lines: [
+    { field: 'uei', zone: 'left', align: 'left', size: 'm' },
+    { field: 'status', zone: 'right', align: 'right', size: 's' },
+    {}, {}, {},
+    { field: 'title', zone: 'full', align: 'center', size: 'xl', bold: true },
+    { field: 'subtitle', zone: 'full', align: 'left', size: 'm' },
+    { field: 'metaLeft', zone: 'left', align: 'left', size: 's' },
+    { field: 'metaRight', zone: 'right', align: 'right', size: 'm' },
+  ],
+};
+const assigned = [
+  { value: 'uei', text: 'D003 0092 0003' },
+  { value: 'status', text: 'Активен' },
+  { value: 'title', text: 'Зима 2025' },
+  { value: 'subtitle', text: '01.12.25 — 30.11.26' },
+  { value: 'metaLeft', text: 'На обслуживание 20%' },
+  { value: 'metaRight', text: '50 000 ₽' },
+];
+const cardResult = JSON.parse(JSON.stringify(renderProgram({
+  type: 'deposit', title: 'Зима 2025', depositId: 'deposit-1',
+  card: {
+    appearance: cardAppearance, fields: assigned,
+    photo: '/specialist-card.jpg', photoPosition: '32% 68%',
+  },
+})));
+assert.deepEqual(cardResult.appearance, cardAppearance,
+  'User must preserve all nine programmed positions and style values');
+assert.deepEqual(cardResult.fields, assigned,
+  'User must not rename, reorder or recalculate the professional card fields');
+assert.equal(cardResult.image, '/specialist-card.jpg');
+assert.equal(cardResult.imagePosition, '32% 68%');
+assert.equal(cardResult.data, 'data-global-contact-deposit="deposit-1"',
+  'Professional card appearance cannot break deposit navigation');
+const presentedProfile = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId: 'tenant-one',
+  profile: {
+    name:'Александр',surname:'Профессионал',
+    card: { appearance:cardAppearance, fields:assigned, photo:'/profile.jpg', photoPosition:'20% 70%' },
+  },
+})));
+assert.deepEqual(presentedProfile.appearance, cardAppearance,
+  'Profile card must use Professional rows and positions, never a User layout');
+assert.deepEqual(presentedProfile.fields, assigned,
+  'Profile card data must be the exact Core projection');
+assert.equal(presentedProfile.image, '/profile.jpg', 'Profile card photo must match Core');
+assert.equal(presentedProfile.imagePosition, '20% 70%', 'Profile photo cropping must match Core');
+assert.equal(presentedProfile.data, 'data-global-relationship="tenant-one"',
+  'Profile still opens its own contact details');
+const presentedSpace = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр',surname:'Профессионал'}},
+  {key:'studio-3',name:'Пространство',card:{
+    appearance:cardAppearance,fields:assigned,photo:'/studio.jpg',photoPosition:'80% 15%',
+  }},
+)));
+assert.deepEqual(presentedSpace.appearance, cardAppearance,
+  'Workplace card must use the exact Professional layout');
+assert.deepEqual(presentedSpace.fields, assigned,
+  'Workplace fields must not be populated from User guesses');
+assert.equal(presentedSpace.image, '/studio.jpg');
+assert.equal(presentedSpace.imagePosition, '80% 15%');
+assert.equal(presentedSpace.data, 'data-global-contact-workplace="studio-3"',
+  'Workplace card still opens its own space');
+const withoutDiscount = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр'}},
+  {key:'studio-4',card:{
+    appearance:cardAppearance,
+    fields:assigned.filter(({value})=>value!=='metaLeft'),
+    photo:'',photoPosition:'50% 50%',
+  }},
+)));
+assert.equal(withoutDiscount.fields.some(({value})=>value==='metaLeft'), false,
+  'User must never add a discount that Professional did not expose');
+const presentedAccount = JSON.parse(JSON.stringify(renderProgram({
+  type:'personal-account',title:'Личный счёт',
+  card:{appearance:cardAppearance,fields:assigned,photo:'/wallet.jpg',photoPosition:'70% 55%'},
+})));
+assert.deepEqual(presentedAccount.appearance, cardAppearance,
+  'Personal account must preserve Professional positions');
+assert.deepEqual(presentedAccount.fields, assigned,
+  'Personal account must preserve the exact provided values');
+assert.equal(presentedAccount.image, '/wallet.jpg');
+assert.equal(presentedAccount.data, 'data-global-contact-personal-account',
+  'Personal account continues opening its own ledger');
+const legacy = renderProgram({type:'deposit', title:'Старый депозит', depositId:'old-1', balance:3000});
+assert.ok(Array.isArray(legacy.fields), 'Existing API still renders without a presentation');
+console.log('PASS: User follows Professional program card presentation without shifting fields or photos');
+
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 
 try {

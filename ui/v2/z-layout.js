@@ -1,6 +1,6 @@
 import { v2ZDismissAffordance } from './z-affordance.js';
 
-const Z_VIEWPORT_OVERSCAN = '24px';
+const Z_VIEWPORT_OVERSCAN = 'var(--v2-z-viewport-overscan)';
 const Q_HEADER_BODY_GAP = '18px';
 const Z_HEADER_BODY_GAP = '14px';
 

@@ -190,14 +190,30 @@ function relationshipTitle(relationship = {}) {
   return [profile.name, profile.surname].filter(Boolean).join(' ').trim() || 'Профиль';
 }
 
+// Core projects the precise Professional card: its nine lines, ordered values,
+// photo and crop. User must never rearrange or fill any missing positioned field.
+// A legacy fallback is used only while an older API omits card entirely.
+function professionalContactCard(card = null) {
+  if (!card || !Array.isArray(card?.appearance?.lines) || !Array.isArray(card?.fields)) return null;
+  return {
+    appearance: card.appearance,
+    fields: card.fields,
+    image: String(card.photo || ''),
+    imagePosition: String(card.photoPosition || '50% 50%'),
+  };
+}
+
 function relationshipCard(relationship = {}, { interactive = true, data = '' } = {}) {
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
-  return entityVisualCard({
+  const view = professionalContactCard(profile.card) || {
     appearance: profileCardAppearance(profile),
     fields: profileCardFields(profile, []),
     image: String(profile.photo || ''),
-    imagePosition: `${Number(profile.photoCropX || 50)}% ${Number(profile.photoCropY || 50)}%`,
+    imagePosition: `${Number(profile.photoCropX ?? 50)}% ${Number(profile.photoCropY ?? 50)}%`,
+  };
+  return entityVisualCard({
+    ...view,
     interactive,
     data: interactive ? (data || `data-global-relationship="${escapeHtml(String(relationship.tenantId || ''))}"`) : '',
     aria: interactive ? `Открыть ${title}` : title,
@@ -823,11 +839,14 @@ function requestStatuses(request = {}) {
 
 function contactWorkplaceCard(relationship, workplace, { interactive = true } = {}) {
   const profile = relationshipProfile(relationship);
-  return entityVisualCard({
+  const view = professionalContactCard(workplace?.card) || {
     appearance: workplaceCardAppearance(workplace),
     fields: workplaceCardFields(workplace, profile),
     image: String(workplace?.photo || ''),
-    imagePosition: `${Number(workplace?.photoCropX || 50)}% ${Number(workplace?.photoCropY || 50)}%`,
+    imagePosition: `${Number(workplace?.photoCropX ?? 50)}% ${Number(workplace?.photoCropY ?? 50)}%`,
+  };
+  return entityVisualCard({
+    ...view,
     interactive,
     data: interactive ? `data-global-contact-workplace="${escapeHtml(String(workplace?.key || ''))}"` : '',
     aria: interactive ? `Открыть ${String(workplace?.name || 'пространство')}` : String(workplace?.name || 'Пространство'),
@@ -850,13 +869,18 @@ function contactProgramCard(program = {}) {
   const meta = personal && Number(program.debtTotal || 0) > 0.009
     ? `Задолженность ${money(program.debtTotal)}`
     : personal ? 'Программа' : String(program.status || '');
-  return entityVisualCard({
+  const view = professionalContactCard(program.card) || {
     appearance: CONTACT_PROGRAM_CARD_APPEARANCE,
     fields: [
       { value: 'title', label: 'Программа', text: title },
       { value: 'balance', label: 'Остаток', text: money(program.balance) },
       { value: 'meta', label: 'Состояние', text: meta },
     ],
+    image: '',
+    imagePosition: '50% 50%',
+  };
+  return entityVisualCard({
+    ...view,
     interactive: true,
     data: personal
       ? 'data-global-contact-personal-account'
@@ -1099,6 +1123,38 @@ function depositStatus(status = '') {
   return 'Активен';
 }
 
+// Display the existing Core deposit contract; never calculate or persist a
+// second discount in User. An expired deposit keeps its historical terms,
+// while the current discount is taken only from Core's discountPercent.
+function contactDepositDetails(deposit = {}, fallbackTitle = 'Депозит') {
+  const terms = deposit?.terms && typeof deposit.terms === 'object' ? deposit.terms : {};
+  const benefitMode = String(deposit?.benefitMode || terms.benefitType || '').trim();
+  const discountPercent = Math.max(0, Number(deposit?.discountPercent || 0));
+  const benefitValue = Number(terms.benefitValue || 0);
+  const storedBenefit = String(terms.benefit || '').trim();
+  const benefitText = storedBenefit || (
+    benefitMode === 'discount' && benefitValue > 0 ? `На обслуживание ${benefitValue}%`
+      : benefitMode === 'accrual' && benefitValue > 0 ? `Начисление ${benefitValue}%`
+        : 'Без дополнительной выгоды'
+  );
+  const termText = String(terms.termRule || 'Бессрочно')
+    .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, year, month, day) => `${day}.${month}.${year.slice(-2)}`);
+  const description = String(terms.description || '').trim();
+  return [
+    { label: 'Депозит', value: String(deposit?.programName || fallbackTitle) },
+    ...(deposit?.fundedAt ? [{ label: 'Дата оформления', value: shortDateTime(deposit.fundedAt, '—') }] : []),
+    { label: 'Остаток', value: money(deposit?.balance) },
+    { label: 'Внесено', value: money(deposit?.fundedAmount) },
+    { label: 'Срок', value: termText },
+    { label: 'Условие выгоды', value: benefitText },
+    ...(benefitMode === 'discount' && discountPercent > 0
+      ? [{ label: 'Действующая скидка', value: `${discountPercent}%` }]
+      : []),
+    ...(description ? [{ label: 'Условия программы', value: description }] : []),
+    { label: 'Состояние', value: depositStatus(String(deposit?.status || '')) },
+  ];
+}
+
 function contactDepositHistory(deposit = {}) {
   const labels = {
     'deposit-funding': 'Внесение',
@@ -1131,15 +1187,8 @@ async function openGlobalContactDepositQ(relationship, program) {
   const host = layer?.querySelector('[data-contact-deposit-q]');
   try {
     const deposit = await getGlobalContactDeposit(tenantId, depositId);
-    const terms = deposit?.terms && typeof deposit.terms === 'object' ? deposit.terms : {};
     if (host) host.innerHTML = page([
-      details([
-        { label: 'Депозит', value: String(deposit?.programName || title) },
-        { label: 'Остаток', value: money(deposit?.balance) },
-        { label: 'Внесено', value: money(deposit?.fundedAmount) },
-        { label: 'Срок', value: String(terms.termRule || 'Бессрочно') },
-        { label: 'Состояние', value: depositStatus(String(deposit?.status || '')) },
-      ]),
+      details(contactDepositDetails(deposit, title)),
       v2Section('История', contactDepositHistory(deposit)),
     ]);
   } catch (error) {
