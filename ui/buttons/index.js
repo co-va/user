@@ -13,6 +13,14 @@ export function button(label, { className = '', data = '', type = 'button', aria
   return `<button type="${type}" class="ui-button ${variantClass} ${className}" ${data}${aria ? ` aria-label="${escapeHtml(aria)}"` : ''}${disabled ? ' disabled' : ''}>${label}</button>`;
 }
 
+
+// A compact field-header action, not a full-size form button.
+// Shared geometry comes from the same base button CSS, but this control
+// never participates in full-size action centering.
+export function compactAddControl({ className = '', data = '', aria = 'Добавить' } = {}) {
+  return `<button type="button" class="ui-add-control${className ? ` ${escapeHtml(className)}` : ''}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria)}">+</button>`;
+}
+
 export function iconButton(label, { className = '', data = '', aria = label } = {}) {
   return `<button type="button" class="icon-button ${className}" ${data} aria-label="${escapeHtml(aria)}">${label}</button>`;
 }

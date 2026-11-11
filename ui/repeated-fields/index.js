@@ -1,4 +1,4 @@
-import { button } from '../buttons/index.js';
+import { compactAddControl } from '../buttons/index.js';
 import { phoneInput } from '../inputs/index.js';
 import { escapeHtml } from '../utils/escape-html.js';
 
@@ -25,7 +25,7 @@ export function repeatedField({
   const items = normalizeItems(values);
   const rows = items.length ? items : (showEmptyRow ? [{ value: '', source: '' }] : []);
   const addLabel = label ? `Добавить ${label.replace(/\s*\*\s*$/, '')}` : 'Добавить значение';
-  const addControl = button('+', {
+  const addControl = compactAddControl({
     className:'array-row__add',
     data:`data-repeated-add="${escapeHtml(name)}"`,
     aria:addLabel,
@@ -53,7 +53,7 @@ function repeatedRow({ name, type, value = '', source = '', placeholder, label =
     ? phoneInput({ name, value, aria: label || 'Телефон' })
     : `<input type="${escapeHtml(type)}" name="${escapeHtml(name)}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}">`;
   const control = action === 'add'
-    ? button('+', { className:'array-row__add', data:`data-repeated-add="${escapeHtml(name)}"`, aria:addLabel })
+    ? compactAddControl({ className:'array-row__add', data:`data-repeated-add="${escapeHtml(name)}"`, aria:addLabel })
     : action === 'remove'
       ? `<button type="button" class="remove-button" data-repeated-remove aria-label="${escapeHtml(removeLabel)}">×</button>`
       : '';

@@ -163,8 +163,12 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
   'Full-size form and picker controls must match button height');
 
-assert(actionButtonCss.includes('.array-row__add,.ui-links__add'),
-  'Compact add controls must be excluded from full-size shared action centering');
+assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
+  read('ui/buttons/index.js').includes('export function compactAddControl('),
+  'Compact + must have a separate Shared control owner, reusing canonical button geometry');
+assert(!read('ui/repeated-fields/index.js').includes("button('+',") &&
+  !read('ui/links/index.js').includes("button('+',"),
+  'Repeated fields and links must not render compact + as a full-size button');
 
 const cardRenderer = read('ui/cards/entity-card-constructor.js');
 assert(cardRenderer.includes('row.cells[col]') && cardRenderer.includes('data-entity-card-column='),
