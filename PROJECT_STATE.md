@@ -153,3 +153,10 @@
 - Из действующего `list-entry.css` удалено только неиспользуемое правило старой панели `ui-list-toolbar`; оформление WLIST2 `.list-entry` и `.list-entries` не менялось.
 - Из `modal.css` удалено только зависимое правило для неиспользуемой `.ui-info`; X/Q/Z и активные модали не переписаны.
 - Shared UI CI проверяет отсутствие этих классов в Product и однозначное 1:1 соответствие подключений реальным CSS-файлам, запрещает дубли ссылок.
+
+### Фаза B: убрать параллельные Header/Page/Table/EntityCard owners — 2026-11-11
+- Из `ui/header/index.js` удалены недостижимые `pageHeader`, `headerControl`, `headerToggle`, их группы и модальный wrapper. Активный `workspaceHeaderContext` и его CSS сохранены.
+- Из `ui/page/page.js` удалены устаревшие `agreementBlock`, `dataTable`, `sortedTableRows`, `bindDataTable`; работающие `page`, `details`, `setSharedActionVisible`, `actionBlock` оставлены без изменений.
+- Из `ui/cards/index.js` удалён отдельный неиспользуемый генератор `entityCard`; существующая карта Professional→User, `entityCardStack` и `entityCardRail` не переписывались.
+- В CSS убраны только соответствующие старые правила заголовков, таблиц и `booking-account` из Page/Header/Calendar/V2/Settings/Forms. Стили `entity-details`, `profile-actions` и активный `.app-header` сохранены.
+- Retired markers и Shared guard защищают единственных владельцев UI от возврата дубликатов; main, core и professional не изменялись.

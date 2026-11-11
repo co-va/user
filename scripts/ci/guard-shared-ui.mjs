@@ -268,4 +268,29 @@ const staleClassRefs = [...walk('core'), ...walk('user'), ...walk('ui')].filter(
   /(?:ui-list(?:__|--|\{|\s)|ui-info(?:__|--|\{|\s)|ui-tags(?:__|--|\{|\s)|tag-manager-list|entity-card__details|ui-list-toolbar)/.test(read(file)));
 assert(staleClassRefs.length === 0, 'Retired list/tag/info/details UI still referenced: ' + staleClassRefs.join(', '));
 
+
+const sharedHeader = read('ui/header/index.js');
+const sharedPage = read('ui/page/page.js');
+const sharedCards = read('ui/cards/index.js');
+assert(sharedHeader.includes('export function workspaceHeaderContext(') &&
+  read('ui/header/header.css').includes('.workspace-header-context{display:none!important}'),
+  'Active V2 workspace header metadata must not be removed during legacy header cleanup');
+assert(!sharedHeader.includes('export function pageHeader(') &&
+  !sharedHeader.includes('export function headerToggle(') &&
+  !sharedHeader.includes('export function headerControl('),
+  'Retired duplicate page/header control owners must not return');
+assert(sharedPage.includes('export function details(') &&
+  sharedPage.includes('export function setSharedActionVisible(') &&
+  sharedPage.includes('export function actionBlock(') &&
+  !sharedPage.includes('export function dataTable('),
+  'Keep active Shared page/record detail and action helpers, not the retired table');
+assert(sharedCards.includes('export function entityCardRail(') &&
+  sharedCards.includes('export function entityCardStack(') &&
+  !sharedCards.includes('export function entityCard('),
+  'Active card stack/rail must remain; obsolete duplicate entityCard must not return');
+assert(read('ui/page/page.css').includes('.entity-details{') &&
+  read('ui/page/page.css').includes('.profile-actions{') &&
+  !read('ui/page/page.css').includes('.page-header{'),
+  'Active page details and action geometry must survive header cleanup');
+
 finish('Shared UI');
