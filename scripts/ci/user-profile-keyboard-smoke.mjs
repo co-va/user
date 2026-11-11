@@ -112,9 +112,15 @@ const contactCards = runInNewContext(
         .some(column => Boolean(row?.cells?.[column]?.field))),
     entityVisualCard: (config) => config,
     profileCardAppearance: () => ({ lines: [] }),
-    profileCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    profileCardFields: (profile) => [
+      { value:'name', text:[profile.name,profile.surname].filter(Boolean).join(' ') },
+      { value:'profession', text:profile.profession||'' },
+    ],
     workplaceCardAppearance: () => ({ lines: [] }),
-    workplaceCardFields: () => [{ value:'fallback', text:'Should never appear' }],
+    workplaceCardFields: (workplace) => [
+      { value:'workplaceName', text:workplace.name||'' },
+      { value:'address', text:workplace.address||'' },
+    ],
     money: (amount) => String(amount || 0) + ' ₽',
     escapeHtml: (value) => value,
   },
