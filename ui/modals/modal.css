@@ -1,7 +1,7 @@
 .modal-sheet{overscroll-behavior:contain}
 .modal-sheet:focus{outline:none}
 .modal-title{padding-right:0;margin-bottom:18px}.modal--technical .modal-title{padding-right:44px}.modal-title h2{margin:0;font-size:23px}.modal-title p{margin:6px 0 0;color:var(--text-secondary);font-size:14px}
-.modal-title--action{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.modal-title--action{display:flex;align-items:center;justify-content:space-between;gap:12px}.modal-title--action .ui-info{flex:0 0 auto}
 .modal-actions{display:grid;gap:8px}.compact-form{display:grid;gap:12px}.compact-form .modal-title{margin-bottom:2px}
 
 /* One measured action stack for all Z/Q surfaces; no button-count rules. */

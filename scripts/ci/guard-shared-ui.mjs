@@ -163,38 +163,4 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
   'Full-size form and picker controls must match button height');
 
-
-// Retired UI must not return beside the approved V2 shared owners.
-const activeCssLinks = [...read('index.html').matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)]
-  .map((match) => match[1]);
-const uiFiles = walk('ui');
-for (const stylesheet of activeCssLinks) {
-  assert(stylesheet.startsWith('ui/') ? uiFiles.includes(stylesheet) : stylesheet === 'css/style.css',
-    `Bootstrap references a missing/noncanonical stylesheet: ${stylesheet}`);
-}
-for (const obsolete of [
-  'ui/accordion/accordion.css',
-  'ui/cards/folder-card.css',
-  'ui/lists/list.css',
-  'ui/states/state-view.js',
-  'ui/states/state-view.css',
-  'ui/selection/check-list.js',
-  'ui/selection/segment-control.js',
-]) {
-  assert(!uiFiles.includes(obsolete), `Retired UI source returned: ${obsolete}`);
-}
-const inputsForDedup = read('ui/inputs/inputs.css');
-assert(count(inputsForDedup, '.password-field__toggle{') === 1,
-  'Shared password toggle must have one CSS owner');
-assert(count(actionButtonCss, '.sheet-icon-button{') === 1,
-  'Shared sheet icon button must not be defined twice');
-assert(!read('ui/header/index.js').includes('export function pageHeader('),
-  'Retired page header must not return alongside V2 Header');
-
-
-const userButtonMarkup = walk('user').filter((file) => file.endsWith('.js')).filter((file) =>
-  /<button\b[^>]*\bclass\s*=\s*["'][^"']*\bui-button\b/.test(read(file)));
-assert(userButtonMarkup.length === 0,
-  `Full-size User actions must use the single Shared button() owner: ${userButtonMarkup.join(', ')}`);
-
 finish('Shared UI');

@@ -41,7 +41,7 @@ function renderProfileUnavailable(root, initial = {}) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Продолжим?',
     body: 'Не все данные загрузились с первого раза. Нажмите «Продолжить».',
-    action: button('Продолжить', { data: 'data-user-profile-retry' }),
+    action: '<button class="ui-button" type="button" data-user-profile-retry>Продолжить</button>',
     className: 'v2-sticker-screen--auth',
   })}</section>`;
   root.querySelector('[data-user-profile-retry]')?.addEventListener('click', () => {
@@ -239,7 +239,7 @@ function renderEntry(root, state) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Вход',
     body: form,
-    action: button('Войти', { type: 'submit', data: 'form="global-account-entry"' }),
+    action: '<button class="ui-button" type="submit" form="global-account-entry">Войти</button>',
     className: 'v2-sticker-screen--auth',
     closeData: 'data-global-account-u-close',
   })}</section>`;
@@ -321,7 +321,7 @@ function renderDetails(root, state) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Регистрация',
     body: form,
-    action: button('Подтвердить', { type: 'submit', data: 'form="global-account-registration"' }),
+    action: '<button class="ui-button" type="submit" form="global-account-registration">Подтвердить</button>',
     className: 'v2-sticker-screen--auth',
     closeData: 'data-global-registration-u-close',
   })}</section>`;

@@ -15,7 +15,7 @@ export { openSharedPasswordAction, openSharedPhotoAction, openSharedProfileSetti
 export { openRecordCreationOwner, recordCreationTimeRows } from './record/creation-flow.js';
 export { recordMiniCard, recordContactList, recordProcedureList, recordTimeRows, recordWorkplaceCards } from './record/runtime.js';
 export { collectRepeatedField, initRepeatedFields, repeatedField } from './repeated-fields/index.js';
-export { initMultiSelect } from './selection/index.js';
+export { initMultiSelect, initSegmentControls, segmentControl } from './selection/index.js';
 export { select } from './selectors/index.js';
 export { emptyState } from './states/index.js';
 export { initJournalDayTimeline, journalDayTimeline } from './time/journal-day.js';

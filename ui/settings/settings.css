@@ -6,6 +6,10 @@
 .app-setting-toggle.is-on .app-setting-toggle__switch,.app-setting-toggle__switch.is-on{background:var(--text)}
 .app-setting-toggle.is-on .app-setting-toggle__switch span,.app-setting-toggle__switch.is-on span{transform:translateX(18px)}
 .app-setting-toggle:disabled{opacity:.5}
+.booking-account--account .app-setting-toggle{border-radius:var(--radius-card)}
+.booking-account--account .app-setting-toggle__switch{background:color-mix(in srgb,var(--booking-dark) 35%,var(--booking-light))}
+.booking-account--account .app-setting-toggle.is-on .app-setting-toggle__switch{background:var(--booking-dark)}
+.booking-account--account.booking-shape--cut .app-setting-toggle{clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
 
 .app-notification-list{display:grid;gap:8px}
 .app-notification-row{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border)}

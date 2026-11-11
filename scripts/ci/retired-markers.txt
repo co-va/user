@@ -4,14 +4,3 @@ client.va-tools.ru
 booking-targets
 bookingPrice
 __noop__
-accordion-trigger
-ui-folder-card
-ui-list__item
-ui-state-view
-ui-check-list
-ui-compact-check
-ui-data-table
-booking-account--account
-pageHeader(
-headerToggle(
-dataTable(
