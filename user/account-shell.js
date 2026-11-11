@@ -27,6 +27,7 @@ import {
   entityCardStack,
   entityVisualCard,
   normalizeEntityCardAppearance,
+  hasConfiguredEntityCardAppearance,
   recordMiniCard,
   miniCardRail,
   miniCardStack,
@@ -193,24 +194,39 @@ function relationshipTitle(relationship = {}) {
 // Core projects the precise Professional card: its nine lines, ordered values,
 // photo and crop. User must never rearrange or fill any missing positioned field.
 // A legacy fallback is used only while an older API omits card entirely.
-function professionalContactCard(card = null) {
-  if (!card || !Array.isArray(card?.appearance?.lines) || !Array.isArray(card?.fields)) return null;
+// Never treat a projected card with nine EMPTY rows as a configured
+// Professional design. The source appearance may still be present on the
+// public profile/workplace when the projection is incomplete.
+function professionalContactCard(card = null, source = {}) {
+  const configured = hasConfiguredEntityCardAppearance(card?.appearance)
+    ? card.appearance
+    : hasConfiguredEntityCardAppearance(source.appearance) ? source.appearance : null;
+  if (!configured) return null;
+  const projectedFields = Array.isArray(card?.fields) ? card.fields : [];
+  // When the projection lost ALL values, restore only already-public fields
+  // from the same payload. Never infer positions or expose private fields.
+  const fields = projectedFields.length ? projectedFields
+    : Array.isArray(source.fields) ? source.fields : [];
   return {
-    appearance: card.appearance,
-    fields: card.fields,
-    image: String(card.photo || ''),
-    imagePosition: String(card.photoPosition || '50% 50%'),
+    appearance: configured,
+    fields,
+    image: String(card?.photo || source.image || ''),
+    imagePosition: String(card?.photoPosition || source.imagePosition || '50% 50%'),
   };
 }
 
 function relationshipCard(relationship = {}, { interactive = true, data = '' } = {}) {
   const profile = relationshipProfile(relationship);
   const title = relationshipTitle(relationship);
-  const view = professionalContactCard(profile.card) || {
-    appearance: profileCardAppearance(profile),
+  const supplied = {
+    appearance: profile.cardAppearance,
     fields: profileCardFields(profile, []),
     image: String(profile.photo || ''),
     imagePosition: `${Number(profile.photoCropX ?? 50)}% ${Number(profile.photoCropY ?? 50)}%`,
+  };
+  const view = professionalContactCard(profile.card, supplied) || {
+    ...supplied,
+    appearance: profileCardAppearance(profile),
   };
   return entityVisualCard({
     ...view,
@@ -839,11 +855,15 @@ function requestStatuses(request = {}) {
 
 function contactWorkplaceCard(relationship, workplace, { interactive = true } = {}) {
   const profile = relationshipProfile(relationship);
-  const view = professionalContactCard(workplace?.card) || {
-    appearance: workplaceCardAppearance(workplace),
+  const supplied = {
+    appearance: workplace?.cardAppearance,
     fields: workplaceCardFields(workplace, profile),
     image: String(workplace?.photo || ''),
     imagePosition: `${Number(workplace?.photoCropX ?? 50)}% ${Number(workplace?.photoCropY ?? 50)}%`,
+  };
+  const view = professionalContactCard(workplace?.card, supplied) || {
+    ...supplied,
+    appearance: workplaceCardAppearance(workplace),
   };
   return entityVisualCard({
     ...view,

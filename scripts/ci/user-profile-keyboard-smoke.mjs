@@ -107,6 +107,9 @@ const contactCards = runInNewContext(
   ].join('\n'),
   {
     normalizeEntityCardAppearance: (config) => config,
+    hasConfiguredEntityCardAppearance: (appearance) => Array.isArray(appearance?.lines) &&
+      appearance.lines.some(row => Boolean(row?.field) || ['left', 'center', 'right']
+        .some(column => Boolean(row?.cells?.[column]?.field))),
     entityVisualCard: (config) => config,
     profileCardAppearance: () => ({ lines: [] }),
     profileCardFields: () => [{ value:'fallback', text:'Should never appear' }],
@@ -181,6 +184,59 @@ assert.equal(presentedSpace.image, '/studio.jpg');
 assert.equal(presentedSpace.imagePosition, '80% 15%');
 assert.equal(presentedSpace.data, 'data-global-contact-workplace="studio-3"',
   'Workplace card still opens its own space');
+const savedProfileAppearance = {
+  gradient: { from:'#141414', mid:'#555555', to:'#dddddd', angle:120 },
+  lines: [{ cells: {
+    left: {field:'name',bold:true,color:'#ffffff'},
+    right: {field:'profession',align:'right',color:'#ffffff'},
+  }}],
+};
+const profileWithEmptyProjection = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId:'tenant-incomplete',
+  profile: {
+    name:'Александр',surname:'Профессионал',profession:'Парикмахер',
+    cardAppearance:savedProfileAppearance,
+    card:{appearance:{lines:[]},fields:[],photo:'/saved-photo.jpg',photoPosition:'40% 60%'},
+  },
+})));
+assert.deepEqual(profileWithEmptyProjection.appearance,savedProfileAppearance,
+  'Empty projected card must use the saved Professional profile appearance, not a made-up design');
+assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='name')?.text,'Александр Профессионал',
+  'Public profile name must not disappear when card.fields is empty');
+assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='profession')?.text,'Парикмахер',
+  'Public profile profession must not disappear when card.fields is empty');
+assert.equal(profileWithEmptyProjection.image,'/saved-photo.jpg','Keep the Professional photo');
+const savedSpaceAppearance = {
+  lines:[{cells:{center:{field:'workplaceName',color:'#ffffff'}}},
+         {cells:{left:{field:'address',color:'#ffffff'}}}],
+};
+const spaceWithEmptyProjection = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр',surname:'Профессионал'}},
+  {key:'space-incomplete',name:'Студия',address:'Москва, Тверская',
+    cardAppearance:savedSpaceAppearance,
+    card:{appearance:{lines:[]},fields:[],photo:'/space.jpg',photoPosition:'35% 25%'}},
+)));
+assert.deepEqual(spaceWithEmptyProjection.appearance,savedSpaceAppearance,
+  'Empty projected card must not discard the saved workplace appearance');
+assert.equal(spaceWithEmptyProjection.fields.find(x=>x.value==='workplaceName')?.text,'Студия',
+  'Public workplace name must reach configured cell');
+assert.equal(spaceWithEmptyProjection.fields.find(x=>x.value==='address')?.text,'Москва, Тверская',
+  'Public workplace address must reach configured cell');
+assert.equal(spaceWithEmptyProjection.imagePosition,'35% 25%');
+const spaceWithConfiguredProjection = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
+  {profile:{name:'Александр'}},
+  {key:'space-projected',name:'Студия',cardAppearance:savedSpaceAppearance,card:{
+    appearance:{lines:[{cells:{left:{field:'workplaceName',color:'#00AA00'}}}]},
+    fields:[{value:'workplaceName',text:'Название от сервера'}],
+    photo:'/space.jpg',photoPosition:'50% 50%',
+  }},
+)));
+assert.equal(spaceWithConfiguredProjection.fields.length,1,
+  'Complete Core card projection must remain authoritative and unmodified');
+assert.equal(spaceWithConfiguredProjection.fields[0].text,'Название от сервера');
+assert.equal(spaceWithConfiguredProjection.appearance.lines[0].cells.left.color,'#00AA00',
+  'Correct Professional projection has priority over redundant source appearance');
+
 const withoutDiscount = JSON.parse(JSON.stringify(contactCards.contactWorkplaceCard(
   {profile:{name:'Александр'}},
   {key:'studio-4',card:{

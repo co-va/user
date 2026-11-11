@@ -1,4 +1,4 @@
-import { normalizeEntityCardAppearance } from '../../ui/user-ui.js';
+import { normalizeEntityCardAppearance, hasConfiguredEntityCardAppearance } from '../../ui/user-ui.js';
 import { getCardAppearanceTemplate } from '../../core/card-appearance-templates.js';
 
 function firstOf(value, key) {
@@ -36,7 +36,7 @@ function defaultLines(entries = []) {
 }
 
 function hasConfiguredLines(value = {}) {
-  return Array.isArray(value?.lines) && value.lines.some((line)=>String(line?.field||'').trim());
+  return hasConfiguredEntityCardAppearance(value);
 }
 
 export function profileCardFields(profile = {}, workplaces = []) {
