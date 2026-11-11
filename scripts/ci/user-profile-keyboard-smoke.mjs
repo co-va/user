@@ -247,6 +247,27 @@ try {
     };
     const layer = openAccountPersonalDataZ(mount, state);
     if (!layer) throw new Error('Shared personal data editor failed to mount');
+    // The approved shared Q form keeps compact + controls flush right in
+    // each field header. Full-size footer centering must never reach them.
+    const compactHeaders = [...layer.querySelectorAll(
+      '.profile-editor .array-group__header, .profile-editor .ui-links__header',
+    )];
+    if (compactHeaders.length !== 4) {
+      throw new Error('Profile must retain four existing compact add controls');
+    }
+    for (const compactHeader of compactHeaders) {
+      const control = compactHeader.querySelector('.array-row__add, .ui-links__add');
+      if (!control) throw new Error('Missing compact plus control in profile field header');
+      const h = compactHeader.getBoundingClientRect();
+      const c = control.getBoundingClientRect();
+      if (Math.abs(h.right - c.right) > 3) {
+        throw new Error('Profile compact + shifted from the right edge of its field header');
+      }
+      const style = getComputedStyle(control);
+      if (style.marginInlineStart !== '0px' || style.marginInlineEnd !== '0px') {
+        throw new Error('Profile compact + inherited full-size action auto margins');
+      }
+    }
     const input = layer.querySelector('[name="name"]');
     const save = layer.querySelector('[data-account-personal-save]');
     const actions = save?.closest('.modal-actions');

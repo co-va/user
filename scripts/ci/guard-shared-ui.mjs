@@ -163,4 +163,7 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
   'Full-size form and picker controls must match button height');
 
+assert(actionButtonCss.includes('.array-row__add,.ui-links__add'),
+  'Compact add controls must be excluded from full-size shared action centering');
+
 finish('Shared UI');
