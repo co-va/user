@@ -61,6 +61,7 @@ jobs:
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
+          node scripts/ci/user-boot-performance-smoke.mjs
           node scripts/ci/user-email-verification-smoke.mjs
           node scripts/ci/user-notification-settings-smoke.mjs
 
