@@ -212,8 +212,6 @@
 .v2-z--layer.is-dragging{transition:none;animation:none}
 
 .v2-app--workspace .v2-workspace-surface{min-height:100%}
-.v2-app--workspace .v2-z .page-header,.v2-app--workspace .v2-z .app-header{display:none}
-.v2-app--workspace .v2-z .entity-page-header{display:contents}
 .v2-app--workspace .v2-z .v2-workspace-source-hidden{display:none!important}
 .v2-app--workspace .v2-z .app-view-shell{min-height:100%;background:transparent}
 
@@ -280,19 +278,6 @@
 .v2-layer__gesture-zone{position:absolute;z-index:4;left:0;right:0;height:var(--v2-layer-gesture-size);touch-action:none}.v2-layer__gesture-zone--top{bottom:0}.v2-layer__gesture-zone--bottom{top:0}
 .v2-layer__close{position:absolute;top:12px;right:12px;width:38px;height:38px;border:0;border-radius:0;background:transparent;color:var(--v2-ink);font-size:24px}.v2-layer__header{padding-right:48px;margin-bottom:18px}.v2-layer__header h2{margin:0;font-size:23px;line-height:1.1}
 
-.booking-account--account .v2-app,
-.booking-account--account.v2-app{
-  --text:var(--v2-ink);
-  --text-secondary:var(--v2-muted);
-  --text-muted:#A8AAAC;
-  --border:#D7D7D7;
-  --surface-soft:#F2F2F2;
-  --app-bg:var(--v2-white);
-  --white:#fff;
-  --button-secondary:var(--v2-disabled);
-  --active:#EEEEEE;
-  --danger:var(--v2-danger);
-}
 
 .v2-flow-title{margin:0 0 5px;font-size:22px;line-height:1.1}.v2-flow-subtitle{margin:0 0 18px;color:var(--v2-muted);font-size:13px}
 
