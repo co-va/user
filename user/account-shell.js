@@ -1027,7 +1027,7 @@ async function openGlobalContactRecordQ(relationship, workplace, request) {
   return layer;
 }
 
-async function openGlobalContactWorkplaceQ(relationship, workplace, handlers) {
+async function openGlobalContactWorkplaceQ(relationship, workplace, handlers, accountRecords = null) {
   const tenantId = String(relationship?.tenantId || '');
   const workplaceKey = String(workplace?.key || '');
   if (!tenantId || !workplaceKey) return null;
@@ -1038,7 +1038,7 @@ async function openGlobalContactWorkplaceQ(relationship, workplace, handlers) {
   const host = layer?.querySelector('[data-contact-workplace-q]');
   try {
     const [rows, recordAllowed] = await Promise.all([
-      getGlobalContactWorkplaceHistory(tenantId, workplaceKey),
+      getGlobalContactWorkplaceHistory(tenantId, workplaceKey, accountRecords),
       getContactRecordAllowed(tenantId),
     ]);
     const records = Array.isArray(rows) ? rows : [];
@@ -1348,7 +1348,8 @@ async function openGlobalContactDetailZ(root, state, handlers) {
 
   layer.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
     const workplace = workplaces.find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
-    if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace, handlers);
+    if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace, handlers,
+      state.accountRecordsLoaded ? state.accountRecords : null);
   }));
   layer.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
     void openGlobalContactPersonalAccountQ(relationship);

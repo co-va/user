@@ -244,7 +244,7 @@ export async function getGlobalAccountContact(tenantId) {
   );
 }
 
-export async function getGlobalContactWorkplaceHistory(tenantId, workplaceKey) {
+export async function getGlobalContactWorkplaceHistory(tenantId, workplaceKey, knownAccountRecords = null) {
   const tenant = String(tenantId || '').trim();
   const workplace = String(workplaceKey || '').trim();
   const [history, accountRecords] = await Promise.all([
@@ -252,7 +252,7 @@ export async function getGlobalContactWorkplaceHistory(tenantId, workplaceKey) {
       await request(`/account/contacts/${encodeURIComponent(tenant)}/workplaces/${encodeURIComponent(workplace)}/history`, { auth: true }),
       'Не удалось загрузить историю пространства',
     ),
-    getGlobalAccountRecords().catch(() => []),
+    Array.isArray(knownAccountRecords) ? knownAccountRecords : getGlobalAccountRecords().catch(() => []),
   ]);
 
   const merged = new Map();

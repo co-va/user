@@ -58,6 +58,8 @@ assert(!appPerformance.includes('const records = await getGlobalAccountRecords()
 assert(mainPerformance.includes('const warmIfReady = () =>'), 'Record runtime must load after workspace is ready');
 assert(!mainPerformance.includes('void loadRuntime().catch(() => {});\n}'), 'Record runtime cannot eagerly block bootstrap');
 assert(accountPerformance.includes('accountRecordsInFlight === current'), 'Concurrent account record fetch must share one request');
+assert(accountPerformance.includes('Array.isArray(knownAccountRecords)'), 'Workplace must reuse already loaded Journal records');
+assert(read('core/record/platform-api.js').includes('recordContactsPending === pending'), 'Record target reads must deduplicate concurrent calls');
 
 
 finish('Repository');

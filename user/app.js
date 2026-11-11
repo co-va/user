@@ -85,6 +85,7 @@ function createState(initial = {}) {
     relationshipsLoaded: false,
     relationshipsPromise: null,
     accountRecords: [],
+    accountRecordsLoaded: false,
     error: '',
     accountJournalDate: /^\d{4}-\d{2}-\d{2}$/.test(journalDate)
       ? new Date(`${journalDate}T12:00:00`)
@@ -156,6 +157,7 @@ function shellCallbacks(root, state) {
       state.relationshipsLoaded = false;
       state.relationshipsPromise = null;
       state.accountRecords = [];
+      state.accountRecordsLoaded = false;
       state.error = '';
       renderEntry(root, state);
     },
@@ -207,6 +209,7 @@ async function renderHome(root, state) {
     void recordsPromise.then((records) => {
       if (!root.isConnected || root.userRelationshipState !== state) return;
       state.accountRecords = Array.isArray(records) ? records : [];
+      state.accountRecordsLoaded = true;
       root.querySelector('[data-account-journal-root]')?.userJournalRefresh?.();
       // Delay the expensive Contacts prefetch until Journal data is present.
       // A tap on Contacts already starts/reuses loadRelationships immediately.
