@@ -62,11 +62,11 @@ for (let attempt = 1; attempt <= 4; attempt++) {
   console.log(`Asset integrity pass ${attempt}: ${pending.length-bad.length}/${pending.length} match, ${bad.length} stale/missing`);
   for (const fail of bad) console.error(JSON.stringify(fail));
   if (!bad.length) {
-    console.log(`PASS: Amvera staging serves the SAME revision for index, ${links.length} CSS and ${expected.length-links.length-1} key JS files`);
+    console.log(`PASS: ${base} serves the SAME revision for index, ${links.length} CSS and ${expected.length-links.length-1} key JS files`);
     process.exit(0);
   }
   pending = bad.map((item) => item.path);
   if (attempt < 4) await delay(25_000);
 }
-console.error('FAIL: Live staging is inconsistent with current Git revision; do not claim UI restored from source checks.');
+console.error('FAIL: ${base} is inconsistent with approved UI files; do not claim UI restored from source checks.');
 process.exit(1);

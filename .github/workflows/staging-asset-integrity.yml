@@ -24,3 +24,7 @@ jobs:
         env:
           USER_PREVIEW_BASE: https://user-volokovykh.msk1.amvera.tech
         run: node scripts/ci/staging-asset-integrity.mjs
+      - name: Check live production also serves the approved UI assets
+        env:
+          USER_PREVIEW_BASE: https://user.va-tools.ru
+        run: node scripts/ci/staging-asset-integrity.mjs
