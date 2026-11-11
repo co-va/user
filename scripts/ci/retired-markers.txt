@@ -4,3 +4,8 @@ client.va-tools.ru
 booking-targets
 bookingPrice
 __noop__
+ui-list__item
+ui-info__panel
+tag-manager-list
+entity-card__details
+ui-list-toolbar

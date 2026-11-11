@@ -248,4 +248,24 @@ assert(count(read('ui/inputs/inputs.css'), '.password-field__toggle{') === 1,
 assert(count(read('ui/buttons/buttons.css'), '.sheet-icon-button{') === 1,
   'Sheet icon button must have one canonical geometry block');
 
+
+const retiredStandaloneCss = [
+  'ui/cards/entity-card-details.css', 'ui/lists/list.css',
+  'ui/info/info.css', 'ui/tags/tags.css',
+];
+const indexedCssLinks = [...read('index.html').matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map((match) => match[1]);
+const actualCssSources = ['css/style.css', ...walk('ui').filter((file) => file.endsWith('.css'))].sort();
+assert(new Set(indexedCssLinks).size === indexedCssLinks.length,
+  'Every approved CSS stylesheet must be linked only once');
+assert(JSON.stringify([...indexedCssLinks].sort()) === JSON.stringify(actualCssSources),
+  'Shared CSS must have one registered bootstrap owner per actual file');
+for (const file of retiredStandaloneCss) {
+  assert(!walk('ui').includes(file) && !indexedCssLinks.includes(file),
+    'Retired standalone CSS returned: ' + file);
+}
+const staleClassRefs = [...walk('core'), ...walk('user'), ...walk('ui')].filter((file) =>
+  /\.(js|css|html)$/.test(file) &&
+  /(?:ui-list(?:__|--|\{|\s)|ui-info(?:__|--|\{|\s)|ui-tags(?:__|--|\{|\s)|tag-manager-list|entity-card__details|ui-list-toolbar)/.test(read(file)));
+assert(staleClassRefs.length === 0, 'Retired list/tag/info/details UI still referenced: ' + staleClassRefs.join(', '));
+
 finish('Shared UI');
