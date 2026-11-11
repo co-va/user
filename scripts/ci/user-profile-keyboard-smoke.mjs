@@ -212,6 +212,21 @@ assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='name')?.text,'
 assert.equal(profileWithEmptyProjection.fields.find(x=>x.value==='profession')?.text,'Парикмахер',
   'Public profile profession must not disappear when card.fields is empty');
 assert.equal(profileWithEmptyProjection.image,'/saved-photo.jpg','Keep the Professional photo');
+const nineEmptyProjectionFields = Array.from({length:9}, (_,index) => ({
+  value:index===0?'name':'empty-field-'+index, text:'',
+}));
+const profileWithNineBlankFields = JSON.parse(JSON.stringify(contactCards.relationshipCard({
+  tenantId:'tenant-nine-empty',
+  profile:{
+    name:'Александр',surname:'Профессионал',profession:'Парикмахер',
+    cardAppearance:savedProfileAppearance,
+    card:{appearance:savedProfileAppearance,fields:nineEmptyProjectionFields},
+  },
+})));
+assert.equal(profileWithNineBlankFields.fields.find(x=>x.value==='name')?.text,'Александр Профессионал',
+  'Nine blank projected values must not hide public profile name');
+assert.equal(profileWithNineBlankFields.fields.find(x=>x.value==='profession')?.text,'Парикмахер',
+  'Nine blank projected values must not hide public profile profession');
 const savedSpaceAppearance = {
   lines:[{cells:{center:{field:'workplaceName',color:'#ffffff'}}},
          {cells:{left:{field:'address',color:'#ffffff'}}}],
@@ -264,6 +279,16 @@ assert.deepEqual(presentedAccount.fields, assigned,
 assert.equal(presentedAccount.image, '/wallet.jpg');
 assert.equal(presentedAccount.data, 'data-global-contact-personal-account',
   'Personal account continues opening its own ledger');
+const programWithNineBlankFields = JSON.parse(JSON.stringify(renderProgram({
+  type:'deposit',title:'Публичный депозит',balance:1500,
+  card:{appearance:cardAppearance,fields:nineEmptyProjectionFields,photo:'/deposit.jpg'},
+})));
+assert.equal(programWithNineBlankFields.fields.find(x=>x.value==='title')?.text,'Публичный депозит',
+  'Blank projected deposit card must retain already-public title');
+assert.ok(programWithNineBlankFields.fields.some(x=>x.value==='balance' && String(x.text).trim()),
+  'Blank projected deposit card must retain already-public balance');
+assert.equal(programWithNineBlankFields.image,'/deposit.jpg',
+  'Blank projected deposit card must retain Professional photo');
 const legacy = renderProgram({type:'deposit', title:'Старый депозит', depositId:'old-1', balance:3000});
 assert.ok(Array.isArray(legacy.fields), 'Existing API still renders without a presentation');
 console.log('PASS: User follows Professional program card presentation without shifting fields or photos');

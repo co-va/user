@@ -205,8 +205,9 @@ function professionalContactCard(card = null, source = {}) {
   const projectedFields = Array.isArray(card?.fields) ? card.fields : [];
   // When the projection lost ALL values, restore only already-public fields
   // from the same payload. Never infer positions or expose private fields.
-  const fields = projectedFields.length ? projectedFields
-    : Array.isArray(source.fields) ? source.fields : [];
+  const hasProjectedValues = projectedFields.some((item) => String(item?.text ?? '').trim() !== '');
+  const fields = hasProjectedValues ? projectedFields
+    : Array.isArray(source.fields) ? source.fields : projectedFields;
   return {
     appearance: configured,
     fields,
@@ -889,7 +890,7 @@ function contactProgramCard(program = {}) {
   const meta = personal && Number(program.debtTotal || 0) > 0.009
     ? `Задолженность ${money(program.debtTotal)}`
     : personal ? 'Программа' : String(program.status || '');
-  const view = professionalContactCard(program.card) || {
+  const fallback = {
     appearance: CONTACT_PROGRAM_CARD_APPEARANCE,
     fields: [
       { value: 'title', label: 'Программа', text: title },
@@ -899,6 +900,9 @@ function contactProgramCard(program = {}) {
     image: '',
     imagePosition: '50% 50%',
   };
+  // Use only the already-public program fields when Core supplies an empty
+  // projection. Nonempty Professional projections remain untouched.
+  const view = professionalContactCard(program.card, { fields: fallback.fields }) || fallback;
   return entityVisualCard({
     ...view,
     interactive: true,
