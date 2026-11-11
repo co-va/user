@@ -39,5 +39,10 @@ for (const root of entries) follow(root);
 assert(missing.size === 0, 'Unresolved User JS module dependencies: ' + [...missing].sort().join(', '));
 const orphanUi = [...modules].filter((file) => file.startsWith('ui/') && !seen.has(file)).sort();
 assert(orphanUi.length === 0, 'Unused UI JavaScript source still shipped: ' + orphanUi.join(', '));
+// Root V2 detection has one owner; wrappers may orchestrate but not duplicate it.
+const rootOwners = walk('ui/v2').filter((file) => file.endsWith('.js') &&
+  read(file).includes("root?.matches?.('[data-v2-app]')"));
+assert(rootOwners.length === 1 && rootOwners[0] === 'ui/v2/root-app.js',
+  'V2 root resolver must have exactly one owner: ' + rootOwners.join(', '));
 console.log(`UI graph: ${[...modules].filter((file) => file.startsWith('ui/')).length - orphanUi.length} reachable UI JS modules, ${orphanUi.length} orphans`);
 finish('UI graph');
