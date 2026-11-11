@@ -229,4 +229,18 @@ assert(!read('ui/user-ui.js').includes('initSegmentControls') &&
   !read('ui/selection/index.js').includes('segment-control.js'),
   'Unused legacy segment JS must not be re-exported as a second UI owner');
 
+
+const retiredBusinessFormCss = [
+  'ui/cost/cost.css', 'ui/payment/payment.css', 'ui/workplaces/workplaces.css',
+];
+for (const file of retiredBusinessFormCss) {
+  assert(!walk('ui').includes(file) && !read('index.html').includes(file),
+    'Retired legacy business-form CSS must not return: ' + file);
+}
+const retiredBusinessClassOwners = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\b(?:cost-field|cost-range|cost-modes|work-time-row|workplace-content|workplace-control|workplace-selector|workplace-select-row|payment-summary-mini-card|payment-item-head|record-payment-actions)(?:\b|__|--)/.test(read(file)));
+assert(retiredBusinessClassOwners.length === 0,
+  'Unused payment/cost/workplace UI cannot remain referenced: ' + retiredBusinessClassOwners.join(', '));
+
 finish('Shared UI');
