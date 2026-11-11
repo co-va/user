@@ -160,3 +160,5 @@
 - Из `ui/cards/index.js` удалён отдельный неиспользуемый генератор `entityCard`; существующая карта Professional→User, `entityCardStack` и `entityCardRail` не переписывались.
 - В CSS убраны только соответствующие старые правила заголовков, таблиц и `booking-account` из Page/Header/Calendar/V2/Settings/Forms. Стили `entity-details`, `profile-actions` и активный `.app-header` сохранены.
 - Retired markers и Shared guard защищают единственных владельцев UI от возврата дубликатов; main, core и professional не изменялись.
+
+**CI-привязка после фазы B:** старое условие для удалённой панели согласий заменено проверкой действующего `entity-details`. Историческая ссылка из комментария WLIST2 на удалённый генератор `entityCard()` заменена на канонический `entityVisualCard()`, код списка не менялся.
