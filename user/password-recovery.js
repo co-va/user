@@ -7,6 +7,7 @@ import {
   initPasswordFields,
   passwordField,
 } from '../ui/inputs/index.js';
+import { button } from '../ui/buttons/index.js';
 import { openNotice } from '../ui/modals/index.js';
 import { v2Sticker } from '../ui/v2/sticker.js';
 import { formError, formView } from '../ui/forms/index.js';
@@ -83,7 +84,7 @@ function renderInvalidReset(root, message) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Восстановление пароля',
     body: formError(message || 'Ссылка восстановления недействительна или истекла.'),
-    action: '<button class="ui-button" type="button" data-password-reset-login>Войти</button>',
+    action: button('Войти', { data: 'data-password-reset-login' }),
     className: 'v2-sticker-screen--auth',
     closeData: 'data-password-reset-close',
   })}</section>`;
@@ -95,7 +96,7 @@ function renderResetSuccess(root) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title: 'Пароль изменён',
     body: '<p>Новый пароль сохранён. Теперь можно войти.</p>',
-    action: '<button class="ui-button" type="button" data-password-reset-login>Войти</button>',
+    action: button('Войти', { data: 'data-password-reset-login' }),
     className: 'v2-sticker-screen--auth',
     closeData: 'data-password-reset-close',
   })}</section>`;
@@ -123,7 +124,7 @@ export function renderPasswordReset(root) {
     root.innerHTML = `<section class="user-account">${v2Sticker({
       title: 'Новый пароль',
       body: form,
-      action: '<button class="ui-button" type="submit" form="user-password-reset">Сохранить</button>',
+      action: button('Сохранить', { type: 'submit', data: 'form="user-password-reset"' }),
       className: 'v2-sticker-screen--auth',
       closeData: 'data-password-reset-close',
     })}</section>`;

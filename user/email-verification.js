@@ -1,4 +1,5 @@
 import { confirmAccountEmailVerification } from '../core/account/email.js';
+import { button } from '../ui/buttons/index.js';
 import { v2Sticker } from '../ui/v2/sticker.js';
 import { formError } from '../ui/forms/index.js';
 
@@ -14,7 +15,7 @@ function renderResult(root, { title, body = '', error = '' } = {}) {
   root.innerHTML = `<section class="user-account">${v2Sticker({
     title,
     body: `${body}${formError(error)}`,
-    action: '<button class="ui-button" type="button" data-email-verification-continue>Продолжить</button>',
+    action: button('Продолжить', { data: 'data-email-verification-continue' }),
     className: 'v2-sticker-screen--auth',
   })}</section>`;
   root.querySelector('[data-email-verification-continue]')?.addEventListener('click', goToUser);

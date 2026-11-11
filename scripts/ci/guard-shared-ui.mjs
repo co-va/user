@@ -191,4 +191,10 @@ assert(count(actionButtonCss, '.sheet-icon-button{') === 1,
 assert(!read('ui/header/index.js').includes('export function pageHeader('),
   'Retired page header must not return alongside V2 Header');
 
+
+const userButtonMarkup = walk('user').filter((file) => file.endsWith('.js')).filter((file) =>
+  /<button\b[^>]*\bclass\s*=\s*["'][^"']*\bui-button\b/.test(read(file)));
+assert(userButtonMarkup.length === 0,
+  `Full-size User actions must use the single Shared button() owner: ${userButtonMarkup.join(', ')}`);
+
 finish('Shared UI');
