@@ -1,0 +1,26 @@
+name: User / Staging Asset Integrity
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - '.github/workflows/staging-asset-integrity.yml'
+      - 'scripts/ci/staging-asset-integrity.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check live preview matches repository for ALL linked CSS and critical JavaScript
+        env:
+          USER_PREVIEW_BASE: https://user-volokovykh.msk1.amvera.tech
+        run: node scripts/ci/staging-asset-integrity.mjs
