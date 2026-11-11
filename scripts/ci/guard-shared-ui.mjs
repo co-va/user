@@ -190,4 +190,18 @@ const accordionReferences = [...walk('core'), ...walk('user'), ...walk('ui')]
 assert(accordionReferences.length === 0,
   'A retired accordion must not return as a parallel UI: ' + accordionReferences.join(', '));
 
+
+const retiredPureCss = [
+  'ui/cards/folder-card.css', 'ui/layout/layout.css',
+];
+for (const stylesheet of retiredPureCss) {
+  assert(!walk('ui').includes(stylesheet) && !read('index.html').includes(stylesheet),
+    'Dead standalone UI stylesheet must not be restored: ' + stylesheet);
+}
+const retiredUiClassReferences = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\b(?:ui-folder-(?:grid|card|list)|two-column-layout|column-layout)(?:\b|__|--)/.test(read(file)));
+assert(retiredUiClassReferences.length === 0,
+  'Retired folder/column layout UI must not come back: ' + retiredUiClassReferences.join(', '));
+
 finish('Shared UI');
