@@ -53,6 +53,15 @@ jobs:
             | xargs -0 -n1 node --check
           node --check service-worker.js
 
+      - name: Build versioned, cached browser assets
+        shell: bash
+        run: |
+          npm install --no-save --no-package-lock esbuild@0.25.12
+          node scripts/build-web.mjs
+          test "$(find dist/assets -name 'styles-*.css' | wc -l)" -ge 1
+          grep -Eq '/assets/[0-9a-f]{20}/user/main-[A-Za-z0-9_-]+\.js' dist/index.html
+          ! grep -q 'href="ui/.*\.css"' dist/index.html
+
       - name: Local UI browser smoke
         shell: bash
         run: |
