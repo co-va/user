@@ -24,7 +24,10 @@ import { formError, formView } from '../ui/forms/index.js';
 let shellPromise = null;
 
 function loadShell() {
-  if (!shellPromise) shellPromise = import('./account-shell.js');
+  if (!shellPromise) shellPromise = import('./account-shell.js').catch((error) => {
+    shellPromise = null;
+    throw error;
+  });
   return shellPromise;
 }
 
@@ -195,6 +198,10 @@ async function renderHome(root, state) {
 
   await renderShell(root, state, callbacks);
 
+  // Warm Contacts while Journal is already interactive. Navigation reuses the
+  // same in-flight promise, with no extra layout, duplicate list or spinner.
+  if (tab === 'journal') void loadRelationships(state).catch(() => []);
+
   // Never block the User workspace while checking account email verification.
   if (root.isConnected && root.userRelationshipState === state) {
     void import('./email-verification-reminder.js')
@@ -286,6 +293,8 @@ function renderEntry(root, state) {
 
     let loginSucceeded = false;
     try {
+      // Fetch the workspace in parallel with login, without blocking auth.
+      void loadShell().catch(() => undefined);
       const payload = await loginGlobalAccount(identifier, password);
       loginSucceeded = true;
       state.account = payload.account;
@@ -468,6 +477,9 @@ export async function renderUser(root, initial = {}) {
     return;
   }
   renderLoading(root);
+  // Overlap Shared workspace module loading with the two existing session
+  // requests instead of serially waiting for the API before fetching the UI.
+  void loadShell().catch(() => undefined);
 
   try {
     const [account, platformState] = await Promise.all([
