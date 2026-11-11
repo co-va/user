@@ -145,6 +145,37 @@ try {
   assert.ok(appearance.listMinHeight >= 78 && appearance.listPosition === 'relative',
     'WLIST2 must retain its card geometry rather than flattening into plain rows');
   console.log('PASS: approved Day/Month/List and WLIST2 appearance');
+  // Unread belongs to List navigation, not a Day/Month banner or second modal.
+  await page.evaluate(() => {
+    window.__VA_TOOLS_SERVICE_UNSEEN__ = {
+      total: 1, items: [{
+        id: 'unseen-1', tenantId: 'tenant-one', entityType: 'record',
+        type: 'booking.deleted', recordIds: ['removed-1'], date: '2026-11-06',
+      }],
+    };
+    window.dispatchEvent(new CustomEvent('va-tools:service-unseen'));
+  });
+  const listTab = page.locator('[data-v2-z-header-row="0"] [data-view="list"]');
+  await page.waitForFunction(() => document.querySelector('[data-v2-z-header-row="0"] [data-view="list"]')?.classList.contains('has-notification'));
+  assert.equal(await listTab.getAttribute('aria-label'), 'Список, есть изменения');
+  assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
+  assert.equal(await page.getByText('Изменения в записях', { exact: false }).count(), 0);
+  await page.locator('[data-v2-z-header-row="0"] [data-view="day"]').click();
+  assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="day"].has-notification').count(), 0);
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);
+  await page.locator('[data-v2-z-header-row="0"] [data-view="month"]').click();
+  assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
+  assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);
+  await page.locator('[data-v2-z-header-row="0"] [data-view="list"]').click();
+  await page.locator('.journal-list-record--deleted').waitFor();
+  // Deletion history remains visible when the List layout changes; no re-fetch flicker.
+  await page.locator('[data-v2-z-header-row="1"] [data-view="time"]').click();
+  assert.equal(await page.locator('.journal-list-record--deleted').count(), 1);
+  await page.locator('[data-v2-z-header-row="1"] [data-view="flow"]').click();
+  assert.equal(await page.locator('.journal-list-record--deleted').count(), 1);
+  console.log('PASS: unread dot belongs to List only; deleted entries persist across List modes');
+
 
   // The shared Z Header must keep the first list row clear of its controls.
   const navGap = await page.evaluate(() => {

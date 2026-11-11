@@ -18,6 +18,7 @@ import {
   viewNavigation,
 } from '../ui/user-ui.js';
 import { getServiceUnseenState, loadDeletedRecordHistory, loadJournalHiddenRecords, markRecordsSeen } from '../core/notifications/service-unseen.js';
+import { setViewNotification } from '../ui/view-navigation/view-navigation.js';
 import { clearV2Y, setV2Y } from '../ui/v2/index.js';
 import { clearV2ZHeaderRows, setV2ZHeaderRows } from '../ui/v2/z-layout.js';
 import { initNoteReels, noteReels } from '../ui/note/index.js';
@@ -624,10 +625,10 @@ function bindListItems(root, records, events, deletedNotices, rerender) {
   }));
 }
 
-function renderList(root, { records, mode, hiddenKeys }) {
+function renderList(root, { records, mode, hiddenKeys, deletedHistory, loadDeletedHistory }) {
   let disposed = false;
-  let deletedNotices = [];
-  let deletionHistoryError = false;
+  // Keep the same deleted rows while switching List modes; never flash them away.
+  let deletedNotices = deletedHistory.items;
 
   const draw = () => {
     if (disposed || !root.isConnected) return;
@@ -698,18 +699,24 @@ function renderList(root, { records, mode, hiddenKeys }) {
   };
 
   draw();
-  void loadDeletedRecordHistory().then((items) => {
+  void loadDeletedHistory().then((items) => {
     if (disposed) return;
-    deletedNotices = items;
-    draw();
-    // These cards are now displayed in Journal List; read state changes but history remains.
+    if (deletedNotices !== items) {
+      deletedNotices = items;
+      draw();
+    }
+    // A deleted record is acknowledged once only after it is present in List.
     const ids = [...new Set(items.filter((notice) => !notice.read)
-      .map((notice) => String(notice.recordId || '')).filter(Boolean))];
+      .map((notice) => String(notice.recordId || '')).filter(Boolean))]
+      .filter((id) => !deletedHistory.seen.has(id) && !deletedHistory.marking.has(id));
     for (let i = 0; i < ids.length; i += 100) {
-      void markRecordsSeen(ids.slice(i, i + 100), { force: true });
+      const batch = ids.slice(i, i + 100);
+      batch.forEach((id) => deletedHistory.marking.add(id));
+      void markRecordsSeen(batch, { force: true }).then((success) => {
+        if (success) batch.forEach((id) => deletedHistory.seen.add(id));
+      }).finally(() => batch.forEach((id) => deletedHistory.marking.delete(id)));
     }
   }).catch(() => {
-    deletionHistoryError = true;
     if (!disposed && root.isConnected) {
       const error = document.createElement('div');
       error.className = 'muted';
@@ -722,82 +729,6 @@ function renderList(root, { records, mode, hiddenKeys }) {
 }
 
 
-function markOpenedJournalDaySeen(date, records) {
-  if (typeof document === 'undefined' || document.hidden) return;
-  const day = dateKey(date);
-  const displayedRecordIds = new Set(readRecords(records)
-    .filter((record) => String(record?.date || '').slice(0, 10) === day)
-    .filter((record) => String(record?.status || '').toLowerCase() !== 'cancelled')
-    .map(recordId)
-    .filter(Boolean));
-  const seenIds = getServiceUnseenState().items
-    .filter((item) => item.date === day
-      || item.recordIds.some((id) => displayedRecordIds.has(id)))
-    .flatMap((item) => item.recordIds);
-  if (seenIds.length) void markRecordsSeen(seenIds);
-}
-
-const RECORD_NOTICE_LABELS = {
-  'booking.created': 'Запись создана',
-  'booking.rescheduled': 'Запись перенесена',
-  'booking.cancelled': 'Запись отменена',
-  'booking.deleted': 'Запись удалена',
-  'booking.confirmed': 'Запись подтверждена',
-  'booking.no-show': 'Запись не состоялась',
-  'booking.reminder': 'Напоминание о записи',
-};
-
-function openJournalNotices(root) {
-  const items = getServiceUnseenState().items;
-  if (!items.length) return;
-  const rows = items.map((item) => {
-    const date = String(item.date || '').slice(0, 10);
-    const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(date)
-      ? new Date(`${date}T12:00:00`).toLocaleDateString('ru-RU')
-      : 'Дата записи не указана';
-    return v2ListEntry({
-      title: RECORD_NOTICE_LABELS[item.type] || 'Изменение записи',
-      subtitle: dateLabel,
-      initial: 'З',
-    });
-  });
-  const layer = mountModal(document.body, modal(
-    `<h2>Изменения в записях</h2>${v2ListEntries(rows)}
-    <div class="modal-actions">${button('Отметить просмотренными', { data: 'data-journal-notices-seen' })}</div>
-    <div class="muted" data-journal-notices-error aria-live="polite"></div>`,
-    { variant: 'x', xRole: 'action', surface: 'app' },
-  ));
-  layer?.querySelector('[data-journal-notices-seen]')?.addEventListener('click', async (event) => {
-    const control = event.currentTarget;
-    control.disabled = true;
-    const success = await markRecordsSeen(items.flatMap((item) => item.recordIds));
-    if (success) {
-      layer.v2Close?.();
-      root.querySelector('[data-user-journal-notices-host]')?.replaceChildren();
-    } else {
-      control.disabled = false;
-      const error = layer.querySelector('[data-journal-notices-error]');
-      if (error) error.textContent = 'Не удалось отметить изменения. Повторите попытку.';
-    }
-  });
-}
-
-function renderJournalNotices(root) {
-  const host = root.querySelector('[data-user-journal-notices-host]');
-  if (!host) return;
-  const { total } = getServiceUnseenState();
-  host.innerHTML = total > 0
-    ? v2ListEntries([v2ListEntry({
-      title: `Изменения в записях: ${total}`,
-      subtitle: 'Открыть и отметить просмотренными',
-      initial: '!',
-      interactive: true,
-      data: 'data-user-journal-notices',
-      aria: 'Просмотреть изменения записей',
-    })])
-    : '';
-  host.querySelector('[data-user-journal-notices]')?.addEventListener('click', () => openJournalNotices(root));
-}
 
 export function renderJournal(root, options = {}) {
   let activeView = VIEWS.some((view) => view.id === options.initialView) ? options.initialView : 'day';
@@ -808,6 +739,20 @@ export function renderJournal(root, options = {}) {
   let disposeView = () => {};
   const records = options.records;
   const hiddenKeys = new Set();
+  // One Account history request per mounted Journal; List modes share its
+  // result and don't replay the same expensive Core call.
+  const deletedHistory = { items: [], loaded: false, promise: null, seen: new Set(), marking: new Set() };
+  const loadDeletedHistory = () => {
+    if (deletedHistory.loaded) return Promise.resolve(deletedHistory.items);
+    if (!deletedHistory.promise) {
+      deletedHistory.promise = loadDeletedRecordHistory().then((items) => {
+        deletedHistory.items = items;
+        deletedHistory.loaded = true;
+        return items;
+      }).finally(() => { deletedHistory.promise = null; });
+    }
+    return deletedHistory.promise;
+  };
   const visibleRecords = () => readRecords(records).filter((record) => !hiddenKeys.has(recordKey(record)));
 
   const render = () => {
@@ -816,16 +761,17 @@ export function renderJournal(root, options = {}) {
     const secondary = activeView === 'list'
       ? viewNavigation({ views: LIST_MODES, activeView: listMode, ariaLabel: 'Режим списка' })
       : '<div data-user-journal-period-navigation></div>';
-    const rows = setV2ZHeaderRows(root, [viewNavigation({ views: VIEWS, activeView }), secondary]);
+    const views = VIEWS.map((view) => view.id === 'list'
+      ? { ...view, notification: getServiceUnseenState().total > 0 }
+      : view);
+    const rows = setV2ZHeaderRows(root, [viewNavigation({ views, activeView }), secondary]);
     const primaryRoot = rows[0] || null;
     const secondaryRoot = rows[1] || null;
-    root.innerHTML = '<div data-user-journal-notices-host></div><div data-user-journal-view></div>';
-    renderJournalNotices(root);
+    root.innerHTML = '<div data-user-journal-view></div>';
     const viewRoot = root.querySelector('[data-user-journal-view]');
     if (!viewRoot) return;
 
     if (activeView === 'day') {
-      markOpenedJournalDaySeen(selectedDate, visibleRecords);
       const navigationRoot = secondaryRoot?.querySelector('[data-user-journal-period-navigation]') || secondaryRoot;
       disposeView = renderDay(viewRoot, {
         date: selectedDate,
@@ -852,7 +798,7 @@ export function renderJournal(root, options = {}) {
         },
       });
     } else {
-      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys });
+      disposeView = renderList(viewRoot, { records: visibleRecords, mode: listMode, hiddenKeys, deletedHistory, loadDeletedHistory });
       if (secondaryRoot) initViewNavigation(secondaryRoot, {
         views: LIST_MODES,
         activeView: listMode,
@@ -901,14 +847,9 @@ export function renderJournal(root, options = {}) {
   });
   const onServiceUnseen = () => {
     if (!root.isConnected) return;
-    renderJournalNotices(root);
-    if (activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
+    setViewNotification(root.closest('[data-v2-app]') || document, 'list', getServiceUnseenState().total > 0);
   };
   window.addEventListener('va-tools:service-unseen', onServiceUnseen);
-  const onJournalFocus = () => {
-    if (root.isConnected && activeView === 'day') markOpenedJournalDaySeen(selectedDate, visibleRecords);
-  };
-  document.addEventListener('visibilitychange', onJournalFocus);
 
   render();
   return () => {
@@ -916,7 +857,6 @@ export function renderJournal(root, options = {}) {
     disposeView();
     window.removeEventListener('va-tools:service-unseen', onServiceUnseen);
     window.removeEventListener('cova:user-record-hidden', onRecordHidden);
-    document.removeEventListener('visibilitychange', onJournalFocus);
     clearV2ZHeaderRows(root);
     clearV2Y(root);
   };

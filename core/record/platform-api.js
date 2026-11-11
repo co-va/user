@@ -1,4 +1,7 @@
-import { accountRequest } from '../account/index.js';
+import { accountRequest, getAccountToken } from '../account/index.js';
+
+let recordContactsPending = null;
+let recordContactsToken = '';
 
 function normalizePrice(source = {}) {
   return {
@@ -53,8 +56,20 @@ function normalizeContext(source = {}) {
 }
 
 export async function getRecordContacts() {
-  const payload = await accountRequest('/account/record-targets', { auth: true }, 'Не удалось загрузить контакты');
-  return Array.isArray(payload) ? payload : [];
+  const token = getAccountToken();
+  if (recordContactsPending && recordContactsToken === token) return recordContactsPending;
+  recordContactsToken = token;
+  const pending = accountRequest('/account/record-targets', { auth: true }, 'Не удалось загрузить контакты')
+    .then((payload) => Array.isArray(payload) ? payload : []);
+  recordContactsPending = pending;
+  try {
+    return await pending;
+  } finally {
+    if (recordContactsPending === pending) {
+      recordContactsPending = null;
+      recordContactsToken = '';
+    }
+  }
 }
 
 export async function getContactRecordContext(contactId, workplaceKey = '') {

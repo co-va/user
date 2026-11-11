@@ -6,7 +6,6 @@ const SERVICE_UNSEEN_ROLLOUT_AT = Date.parse('2026-10-29T17:20:31.000Z');
 const REFRESH_INTERVAL_MS = 15_000;
 let refreshBusy = false;
 let refreshQueued = false;
-let visibleSeenTimer = null;
 let initialized = false;
 
 function text(value) {
@@ -89,8 +88,8 @@ function syncMarkers() {
   const unseen = unseenRecordIds();
 
   document.querySelectorAll('[data-service-unseen-marker]').forEach((marker) => {
-    const owner = marker.closest('[data-journal-list-record],[data-user-journal-record],[data-time-usage]');
-    const id = text(owner?.dataset?.journalListRecord || owner?.dataset?.userJournalRecord || owner?.dataset?.timeUsage);
+    const owner = marker.closest('[data-journal-list-record],[data-user-journal-record]');
+    const id = text(owner?.dataset?.journalListRecord || owner?.dataset?.userJournalRecord);
     if (!id || !unseen.has(id)) marker.remove();
   });
 
@@ -101,31 +100,6 @@ function syncMarkers() {
     target.prepend(markerNode());
   });
 
-  document.querySelectorAll('[data-time-usage]').forEach((usage) => {
-    const id = text(usage.dataset.timeUsage);
-    if (!id || !unseen.has(id) || usage.querySelector('[data-service-unseen-marker]')) return;
-    const target = usage.querySelector('.journal-record__identity') || usage.querySelector('.journal-record') || usage;
-    target.append(markerNode(' 🔴'));
-  });
-}
-
-function actuallyVisible(node) {
-  if (!node?.isConnected || node.getClientRects().length === 0) return false;
-  const rect = node.getBoundingClientRect();
-  const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
-  const viewportWidth = window.visualViewport?.width || window.innerWidth || document.documentElement.clientWidth || 0;
-  return rect.bottom > 0 && rect.right > 0 && rect.top < viewportHeight && rect.left < viewportWidth;
-}
-
-function visibleDayRecordIds() {
-  const unseen = unseenRecordIds();
-  const ids = [];
-  document.querySelectorAll('[data-time-usage]').forEach((usage) => {
-    const id = text(usage.dataset.timeUsage);
-    if (!id || !unseen.has(id) || !actuallyVisible(usage)) return;
-    ids.push(id);
-  });
-  return [...new Set(ids)];
 }
 
 function removeSeenLocally(ids) {
@@ -158,19 +132,10 @@ export async function markRecordsSeen(ids, { force = false } = {}) {
   }
 }
 
-function scheduleVisibleSeen() {
-  if (visibleSeenTimer) window.clearTimeout(visibleSeenTimer);
-  visibleSeenTimer = window.setTimeout(() => {
-    visibleSeenTimer = null;
-    const ids = visibleDayRecordIds();
-    if (ids.length) void markRecordsSeen(ids);
-  }, 700);
-}
 
 function publish(items) {
   const state = publishServiceUnseen(items);
   syncMarkers();
-  scheduleVisibleSeen();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('va-tools:service-unseen', { detail: state }));
   }
@@ -205,8 +170,7 @@ export function startServiceUnseenRuntime() {
   const observer = new MutationObserver(() => {
     if (disposed) return;
     syncMarkers();
-    scheduleVisibleSeen();
-  });
+    });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   const onRefresh = () => void refreshServiceUnseen();
@@ -232,7 +196,6 @@ export function startServiceUnseenRuntime() {
   return () => {
     disposed = true;
     observer.disconnect();
-    if (visibleSeenTimer) window.clearTimeout(visibleSeenTimer);
     window.clearInterval(interval);
     window.removeEventListener('va-tools:service-unseen-refresh', onRefresh);
     window.removeEventListener('focus', onFocus);

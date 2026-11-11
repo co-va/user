@@ -1027,7 +1027,7 @@ async function openGlobalContactRecordQ(relationship, workplace, request) {
   return layer;
 }
 
-async function openGlobalContactWorkplaceQ(relationship, workplace, handlers) {
+async function openGlobalContactWorkplaceQ(relationship, workplace, handlers, accountRecords = null) {
   const tenantId = String(relationship?.tenantId || '');
   const workplaceKey = String(workplace?.key || '');
   if (!tenantId || !workplaceKey) return null;
@@ -1038,7 +1038,7 @@ async function openGlobalContactWorkplaceQ(relationship, workplace, handlers) {
   const host = layer?.querySelector('[data-contact-workplace-q]');
   try {
     const [rows, recordAllowed] = await Promise.all([
-      getGlobalContactWorkplaceHistory(tenantId, workplaceKey),
+      getGlobalContactWorkplaceHistory(tenantId, workplaceKey, accountRecords),
       getContactRecordAllowed(tenantId),
     ]);
     const records = Array.isArray(rows) ? rows : [];
@@ -1290,9 +1290,31 @@ function restoreContactsHeader(root, state) {
 async function openGlobalContactDetailZ(root, state, handlers) {
   let relationship = selectedGlobalRelationship(state);
   if (!relationship) return null;
+
+  // Open the approved Shared Z immediately. The remote contact payload must
+  // not block tapping the card; its contents appear on the same Z once ready.
+  const title = relationshipTitle(relationship);
+  const layer = mountV2ZLayer(root, v2ZLayer(
+    '<div data-contact-detail-content><div class="muted">Загрузка…</div></div>',
+    { className: 'account-contact-detail-z' },
+  ), {
+    stack: false,
+    dismissible: true,
+    onClose: () => {
+      state.accountSelectedContactTenantId = '';
+      restoreContactsHeader(root, state);
+      bindGlobalContactsV(root, state, handlers);
+    },
+  });
+  if (!layer) return null;
+  layer.setAttribute('aria-label', title);
+  setContactHeader(root, relationship);
+
   try {
     relationship = await loadGlobalContactDetail(state, relationship);
   } catch (error) {
+    if (!layer.isConnected) return layer;
+    layer.v2Close?.();
     openNotice({
       title: 'Контакт не открыт',
       message: accountErrorMessage(error, 'Не удалось загрузить данные контакта'),
@@ -1301,8 +1323,8 @@ async function openGlobalContactDetailZ(root, state, handlers) {
     });
     return null;
   }
+  if (!layer.isConnected) return layer;
 
-  const title = relationshipTitle(relationship);
   const tenantId = String(relationship?.tenantId || '').trim();
   const workplaces = Array.isArray(relationship?.workplaces) ? relationship.workplaces : [];
   const allPrograms = Array.isArray(relationship?.programs) ? relationship.programs : [];
@@ -1315,30 +1337,19 @@ async function openGlobalContactDetailZ(root, state, handlers) {
     : '';
   const relationshipBody = [workplaceRail, programRail].filter(Boolean).join('')
     || emptyState('Пока пусто', 'Данные взаимодействия появятся здесь.');
-  const body = `<div data-global-contact-record-action></div>${relationshipBody}`;
-
+  const host = layer.querySelector('[data-contact-detail-content]');
+  if (!host) return layer;
+  host.innerHTML = `<div data-global-contact-record-action></div>${relationshipBody}`;
+  layer.setAttribute('aria-label', relationshipTitle(relationship));
   setContactHeader(root, relationship);
-  const layer = mountV2ZLayer(root, v2ZLayer(body, { className: 'account-contact-detail-z' }), {
-    stack: false,
-    dismissible: true,
-    onClose: () => {
-      state.accountSelectedContactTenantId = '';
-      restoreContactsHeader(root, state);
-      bindGlobalContactsV(root, state, handlers);
-    },
-  });
-  if (!layer) {
-    restoreContactsHeader(root, state);
-    return null;
-  }
-  layer.setAttribute('aria-label', title);
 
   const contactV = setV2V(root, { data: 'data-global-contact-settings', aria: 'Настройки контакта' });
   contactV?.addEventListener('click', () => openGlobalContactSettings(state, handlers, relationship, layer));
 
   layer.querySelectorAll('[data-global-contact-workplace]').forEach((node) => node.addEventListener('click', () => {
     const workplace = workplaces.find((item) => String(item?.key || '') === String(node.dataset.globalContactWorkplace || ''));
-    if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace, handlers);
+    if (workplace) void openGlobalContactWorkplaceQ(relationship, workplace, handlers,
+      state.accountRecordsLoaded ? state.accountRecords : null);
   }));
   layer.querySelector('[data-global-contact-personal-account]')?.addEventListener('click', () => {
     void openGlobalContactPersonalAccountQ(relationship);
@@ -1357,7 +1368,6 @@ async function openGlobalContactDetailZ(root, state, handlers) {
   }
   return layer;
 }
-
 async function renderGlobalContactDetail(root, state, handlers) {
   state.accountTab = 'contacts';
   state.accountDeckActive = 'contacts';
