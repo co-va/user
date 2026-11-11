@@ -178,4 +178,16 @@ assert(!cardRenderer.includes('mountEntityCardConstructor('),
 assert(entity.includes('.entity-visual-card__row{display:grid;grid-template-columns:repeat(3'),
   'Professional card grid must preserve three-cell geometry in User');
 
+
+// A retired accordion has no product owner; the obsolete CSS must never return.
+assert(!walk('ui').includes('ui/accordion/accordion.css'),
+  'Retired accordion stylesheet must not exist');
+assert(!read('index.html').includes('ui/accordion/'),
+  'Do not load the retired accordion at bootstrap');
+const accordionReferences = [...walk('core'), ...walk('user'), ...walk('ui')]
+  .filter((file) => /\.(js|mjs|css|html)$/.test(file))
+  .filter((file) => /\baccordion(?:[-_]|\b)/i.test(read(file)));
+assert(accordionReferences.length === 0,
+  'A retired accordion must not return as a parallel UI: ' + accordionReferences.join(', '));
+
 finish('Shared UI');
