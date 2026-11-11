@@ -1,0 +1,1 @@
+.empty-state{min-height:150px;border:1px dashed var(--border);border-radius:18px;padding:24px;display:grid;align-content:center;gap:6px;background:var(--white);text-align:center}.empty-state strong{font-size:17px}.empty-state span{color:var(--text-secondary);font-size:14px}

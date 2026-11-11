@@ -213,4 +213,20 @@ assert(bootstrapCss.includes('ui/lists/list-entry.css') &&
   read('ui/lists/list-entry.css').includes('.list-entry{position:relative;'),
   'Approved WLIST2 styles must not be removed by generic CSS cleanup');
 
+
+const retiredSourceFiles = [
+  'ui/states/state-view.js', 'ui/states/state-view.css',
+  'ui/selection/check-list.js', 'ui/selection/check-list.css',
+  'ui/selection/segment-control.js',
+];
+for (const file of retiredSourceFiles) assert(!walk('ui').includes(file),
+  'Retired disconnected Shared UI implementation must not be restored: ' + file);
+assert(read('index.html').includes('ui/states/empty-state.css') &&
+  read('ui/states/empty-state.css').startsWith('.empty-state{') &&
+  read('ui/states/index.js').includes('export function emptyState('),
+  'Keep the active Shared emptyState component and its original CSS');
+assert(!read('ui/user-ui.js').includes('initSegmentControls') &&
+  !read('ui/selection/index.js').includes('segment-control.js'),
+  'Unused legacy segment JS must not be re-exported as a second UI owner');
+
 finish('Shared UI');
