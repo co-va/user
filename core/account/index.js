@@ -7,6 +7,9 @@ const LEGACY_ACCOUNT_EMAIL_KEY = 'user.account.email';
 const REQUEST_TIMEOUT_MS = 12000;
 let globalAccountCacheToken = '';
 let globalAccountCache = null;
+// In-flight only: never cache stale records across saves, push or navigation.
+let accountRecordsInFlight = null;
+let accountRecordsInFlightToken = '';
 
 export function getAccountToken() {
   return localStorage.getItem(ACCOUNT_TOKEN_KEY) || '';
@@ -26,6 +29,8 @@ export function clearAccount() {
   localStorage.removeItem(ACCOUNT_TOKEN_KEY);
   globalAccountCacheToken = '';
   globalAccountCache = null;
+  accountRecordsInFlight = null;
+  accountRecordsInFlightToken = '';
 }
 
 async function request(path, { auth = false, ...options } = {}) {
@@ -303,10 +308,19 @@ export async function deleteGlobalAccountRelationship(tenantId) {
 }
 
 export async function getGlobalAccountRecords() {
-  return jsonResponse(
-    await request('/account/records', { auth: true }),
-    'Не удалось загрузить историю аккаунта',
-  );
+  const token = getAccountToken();
+  if (accountRecordsInFlight && accountRecordsInFlightToken === token) return accountRecordsInFlight;
+  accountRecordsInFlightToken = token;
+  const current = accountRequest('/account/records', { auth: true }, 'Не удалось загрузить историю аккаунта');
+  accountRecordsInFlight = current;
+  try {
+    return await current;
+  } finally {
+    if (accountRecordsInFlight === current) {
+      accountRecordsInFlight = null;
+      accountRecordsInFlightToken = '';
+    }
+  }
 }
 
 export async function getAccountConsentState(tenantId) {

@@ -196,26 +196,40 @@ async function renderHome(root, state) {
     await loadRelationships(state).catch(() => []);
   }
 
+  // The Journal must be usable as soon as its shell exists; records are
+  // applied when Core answers, without blocking the first interactive frame.
+  const recordsPromise = tab === 'journal'
+    ? getGlobalAccountRecords().catch(() => [])
+    : null;
   await renderShell(root, state, callbacks);
 
-  // Warm Contacts while Journal is already interactive. Navigation reuses the
-  // same in-flight promise, with no extra layout, duplicate list or spinner.
-  if (tab === 'journal') void loadRelationships(state).catch(() => []);
+  if (tab === 'journal' && recordsPromise) {
+    void recordsPromise.then((records) => {
+      if (!root.isConnected || root.userRelationshipState !== state) return;
+      state.accountRecords = Array.isArray(records) ? records : [];
+      root.querySelector('[data-account-journal-root]')?.userJournalRefresh?.();
+      // Delay the expensive Contacts prefetch until Journal data is present.
+      // A tap on Contacts already starts/reuses loadRelationships immediately.
+      const warmContacts = () => {
+        if (root.isConnected && root.userRelationshipState === state
+            && !state.relationshipsLoaded && !state.relationshipsPromise) {
+          void loadRelationships(state).catch(() => []);
+        }
+      };
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(warmContacts, { timeout: 2500 });
+      } else {
+        window.setTimeout(warmContacts, 500);
+      }
+    });
+  }
 
-  // Never block the User workspace while checking account email verification.
+  // Verification never blocks Journal or Contacts initial interaction.
   if (root.isConnected && root.userRelationshipState === state) {
     void import('./email-verification-reminder.js')
       .then(({ offerAccountEmailVerificationReminder }) => offerAccountEmailVerificationReminder(root, state))
       .catch(() => undefined);
   }
-
-  if (tab !== 'journal') return;
-  const records = await getGlobalAccountRecords().catch(() => []);
-  if (!root.isConnected) return;
-  state.accountRecords = Array.isArray(records) ? records : [];
-  const journal = root.querySelector('[data-account-journal-root]');
-  if (typeof journal?.userJournalRefresh === 'function') journal.userJournalRefresh();
-  else await renderShell(root, state, callbacks);
 }
 
 async function continueIdentity(root, state) {

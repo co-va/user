@@ -58,7 +58,29 @@ function installRecordRuntimeLoader() {
 
   window.addEventListener('cova:user-record-open-contacts', loadAndReplay);
   window.addEventListener('cova:user-record-start', loadAndReplay);
-  void loadRuntime().catch(() => {});
+
+  // No Record modules compete with login, legal checks or first Journal paint.
+  // Warm only after the authenticated workspace is visible; clicks still load
+  // the same single runtime immediately if it is not warm yet.
+  const warmIfReady = () => {
+    if (!document.querySelector('[data-user-runtime] [data-v2-app]')) return false;
+    const warm = () => void loadRuntime().catch(() => {});
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(warm, { timeout: 3000 });
+    } else {
+      window.setTimeout(warm, 800);
+    }
+    return true;
+  };
+  if (!warmIfReady()) {
+    const observer = new MutationObserver(() => {
+      if (warmIfReady()) observer.disconnect();
+    });
+    observer.observe(document.querySelector('#app') || document.body, {
+      childList: true, subtree: true,
+    });
+    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+  }
 }
 
 function installRecordRefreshTriggers() {
