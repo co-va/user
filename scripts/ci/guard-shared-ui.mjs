@@ -243,4 +243,9 @@ const retiredBusinessClassOwners = [...walk('core'), ...walk('user'), ...walk('u
 assert(retiredBusinessClassOwners.length === 0,
   'Unused payment/cost/workplace UI cannot remain referenced: ' + retiredBusinessClassOwners.join(', '));
 
+assert(count(read('ui/inputs/inputs.css'), '.password-field__toggle{') === 1,
+  'Password control must not have duplicate CSS declarations');
+assert(count(read('ui/buttons/buttons.css'), '.sheet-icon-button{') === 1,
+  'Sheet icon button must have one canonical geometry block');
+
 finish('Shared UI');
