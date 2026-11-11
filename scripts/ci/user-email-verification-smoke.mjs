@@ -5,6 +5,22 @@ const base = process.env.USER_RUNTIME_BASE || 'https://user-volokovykh.msk1.amve
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ serviceWorkers: 'block', ignoreHTTPSErrors: false });
 
+// Mock responses must respect real cross-origin CORS preflights after User
+// switched away from the legacy same-origin read-only /api bridge.
+const corsHeaders = {
+  'access-control-allow-origin': new URL(base).origin,
+  'access-control-allow-credentials': 'true',
+  'access-control-allow-methods': 'GET, POST, PUT, OPTIONS',
+  'access-control-allow-headers': 'authorization,content-type',
+};
+function mockJson(route, payload) {
+  if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: corsHeaders });
+  return route.fulfill({
+    status: 200, contentType: 'application/json', headers: corsHeaders,
+    body: JSON.stringify(payload),
+  });
+}
+
 try {
   // Amvera can briefly serve mismatched assets while staging is republished.
   // Retry the complete real login bootstrap, never skip the requirement.
@@ -27,16 +43,11 @@ try {
 
   let verified = false;
   let requests = 0;
-  await page.route('**/account/email-verification/status', (route) => route.fulfill({
-    status: 200, contentType: 'application/json',
-    body: JSON.stringify({ email: 'test@example.com', verified }),
-  }));
+  await page.route('**/account/email-verification/status', (route) =>
+    mockJson(route, { email: 'test@example.com', verified }));
   await page.route('**/account/email-verification/request', (route) => {
-    requests += 1;
-    return route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: '{"accepted":true,"sent":true,"throttled":false}',
-    });
+    if (route.request().method() !== 'OPTIONS') requests += 1;
+    return mockJson(route, { accepted: true, sent: true, throttled: false });
   });
 
   await page.evaluate(async () => {
@@ -71,12 +82,11 @@ try {
 
   let confirmations = 0;
   await page.route('**/account/email-verification/confirm', (route) => {
-    assert.equal(route.request().headers().authorization, undefined, 'Public confirmation must not require account login');
-    confirmations += 1;
-    return route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: '{"verified":true,"email":"test@example.com"}',
-    });
+    if (route.request().method() !== 'OPTIONS') {
+      assert.equal(route.request().headers().authorization, undefined, 'Public confirmation must not require account login');
+      confirmations += 1;
+    }
+    return mockJson(route, { verified: true, email: 'test@example.com' });
   });
   await page.evaluate(() => localStorage.removeItem('user.account.token'));
   const link = new URL('/verify-email.html?kind=account&token=' + 'a'.repeat(40), base);
