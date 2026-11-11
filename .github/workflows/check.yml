@@ -62,11 +62,20 @@ jobs:
           grep -Eq '/assets/[0-9a-f]{20}/user/main-[A-Za-z0-9_-]+\.js' dist/index.html
           ! grep -q 'href="ui/.*\.css"' dist/index.html
 
+      - name: Docker image and nginx runtime
+        shell: bash
+        run: |
+          docker build --progress=plain -t user-immutable-assets .
+          docker run --rm user-immutable-assets nginx -t
+
       - name: Local UI browser smoke
         shell: bash
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
-          npx playwright install --with-deps chromium
+          # GitHub ubuntu-24.04 already provides Chromium runtime libraries.
+          # Do not invoke apt through --with-deps; mirror DNS failure is not an app regression.
+          npx playwright install chromium
+          node scripts/ci/user-built-runtime-smoke.mjs
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
