@@ -116,6 +116,36 @@ try {
   console.log('JOURNAL FIXTURE: rendered deleted record');
   await page.locator('.journal-list-event').first().waitFor({ timeout: 6_000 });
   console.log('JOURNAL FIXTURE: rendered colored events');
+
+  // Visual contract: the approved Day/Month/List selector must not degrade
+  // into independently rounded native buttons when a CSS file is removed.
+  // WLIST2 also must retain the card-like ListEntry surface and shadow.
+  const appearance = await page.evaluate(() => {
+    const nav = document.querySelector('[data-view-navigation]');
+    const active = nav?.querySelector('[data-view].is-active');
+    const inactive = nav?.querySelector('[data-view]:not(.is-active)');
+    const entry = document.querySelector('[data-user-journal-view] .list-entries .list-entry');
+    if (!nav || !active || !inactive || !entry) return null;
+    return {
+      display: getComputedStyle(nav).display,
+      borderWidth: getComputedStyle(nav).borderTopWidth,
+      activeFill: getComputedStyle(active).backgroundColor,
+      inactiveFill: getComputedStyle(inactive).backgroundColor,
+      listShadow: getComputedStyle(entry).boxShadow,
+      listMinHeight: parseFloat(getComputedStyle(entry).minHeight),
+      listPosition: getComputedStyle(entry).position,
+    };
+  });
+  assert.ok(appearance, 'Journal must render approved navigation and WLIST2');
+  assert.equal(appearance.display, 'flex', 'Day/Month/List must use Shared segment layout');
+  assert.equal(appearance.borderWidth, '1px', 'Day/Month/List must keep its approved outline');
+  assert.notEqual(appearance.activeFill, appearance.inactiveFill,
+    'Journal active selector must keep its Shared active fill');
+  assert.notEqual(appearance.listShadow, 'none', 'WLIST2 must retain its approved shadow');
+  assert.ok(appearance.listMinHeight >= 78 && appearance.listPosition === 'relative',
+    'WLIST2 must retain its card geometry rather than flattening into plain rows');
+  console.log('PASS: approved Day/Month/List and WLIST2 appearance');
+
   // The shared Z Header must keep the first list row clear of its controls.
   const navGap = await page.evaluate(() => {
     const tabs = document.querySelector('[data-v2-z-header-row="1"] [data-view-navigation]');

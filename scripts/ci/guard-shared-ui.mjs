@@ -204,4 +204,13 @@ const retiredUiClassReferences = [...walk('core'), ...walk('user'), ...walk('ui'
 assert(retiredUiClassReferences.length === 0,
   'Retired folder/column layout UI must not come back: ' + retiredUiClassReferences.join(', '));
 
+
+const bootstrapCss = read('index.html');
+assert(bootstrapCss.includes('ui/selection/segment-control.css') &&
+  read('ui/view-navigation/view-navigation.js').includes('class="segment-control"'),
+  'Journal switch must retain its canonical CSS even when obsolete segment JS is removed');
+assert(bootstrapCss.includes('ui/lists/list-entry.css') &&
+  read('ui/lists/list-entry.css').includes('.list-entry{position:relative;'),
+  'Approved WLIST2 styles must not be removed by generic CSS cleanup');
+
 finish('Shared UI');
