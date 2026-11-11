@@ -1357,7 +1357,7 @@ async function openGlobalContactDetailZ(root, state, handlers) {
   layer.querySelectorAll('[data-global-contact-deposit]').forEach((node) => node.addEventListener('click', () => {
     const program = programs.find((item) => String(item?.depositId || '') === String(node.dataset.globalContactDeposit || ''));
     if (program) void openGlobalContactDepositQ(relationship, program);
-  });
+  }));
 
   const recordAllowed = await getContactRecordAllowed(tenantId);
   if (!layer.isConnected) return layer;
