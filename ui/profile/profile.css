@@ -1,5 +1,4 @@
 .modal--profile-editor .profile-editor-form{display:grid;gap:0;min-height:0}
-.modal--profile-editor [data-v2-q-body]{padding-top:6px}
 .profile-editor{display:grid;gap:26px;padding-bottom:8px}
 .profile-editor__section{display:grid;gap:12px;margin:0}
 .profile-editor__section-title{margin:0;color:#111;font-size:16px;line-height:1.2;font-weight:800}
@@ -10,7 +9,7 @@
 .profile-editor .array-group__header,.profile-editor .ui-links__header{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
 .profile-editor .array-group__lead{min-width:0}
 .profile-editor .array-group__lead>.phone-input,.profile-editor .array-group__lead>.profile-editor__primary-input{width:100%}
-.profile-editor__primary-input{width:100%;min-width:0;min-height:46px;border:1px solid var(--border);border-radius:0;padding:10px 12px;background:var(--white);color:var(--text);outline:none;font-size:16px}
+.profile-editor__primary-input{width:100%;min-width:0;height:var(--ui-field-height);min-height:var(--ui-field-height);border:1px solid var(--border);border-radius:0;padding:10px 12px;background:var(--white);color:var(--text);outline:none;font-size:16px}
 .profile-editor__primary-input:focus{border-color:var(--text-secondary)}
 .profile-editor .array-group__header .array-row__add,.profile-editor .ui-links__header .ui-links__add{width:28px;min-width:28px;max-width:28px;height:28px;min-height:28px;max-height:28px;border:0;border-radius:0;padding:0;display:grid;place-items:center;background:transparent;color:#111;font-size:26px;font-weight:400;line-height:1;box-shadow:none}
 .profile-editor .array-group__header .array-row__add:active,.profile-editor .ui-links__header .ui-links__add:active{transform:none;opacity:.55}
