@@ -193,9 +193,12 @@ export function recordTimeRows(items = [], {
 // The shared Record mini-card owns geometry and the fixed header/body/footer.
 export function recordMiniCard({
   confirmation = false,
+  viewer = false,
   workplace = '',
+  status = '',
   date = '',
   from = '',
+  to = '',
   identity = '',
   phone = '',
   procedures = [],
@@ -215,13 +218,17 @@ export function recordMiniCard({
   return miniCard({
     className: `record-summary-mini-card${confirmation ? ' record-summary-mini-card--confirmation' : ''}`,
     recordLayout: {
-      workplace,
-      moment: [date, from].filter(Boolean).join(' · '),
-      identity,
-      phone,
+      // User viewer reuses the Professional-approved person-first geometry,
+      // presenting the provider/workplace instead of duplicating the user's own name.
+      workplace: viewer ? '' : workplace,
+      headerMode: viewer ? 'person' : '',
+      moment: [date, to && from && to !== from ? `${from}–${to}` : from].filter(Boolean).join(' · '),
+      identity: viewer ? (workplace || 'Рабочее пространство') : identity,
+      phone: viewer ? status : phone,
       services: serviceLines,
-      details,
+      details: viewer ? [] : details,
       duration: confirmation ? duration : 'Стоимость',
+      footerLayout: viewer ? 'three-column' : '',
       discount,
       total,
       rightAction: compactAction,

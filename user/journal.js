@@ -161,14 +161,18 @@ function openUserRecord(record) {
   const shownDiscount = Number(finance.serviceTotal) - Number(finance.planTotal);
   const card = recordMiniCard({
     confirmation: true,
-    workplace: status || workplace || 'Запись',
+    viewer: true,
+    workplace: workplace || 'Запись',
+    status,
     date: shortDate(record?.date, ''),
     from: String(record?.from || ''),
+    to: String(record?.to || ''),
     identity: [person.uei, person.name, person.surname].map((part) => String(part || '').trim()).filter(Boolean).join(' '),
     phone: String(person.phone || ''),
     procedures,
     duration: recordDurationLabel(record),
-    discount: !deleted && Number.isFinite(shownDiscount) && shownDiscount > 0.009 ? `Скидка: ${money(shownDiscount)}` : '',
+    // The shared three-column footer already owns the caption «Скидка».
+    discount: !deleted && Number.isFinite(shownDiscount) && shownDiscount > 0.009 ? money(shownDiscount) : '',
     total: deleted ? '' : money(amountDue(record)),
     compactAction: canRepeat ? {
       label: '↻',

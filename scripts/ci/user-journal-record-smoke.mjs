@@ -79,13 +79,13 @@ try {
     localStorage.setItem('user.account.token', 'journal-test');
   });
   const sourceRecords = [
-    { id: 'future-1', tenantId: 'tenant-one', date: '2026-11-07', from: '12:00', to: '15:00',
+    { id: 'future-1', tenantId: 'tenant-one', workplaceName: 'Бьюти тория', date: '2026-11-07', from: '12:00', to: '15:00',
       procedures: [
         { id: 'cut', name: 'Стрижка-женская', cost: 4000 },
         { id: 'color', name: 'Окраска', cost: 14000 },
         { id: 'shatush', name: 'Шатуш', cost: 3000 },
       ], finance: { planTotal: 21000 }, payment: { state: 'due', due: 21000 } },
-    { id: 'paid-1', tenantId: 'tenant-one', date: '2026-11-06', from: '10:00', to: '11:00',
+    { id: 'paid-1', tenantId: 'tenant-one', workplaceName: 'Бьюти тория', date: '2026-11-06', from: '10:00', to: '11:00',
       procedures: [{ id: 'cut', name: 'Стрижка', cost: 3000 }],
       finance: { planTotal: 3000 }, payment: { state: 'paid', paid: 3000, due: 0 } },
     { id: 'debt-1', tenantId: 'tenant-one', date: '2026-11-05', from: '10:00', to: '11:00',
@@ -292,11 +292,42 @@ try {
     middle: getComputedStyle(el.querySelector('.mini-card__record-center')).overflowY,
     bottom: el.querySelector('.mini-card__record-footer')?.parentElement === el,
     nowrap: getComputedStyle(el.querySelector('.mini-card__record-moment')).whiteSpace,
+    personGeometry: el.classList.contains('mini-card--record-person'),
+    provider: el.querySelector('.mini-card__record-identity')?.textContent,
+    period: el.querySelector('.mini-card__record-moment')?.textContent,
+    titleFont: getComputedStyle(el.querySelector('.mini-card__record-identity')).fontSize,
+    serviceFont: getComputedStyle(el.querySelector('.mini-card__record-center .mini-card__line')).fontSize,
+    priceFont: getComputedStyle(el.querySelector('.mini-card__record-center .mini-card__line-right')).fontSize,
+    noLeft: el.querySelector('.mini-card__record-top')?.classList.contains('mini-card__record-top--no-left'),
+    placeholderHidden: getComputedStyle(el.querySelector('.mini-card__record-action-placeholder--left')).display,
+    threeTotals: el.querySelector('.mini-card__record-footer')?.classList.contains('mini-card__record-footer--triple'),
+    totalColumns: el.querySelectorAll('.mini-card__record-stat').length,
+    footerCaptions: [...el.querySelectorAll('.mini-card__record-stat-label')].map(node=>node.textContent),
+    footerValues: [...el.querySelectorAll('.mini-card__record-stat-value')].map(node=>node.textContent),
+    centerRows: el.querySelectorAll('.mini-card__record-center .mini-card__line').length,
+    centerText: el.querySelector('.mini-card__record-center')?.textContent,
   }));
-  assert.deepEqual(dimensions, { width: 290, height: 200, top: true, middle: 'auto', bottom: true, nowrap: 'nowrap' });
-  assert.ok((await liveQ.locator('.mini-card__record-center').innerText()).includes('Стрижка-женская'));
-  assert.ok((await liveQ.locator('.mini-card__record-footer').innerText()).includes('21 000'));
-  assert.ok((await liveQ.locator('.mini-card__record-duration').innerText()).includes('3 ч'));
+  assert.equal(dimensions.width, 290);
+  assert.equal(dimensions.height, 200);
+  assert.equal(dimensions.top && dimensions.bottom && dimensions.personGeometry, true,
+    'User record viewer must use the same fixed-head/footer geometry as Professional');
+  assert.equal(dimensions.middle, 'auto');
+  assert.equal(dimensions.nowrap, 'nowrap');
+  assert.equal(dimensions.provider, 'Бьюти тория', 'The receiver sees the workplace, not their own repeated identity');
+  assert.equal(dimensions.period, '07.11.26 · 12:00–15:00');
+  assert.equal(dimensions.titleFont, '16px');
+  assert.equal(dimensions.serviceFont, '15px');
+  assert.equal(dimensions.priceFont, '15px');
+  assert.equal(dimensions.noLeft, true, 'User cannot receive Professional service settings');
+  assert.equal(dimensions.placeholderHidden, 'none', 'One action reclaims unused left slot');
+  assert.equal(dimensions.threeTotals, true);
+  assert.equal(dimensions.totalColumns, 3);
+  assert.deepEqual(dimensions.footerCaptions, ['Время', '', 'Итого']);
+  assert.equal(dimensions.footerValues[0], '3 ч');
+  assert.match(dimensions.footerValues[2], /21\s?000\s?₽/);
+  assert.equal(dimensions.centerRows, 3, 'Only booked services belong in viewer');
+  assert.equal(/К оплате|Оплачено|Программа/.test(dimensions.centerText), false,
+    'Payment statuses and programs must not be duplicated inside service area');
   await page.evaluate(() => {
     window.__repeat = null;
     window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
@@ -311,9 +342,10 @@ try {
   await page.locator('.journal-list-record--deleted').click();
   const deletedQ = page.locator('[data-v2-q="true"]').last();
   await deletedQ.locator('[data-user-journal-record-preview] .record-summary-mini-card--confirmation').waitFor();
-  assert.ok((await deletedQ.locator('.mini-card__record-workplace').innerText()).includes('Удалена'));
+  assert.equal(await deletedQ.locator('.mini-card__record-identity').innerText(), 'Запись');
+  assert.ok((await deletedQ.locator('.mini-card__record-phone').innerText()).includes('Удалена'));
   assert.equal(await deletedQ.locator('[data-user-record-hide]').count(), 0);
-  assert.equal(await deletedQ.locator('.mini-card__record-total').innerText(), '');
+  assert.equal(await deletedQ.locator('.mini-card__record-stat--total .mini-card__record-stat-value').innerText(), '');
   await page.evaluate(() => {
     window.__repeat = null;
     window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
