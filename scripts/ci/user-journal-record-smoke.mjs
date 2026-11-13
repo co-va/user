@@ -13,6 +13,7 @@ const fixture = '<!doctype html><html><head><meta charset="utf-8">' +
   '</head><body><div class="app-shell" id="app"></div></body></html>';
 const types = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const hidden = new Set();
+const seenRequests = [];
 const deleted = {
   id: 'notice-1', tenantId: 'tenant-one', recordId: 'removed-1',
   date: '2026-11-06', from: '16:00', to: '19:00',
@@ -41,6 +42,12 @@ const server = createServer(async (req, res) => {
   }
   if (path === '/account/deleted-record-history') return sendJson(res, { items: [deleted] });
   if (path === '/account/events') return sendJson(res, accountEvents);
+  if (path === '/account/service-unseen/seen' && req.method === 'POST') {
+    let payload = '';
+    for await (const chunk of req) payload += chunk;
+    seenRequests.push(JSON.parse(payload));
+    return sendJson(res, { ok: true });
+  }
   if (path === '/account/journal-hidden-records' && req.method === 'GET') {
     return sendJson(res, { items: [...hidden].map((key) => {
       const [tenantId, recordId] = JSON.parse(key);
@@ -358,6 +365,25 @@ try {
   assert.equal(sourceRecords.length, 3);
   await mount();
   await page.locator('.journal-list-record--deleted').waitFor();
+  // The Journal uses [tenantId,recordId] in its DOM; notifications use
+  // recordIds. Opening a record must acknowledge exactly its real record ID.
+  await page.evaluate(() => {
+    window.__VA_TOOLS_SERVICE_UNSEEN__ = {
+      total: 1,
+      items: [{ id:'fresh-1', tenantId:'tenant-one', entityType:'record',
+        type:'booking.updated', recordIds:['future-1'], date:'2026-11-07' }],
+    };
+    window.dispatchEvent(new CustomEvent('va-tools:service-unseen'));
+  });
+  const freshRow = page.locator('.journal-list-record--active')
+    .filter({ hasText: 'Стрижка-женская' }).first();
+  await freshRow.locator('[data-service-unseen-marker]').waitFor({ timeout: 5_000 });
+  await freshRow.click();
+  await page.waitForFunction(() => window.__VA_TOOLS_SERVICE_UNSEEN__?.total === 0, null, { timeout: 5_000 });
+  assert.deepEqual(seenRequests.filter((r) => r.recordIds?.includes('future-1')),
+    [{ recordIds:['future-1'] }], 'One record open must create one seen API request with raw recordId');
+  console.log('PASS: opening a composite-key User Journal record clears its unread marker once');
+
   console.log('PASS: Journal Q uses shared record mini-card, repeat icon only, no delete/hide action');
 
 } finally {

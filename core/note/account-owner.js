@@ -1,9 +1,15 @@
 import { accountRequest } from '../account/index.js';
+import { createAccountCacheScope } from '../account/session-cache.js';
 
 const NOTE_DEFAULT_COLOR = '#CFC3FF';
 let rows = [];
 let loaded = false;
 let loading = null;
+const sessionScope = createAccountCacheScope(() => {
+  rows = [];
+  loaded = false;
+  loading = null;
+});
 
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
@@ -46,9 +52,10 @@ function replaceRow(value) {
   return clone(note);
 }
 
-export function accountNotesLoaded() { return loaded; }
-export function getAccountNotes() { return rows.map(clone); }
+export function accountNotesLoaded() { sessionScope.current(); return loaded; }
+export function getAccountNotes() { sessionScope.current(); return rows.map(clone); }
 export function getAccountNote(id) {
+  sessionScope.current();
   const row = rows.find((item) => item.id === String(id || ''));
   return row ? clone(row) : null;
 }
@@ -58,19 +65,23 @@ export function getAccountNotesForDay(date) {
 }
 
 export async function loadAccountNotes({ force = false } = {}) {
+  const scope = sessionScope.current();
   if (loaded && !force) return getAccountNotes();
   if (loading && !force) return loading;
-  loading = accountRequest('/account/notes', { auth: true }, 'Не удалось загрузить заметки.')
+  const pending = accountRequest('/account/notes', { auth: true }, 'Не удалось загрузить заметки.')
     .then((payload) => {
+      if (!sessionScope.matches(scope)) return [];
       rows = (Array.isArray(payload) ? payload : []).map(normalize).filter((item) => item.id);
       loaded = true;
       return getAccountNotes();
     })
-    .finally(() => { loading = null; });
-  return loading;
+    .finally(() => { if (loading === pending) loading = null; });
+  loading = pending;
+  return pending;
 }
 
 export async function createAccountNote(input = {}) {
+  const scope = sessionScope.current();
   const note = normalize({
     ...input,
     id: String(input?.id || noteId()),
@@ -86,11 +97,13 @@ export async function createAccountNote(input = {}) {
     },
     'Сервер не подтвердил сохранение заметки.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   loaded = true;
   return replaceRow(saved);
 }
 
 export async function updateAccountNote(id, patch = {}) {
+  const scope = sessionScope.current();
   const current = getAccountNote(id);
   if (!current) throw new Error('Заметка не найдена.');
   const note = normalize({
@@ -111,11 +124,13 @@ export async function updateAccountNote(id, patch = {}) {
     },
     'Сервер не подтвердил сохранение заметки.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   loaded = true;
   return replaceRow(saved);
 }
 
 export async function removeAccountNote(id) {
+  const scope = sessionScope.current();
   const key = String(id || '');
   if (!key) return false;
   await accountRequest(
@@ -123,6 +138,7 @@ export async function removeAccountNote(id) {
     { auth: true, method: 'DELETE' },
     'Не удалось удалить заметку.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   rows = rows.filter((item) => item.id !== key);
   loaded = true;
   return true;
