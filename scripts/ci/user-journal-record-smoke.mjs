@@ -277,10 +277,19 @@ try {
   assert.equal(await liveQ.locator('[data-read-only-sheet]').count(), 0, 'Old X receipt must be removed');
   assert.equal(await liveQ.locator('.modal-actions').count(), 0, 'No detached action buttons');
   assert.equal(await liveQ.locator('[data-user-record-hide]').count(), 0, 'Journal has no delete/hide action');
-  assert.equal(await liveQ.locator('.mini-card__compact-action[data-user-record-repeat]').count(), 1);
-  assert.ok((await liveQ.locator('.mini-card__lines').innerText()).includes('Стрижка-женская'));
-  assert.ok((await liveQ.locator('.mini-card__rows').innerText()).includes('21 000'));
-  assert.ok((await liveQ.locator('.mini-card__row-label').innerText()).includes('3 ч'));
+  assert.equal(await liveQ.locator('.mini-card__record-action--right[data-user-record-repeat]').count(), 1);
+  const dimensions = await liveQ.locator('.record-summary-mini-card--confirmation').evaluate((el) => ({
+    width: el.getBoundingClientRect().width,
+    height: el.getBoundingClientRect().height,
+    top: el.querySelector('.mini-card__record-head')?.parentElement === el,
+    middle: getComputedStyle(el.querySelector('.mini-card__record-center')).overflowY,
+    bottom: el.querySelector('.mini-card__record-footer')?.parentElement === el,
+    nowrap: getComputedStyle(el.querySelector('.mini-card__record-moment')).whiteSpace,
+  }));
+  assert.deepEqual(dimensions, { width: 310, height: 200, top: true, middle: 'auto', bottom: true, nowrap: 'nowrap' });
+  assert.ok((await liveQ.locator('.mini-card__record-center').innerText()).includes('Стрижка-женская'));
+  assert.ok((await liveQ.locator('.mini-card__record-footer').innerText()).includes('21 000'));
+  assert.ok((await liveQ.locator('.mini-card__record-duration').innerText()).includes('3 ч'));
   await page.evaluate(() => {
     window.__repeat = null;
     window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
@@ -295,9 +304,9 @@ try {
   await page.locator('.journal-list-record--deleted').click();
   const deletedQ = page.locator('[data-v2-q="true"]').last();
   await deletedQ.locator('[data-user-journal-record-preview] .record-summary-mini-card--confirmation').waitFor();
-  assert.ok((await deletedQ.locator('.mini-card__line--primary').innerText()).includes('Удалена'));
+  assert.ok((await deletedQ.locator('.mini-card__record-workplace').innerText()).includes('Удалена'));
   assert.equal(await deletedQ.locator('[data-user-record-hide]').count(), 0);
-  assert.equal(await deletedQ.locator('.mini-card__row-value').innerText(), '');
+  assert.equal(await deletedQ.locator('.mini-card__record-total').innerText(), '');
   await page.evaluate(() => {
     window.__repeat = null;
     window.addEventListener('cova:user-record-start', (event) => { window.__repeat = event.detail; }, { once: true });
