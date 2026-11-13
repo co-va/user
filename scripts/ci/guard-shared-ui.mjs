@@ -49,7 +49,7 @@ assert(zLayout.includes('gap:var(--v2-surface-header-spacing)'), 'Z/Q Header row
 assert(zLayout.includes('grid-template-columns:24px minmax(0,1fr)') && zLayout.includes('align-items:center'), 'Shared Header arrow must stay centered');
 assert(!/Z_HEADER_BODY_GAP|Q_HEADER_BODY_GAP/.test(zLayout), 'Legacy per-surface Header / Body gaps returned');
 assert(!surfaceHeaderStyles.includes('padding-bottom:0!important') && !surfaceHeaderStyles.includes('margin-bottom:8px'), 'Local Header spacing override returned');
-assert(v2.includes('.v2-q-title,.v2-z-title{box-sizing:border-box;display:flex;align-items:center;width:100%;min-width:0;min-height:46px;margin:0;border:0;padding:0;background:transparent;box-shadow:none;'), 'Text titles must be 46px rows without input borders');
+assert(v2.includes('.v2-q-title,.v2-z-title{box-sizing:border-box;display:flex;align-items:center;width:100%;min-width:0;height:46px;min-height:46px;max-height:46px;margin:0;border:0;padding:0;background:transparent;box-shadow:none;overflow:hidden;'), 'Text titles must be exactly 46px without input borders');
 assert(noteView.includes('<h2 class="v2-q-title">Заметка</h2>') && !noteView.includes('user-note-shell-title'), 'Note editor must use standard Q title');
 assert(!zStack.includes('padding-top:0'), 'Nested Z must inherit Shared Z top padding');
 assert(v2.includes('--v2-card-width:min(68vw,258px)'), 'Shared F card width changed');
@@ -58,9 +58,9 @@ assert(rootSelectorCount(v2, '.v2-header') === 1, 'Shared H geometry must have o
 assert(rootSelectorCount(v2, '.v2-z') === 1, 'Shared Z geometry must have one owner');
 assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-white,#fff)}'), 'Z/Q app surface must be pure white');
 assert(shellStyles.includes('--ui-field-height:46px;') && shellStyles.includes('--ui-control-height:48px;'), '46px fields must be independent of unchanged buttons');
-assert(inputsStyles.includes('min-height:var(--ui-field-height)') && inputsStyles.includes('height:var(--ui-field-height)'), 'Form fields must use 46px');
-assert(profileStyles.includes('height:var(--ui-field-height)') && !profileStyles.includes('[data-v2-q-body]{padding-top:6px}'), 'Profile must use 46px inputs without a Q Header gap');
-assert(selectorStyles.includes('--ui-selector-control-height:var(--ui-field-height)') && selectorStyles.includes('.ui-selector__option{width:100%;min-width:0;height:var(--ui-selector-control-height)') && selectorStyles.includes('.ui-selector__search{box-sizing:border-box;width:100%;height:var(--ui-selector-control-height)'), 'Selector trigger, options and search must use 46px');
+assert(inputsStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)'), 'Form fields must stay exactly 46px');
+assert(profileStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)') && !profileStyles.includes('[data-v2-q-body]{padding-top:6px}'), 'Profile inputs must stay exactly 46px without Q gap');
+assert(selectorStyles.includes('--ui-selector-control-height:var(--ui-field-height)') && ['.ui-select__control{','.ui-selector__option{','.ui-selector__search{'].every(selector=>{const value=selectorStyles.split(selector)[1]?.split('}')[0]||'';return value.includes('height:var(--ui-selector-control-height);min-height:var(--ui-selector-control-height);max-height:var(--ui-selector-control-height)')}), 'Selector trigger, options and search must stay exactly 46px');
 assert(selectorStyles.includes('-webkit-line-clamp:2'), 'Selectors must fit two-line labels in 46px');
 assert(!authStyles.includes('min-height:52px'), 'Account form must use shared 46px fields');
 assert(read('ui/buttons/buttons.css').includes('--ui-button-height:var(--ui-control-height)'), 'Buttons must remain independent of fields');
@@ -183,7 +183,7 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;height:var(--ui-field-height);min-height:var(--ui-field-height)') &&
   read('ui/inputs/inputs.css').includes('min-height:var(--ui-field-height)') &&
   read('ui/colors/colors.css').includes('height:var(--ui-field-height);min-height:var(--ui-field-height)'),
-  'Shared form, selector, time, duration and color pickers must all use 46px');
+  'Shared form, selector, time, duration and color pickers must all be exactly 46px');
 
 assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
   read('ui/buttons/index.js').includes('export function compactAddControl('),

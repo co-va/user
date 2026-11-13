@@ -83,7 +83,7 @@ try{
     });
     assert.ok(title.scroll<=title.client+1,'Q title overflows 320px: '+JSON.stringify(title));
     assert.equal(title.textLines,1,'Q title text must stay on one line: '+JSON.stringify(title));
-    assert.ok(title.height>=46,'Q title row must remain at least 46px: '+JSON.stringify(title));
+    assert.ok(Math.abs(title.height-46)<0.5,'Q title row must be exactly 46px: '+JSON.stringify(title));
 
     // Rendered shared UI baseline (not just CSS token inspection).
     const baseline=await q.evaluate(sheet=>{
