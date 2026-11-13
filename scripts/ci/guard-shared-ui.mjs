@@ -275,6 +275,26 @@ assert(inputControlsCss.includes('.array-group[data-repeated-add-placement="head
   !inputControlsCss.includes('.array-row__add{width:40px') &&
   !profileControlsCss.includes('.array-group__header .array-row__add{'),
   'All compact action slots must be 28px with no local size overrides');
+const calendarControls = read('ui/calendar/calendar.js');
+const calendarControlsCss = read('ui/calendar/calendar.css');
+assert(miniMarkup.includes("import { compactControl } from '../buttons/index.js';") &&
+  count(miniMarkup, 'compactControl({') >= 2 &&
+  !miniMarkup.includes('class="mini-card__record-action') &&
+  !miniMarkup.includes('class="mini-card__compact-action') &&
+  mini.includes('.mini-card__record-top{display:grid;grid-template-columns:44px') &&
+  mini.includes('.mini-card__record-action-placeholder{width:44px') &&
+  !/\.mini-card__record-action\{[^}]*\b(?:width|height):/.test(mini) &&
+  !/\.mini-card__compact-action\{[^}]*\b(?:width|height):/.test(mini),
+  'MiniCard actions must use Compact 28px without modifying 290×200 card or 44px layout slots');
+assert(calendarControls.includes("import { button, compactControl } from '../buttons/index.js';") &&
+  calendarControls.includes("const previous = compactControl({ icon: 'previous'") &&
+  calendarControls.includes("const following = compactControl({ icon: 'next'") &&
+  !/\.calendar__month-button\{[^}]*\b(?:width|height):/.test(calendarControlsCss),
+  'Day/month navigation arrows must use the one Shared Compact button, not 36px local buttons');
+assert(actionButtonCss.includes('.ui-compact-control::before{content:"";position:absolute;inset:-8px}') &&
+  ['dark', 'secondary', 'outlined'].every(appearance => actionButtonCss.includes('data-compact-appearance="' + appearance + '"')),
+  'Compact has one 28px button, expanded 44px tap area and three appearance variants');
+
 
 assert(read('ui/profile/index.js').includes("button('Удалить фото', { variant: 'danger'"),
   'Delete-photo control must use the canonical pink danger button');

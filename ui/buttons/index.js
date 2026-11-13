@@ -21,6 +21,10 @@ const COMPACT_ICONS = Object.freeze({
   remove: '<span class="ui-compact-control__remove" aria-hidden="true">×</span>',
   info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10.5v6"></path><circle cx="12" cy="7.2" r=".8" fill="currentColor" stroke="none"></circle></svg>',
   copy: '<svg data-compact-copy-icon viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1"></path></svg><span class="ui-compact-control__done" data-compact-copy-done aria-hidden="true">✓</span>',
+  repeat: '<span class="ui-compact-control__glyph ui-compact-control__glyph--repeat" aria-hidden="true">↻</span>',
+  previous: '<span class="ui-compact-control__glyph ui-compact-control__glyph--arrow" aria-hidden="true">←</span>',
+  next: '<span class="ui-compact-control__glyph ui-compact-control__glyph--arrow" aria-hidden="true">→</span>',
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 2.5h3l.6 2.2 2.1.9 2-.9 2.1 2.1-.9 2 .9 2.1 2.2.6v3l-2.2.6-.9 2.1.9 2-2.1 2.1-2-.9-2.1.9-.6 2.2h-3l-.6-2.2-2.1-.9-2 .9-2.1-2.1.9-2-.9-2.1-2.2-.6v-3l2.2-.6.9-2 2.1-2.1 2 .9 2.1-.9Z"/><circle cx="12" cy="12" r="3"/></svg>',
 });
 
 const COMPACT_LABELS = Object.freeze({
@@ -28,12 +32,20 @@ const COMPACT_LABELS = Object.freeze({
   remove: 'Удалить',
   info: 'Информация',
   copy: 'Скопировать',
+  repeat: 'Повторить',
+  previous: 'Назад',
+  next: 'Вперёд',
+  settings: 'Настройки',
 });
 
-export function compactControl({ icon = 'add', className = '', data = '', aria = '' } = {}) {
+export function compactControl({ icon = 'add', symbol = '', appearance = 'plain', className = '', data = '', aria = '' } = {}) {
   const key = Object.hasOwn(COMPACT_ICONS, icon) ? icon : 'add';
+  const skin = ['dark', 'secondary', 'outlined'].includes(appearance) ? appearance : 'plain';
   const classes = ['ui-compact-control', className].filter(Boolean).join(' ');
-  return `<button type="button" class="${escapeHtml(classes)}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria || COMPACT_LABELS[key])}">${COMPACT_ICONS[key]}</button>`;
+  const glyph = symbol
+    ? `<span class="ui-compact-control__glyph" aria-hidden="true">${escapeHtml(symbol)}</span>`
+    : COMPACT_ICONS[key];
+  return `<button type="button" class="${escapeHtml(classes)}"${skin === 'plain' ? '' : ` data-compact-appearance="${skin}"`}${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria || COMPACT_LABELS[key])}">${glyph}</button>`;
 }
 
 // Existing call sites may use these names; all resolve to the same compactControl.

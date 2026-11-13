@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils/escape-html.js';
+import { compactControl } from '../buttons/index.js';
 
 function attrs(data = '', aria = '') {
   return `${data ? ` ${String(data).trim()}` : ''}${aria ? ` aria-label="${escapeHtml(aria)}"` : ''}`;
@@ -40,11 +41,17 @@ function recordActionMarkup(action, side) {
   if (!action?.data || !action?.label) {
     return `<span class="mini-card__record-action-placeholder mini-card__record-action-placeholder--${side}" aria-hidden="true"></span>`;
   }
-  const variant = action.variant === 'secondary' ? ' mini-card__record-action--secondary' : '';
-  const content = action.icon === 'settings'
-    ? '<svg class="mini-card__record-action-icon" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5h3l.6 2.2 2.1.9 2-.9 2.1 2.1-.9 2 .9 2.1 2.2.6v3l-2.2.6-.9 2.1.9 2-2.1 2.1-2-.9-2.1.9-.6 2.2h-3l-.6-2.2-2.1-.9-2 .9-2.1-2.1.9-2-.9-2.1-2.2-.6v-3l2.2-.6.9-2.1-.9-2 2.1-2.1 2 .9 2.1-.9Z"/><circle cx="12" cy="12" r="3"/></svg>'
-    : escapeHtml(action.label);
-  return `<button type="button" class="mini-card__record-action mini-card__record-action--${side}${variant}"${attrs(action.data, action.aria || action.label)}>${content}</button>`;
+  // The 44px header slots stay fixed; their 28px glyph button comes from Shared Compact.
+  const icon = action.icon || (action.label === '↻' ? 'repeat' : 'add');
+  const symbol = action.icon || action.label === '↻' ? '' : action.label;
+  return compactControl({
+    icon,
+    symbol,
+    appearance: action.variant === 'secondary' ? 'secondary' : 'dark',
+    className: `mini-card__record-action mini-card__record-action--${side}`,
+    data: action.data,
+    aria: action.aria || action.label,
+  });
 }
 
 function cardShell({
@@ -181,7 +188,14 @@ export function miniCard({
     ? `<button type="button" class="mini-card__surface-action"${attrs(data, aria || title)}></button>`
     : '';
   const compactActionMarkup = hasCompactAction
-    ? `<button type="button" class="mini-card__compact-action"${attrs(resolvedCompactAction.data, resolvedCompactAction.aria || resolvedCompactAction.label)}>${escapeHtml(resolvedCompactAction.label)}</button>`
+    ? compactControl({
+        icon: resolvedCompactAction.icon || (resolvedCompactAction.label === '↻' ? 'repeat' : 'add'),
+        symbol: resolvedCompactAction.icon || resolvedCompactAction.label === '↻' ? '' : resolvedCompactAction.label,
+        appearance: 'dark',
+        className: 'mini-card__compact-action',
+        data: resolvedCompactAction.data,
+        aria: resolvedCompactAction.aria || resolvedCompactAction.label,
+      })
     : '';
 
   const headerMarkup = lineItems.length ? '' : `<div class="mini-card__head">

@@ -5,6 +5,16 @@
 .ui-compact-control:active{opacity:.55}
 .ui-compact-control:focus-visible{outline:2px solid #111;outline-offset:2px}
 .ui-compact-control svg{width:20px;height:20px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* Every icon uses the SAME 28×28 button. The pseudo-element widens only the
+   finger target to 44×44; appearance never changes button geometry. */
+.ui-compact-control::before{content:"";position:absolute;inset:-8px}
+.ui-compact-control[data-compact-appearance="dark"]{background:#111;color:#fff;border-radius:10px}
+.ui-compact-control[data-compact-appearance="secondary"]{background:#fff;color:#5b6064;border:1.5px solid #9b9fa2;border-radius:10px}
+.ui-compact-control[data-compact-appearance="outlined"]{background:transparent;color:var(--text);border:1px solid var(--border);border-radius:8px}
+.ui-compact-control__glyph{display:block;line-height:1}
+.ui-compact-control__glyph--repeat{font-size:23px}
+.ui-compact-control__glyph--arrow{font-size:18px}
+
 .ui-compact-control__remove{color:var(--danger,#ff1111)}
 .ui-compact-control__done{position:absolute;inset:0;display:grid;place-items:center;opacity:0;font-size:18px;font-weight:700}
 .ui-compact-control.is-copied [data-compact-copy-icon]{opacity:0}

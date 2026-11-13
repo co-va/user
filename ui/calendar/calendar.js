@@ -1,5 +1,5 @@
 import { modal, mountModal } from '../modals/index.js';
-import { button } from '../buttons/index.js';
+import { button, compactControl } from '../buttons/index.js';
 import { select } from '../selectors/index.js';
 import { escapeHtml } from '../utils/escape-html.js';
 
@@ -87,7 +87,9 @@ function normalizeModalVariant() {
 }
 
 function calendarHeader({ label, prevAriaLabel, nextAriaLabel, prevAttribute, nextAttribute }) {
-  return `<header class="calendar__header"><button type="button" class="calendar__month-button" ${prevAttribute} aria-label="${prevAriaLabel}">←</button><div class="calendar__month" aria-live="polite">${label}</div><button type="button" class="calendar__month-button" ${nextAttribute} aria-label="${nextAriaLabel}">→</button></header>`;
+  const previous = compactControl({ icon: 'previous', appearance: 'outlined', className: 'calendar__month-button', data: prevAttribute, aria: prevAriaLabel });
+  const following = compactControl({ icon: 'next', appearance: 'outlined', className: 'calendar__month-button', data: nextAttribute, aria: nextAriaLabel });
+  return `<header class="calendar__header">${previous}<div class="calendar__month" aria-live="polite">${label}</div>${following}</header>`;
 }
 
 function normalizeDateIndicators(value) {

@@ -6,10 +6,14 @@ import {
 } from '../../ui/buttons/index.js';
 import { repeatedField } from '../../ui/repeated-fields/index.js';
 import { links } from '../../ui/links/index.js';
+import { miniCard } from '../../ui/cards/mini-card.js';
+import { calendar, dateNavigator } from '../../ui/calendar/calendar.js';
 
 const styles = readFileSync(new URL('../../ui/buttons/buttons.css', import.meta.url), 'utf8');
 const inputs = readFileSync(new URL('../../ui/inputs/inputs.css', import.meta.url), 'utf8');
 const profile = readFileSync(new URL('../../ui/profile/profile.css', import.meta.url), 'utf8');
+const cardCss = readFileSync(new URL('../../ui/cards/mini-card.css', import.meta.url), 'utf8');
+const calendarCss = readFileSync(new URL('../../ui/calendar/calendar.css', import.meta.url), 'utf8');
 
 function assertCompact(markup, data = '') {
   assert.match(markup, /<button type="button" class="ui-compact-control(?:\s|")/,
@@ -20,7 +24,7 @@ function assertCompact(markup, data = '') {
   if (data) assert.ok(markup.includes(data), 'Consumer hook must be preserved: ' + data);
 }
 
-for (const icon of ['add', 'remove', 'info', 'copy']) {
+for (const icon of ['add', 'remove', 'info', 'copy', 'repeat', 'settings', 'previous', 'next']) {
   assertCompact(compactControl({ icon, data: 'data-compact-test="' + icon + '"' }),
     'data-compact-test="' + icon + '"');
 }
@@ -63,6 +67,42 @@ const linkRows = links({
 assert.equal((linkRows.match(/class="ui-compact-control(?:\s|")/g) || []).length, 2,
   'Links add/remove use the single Compact renderer');
 assert.match(linkRows, /data-remove-link/, 'Link delete hook preserved');
+
+
+const recordCard = miniCard({
+  recordLayout: {
+    headerMode: 'person', identity: 'Салон', moment: '13.11.26',
+    rightAction: { label: '↻', data: 'data-compact-record-repeat', aria: 'Повторить запись' },
+    leftAction: { label: '⚙', icon: 'settings', variant: 'secondary', data: 'data-compact-settings' },
+  },
+});
+assertCompact(recordCard.match(/<button[^>]*data-compact-record-repeat[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-compact-record-repeat');
+assertCompact(recordCard.match(/<button[^>]*data-compact-settings[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-compact-settings');
+assert.ok(recordCard.includes('data-compact-appearance="dark"'), 'Record repeat retains dark surface');
+assert.ok(recordCard.includes('data-compact-appearance="secondary"'), 'Record settings retain gray outline');
+
+const genericCard = miniCard({
+  title: 'История', interactive: true, data: 'data-compact-card-open',
+  compactAction: { label: '↻', data: 'data-compact-card-repeat', aria: 'Повторить запись' },
+});
+assertCompact(genericCard.match(/<button[^>]*data-compact-card-repeat[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-compact-card-repeat');
+assert.ok(genericCard.includes('mini-card__surface-action'), 'The rest of the card keeps its own opening event');
+const dayNav = dateNavigator({ date: new Date(2026, 10, 13) });
+assertCompact(dayNav.match(/<button[^>]*data-date-navigator-prev[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-date-navigator-prev');
+assertCompact(dayNav.match(/<button[^>]*data-date-navigator-next[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-date-navigator-next');
+const monthNav = calendar({ month: new Date(2026, 10, 1) });
+assertCompact(monthNav.match(/<button[^>]*data-calendar-prev[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-calendar-prev');
+assertCompact(monthNav.match(/<button[^>]*data-calendar-next[^>]*>[\s\S]*?<\/button>/)?.[0] || '', 'data-calendar-next');
+
+assert.doesNotMatch(cardCss, /\.mini-card__record-action\{[^}]*\b(?:width|height):/, 'Record card may not resize Compact');
+assert.doesNotMatch(cardCss, /\.mini-card__compact-action\{[^}]*\b(?:width|height):/, 'MiniCard overlay action may not resize Compact');
+assert.doesNotMatch(calendarCss, /\.calendar__month-button\{[^}]*\b(?:width|height):/, 'Calendar arrows may not resize Compact');
+assert.ok(styles.includes('.ui-compact-control::before{content:"";position:absolute;inset:-8px}'),
+  'Shared Compact expands its target to 44px without changing its 28px element');
+for (const appearance of ['dark', 'secondary', 'outlined']) {
+  assert.ok(styles.includes('data-compact-appearance="' + appearance + '"'),
+    'Every appearance is owned by the same Compact CSS: ' + appearance);
+}
 
 assert.match(button('Сохранить'), /class="ui-button /, 'Large action buttons must stay independent');
 assert.doesNotMatch(button('Сохранить'), /ui-compact-control/, 'Large action may not become compact');
