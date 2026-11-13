@@ -694,7 +694,10 @@ try {
       })}</div>
       <div id="long-confirmation-example">${recordMiniCard({
         confirmation: true, workplace: 'Бьюти тория',
-        date: '07.11.26', from: '12:00',
+        date: '14.11.26', from: '12:00–14:00',
+        identity: '123456789 Анна-Мария Константиновна Великокняжеская-Николаевская',
+        phone: '+7 985 729-65-32',
+        discount: 'Скидка: 10% · 800 ₽',
         procedures: Array.from({ length: 12 }, (_, i) => ({
           name: 'Процедура ' + i, priceText: 'от 1 500 ₽',
         })),
@@ -727,6 +730,17 @@ try {
       historyRepeat: Boolean(history.querySelector('.mini-card__record-action--right')),
       outsideList: Boolean(host.querySelector('.list-entry,.read-only-sheet')),
       longScroll: longCenter.scrollHeight > longCenter.clientHeight,
+      longCenterUsable: longCenter.clientHeight >= 20,
+      longIdentityFits: (() => {
+        const identity = longCard.querySelector('.mini-card__record-identity');
+        const lines = identity.getBoundingClientRect().height / 14;
+        return lines >= 2 && lines <= 4 && identity.scrollHeight <= identity.clientHeight + 1;
+      })(),
+      longTimeFits: (() => {
+        const time = longCard.querySelector('.mini-card__record-moment');
+        return time.scrollWidth <= time.clientWidth + 1
+          && getComputedStyle(time).whiteSpace === 'nowrap';
+      })(),
       longService: longCard.textContent.includes('Процедура 11'),
       exactSize: confirmation.getBoundingClientRect().width === 290
         && confirmation.getBoundingClientRect().height === 200,
@@ -745,6 +759,10 @@ try {
   assert.equal(recordCardCheck.fixedZones && recordCardCheck.fixedFooter, true,
     'Only the centre scrolls: header and totals stay fixed');
   assert.equal(recordCardCheck.timeNoWrap, true, 'Record date and time must never wrap');
+  assert.equal(recordCardCheck.longIdentityFits && recordCardCheck.longTimeFits, true,
+    'Long UEI, name and full time range must fit fixed Record header without clipping');
+  assert.equal(recordCardCheck.longCenterUsable, true,
+    'Long fixed header and discount cannot collapse the scrolling service area');
   assert.equal(recordCardCheck.identity, '3 Анна Униченко');
   assert.equal(recordCardCheck.phone, '+7 985 729-65-32');
   // Intl.NumberFormat uses NBSP for Russian thousands grouping.
