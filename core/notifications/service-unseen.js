@@ -7,6 +7,7 @@ const REFRESH_INTERVAL_MS = 15_000;
 let refreshBusy = false;
 let refreshQueued = false;
 let initialized = false;
+const seenInFlight = new Set();
 
 function text(value) {
   return String(value ?? '').trim();
@@ -72,8 +73,28 @@ function normalizeAccountItems(payload) {
     .filter((item) => item.id && item.recordIds.length);
 }
 
-function unseenRecordIds() {
-  return new Set(getServiceUnseenState().items.flatMap((item) => recordIds(item?.recordIds)));
+function journalRecordIdentity(row) {
+  const raw = text(row?.dataset?.journalListRecord || row?.dataset?.userJournalRecord);
+  if (!raw) return { recordId: '', tenantId: '' };
+  // The User Journal stores a composite [tenantId, recordId] key so identical
+  // IDs in different spaces never get mixed up. Other consumers use raw IDs.
+  if (raw.startsWith('[')) {
+    try {
+      const tuple = JSON.parse(raw);
+      if (Array.isArray(tuple) && tuple.length === 2) {
+        return { tenantId: text(tuple[0]), recordId: text(tuple[1]) };
+      }
+    } catch { /* Legacy raw identifier. */ }
+  }
+  return { recordId: raw, tenantId: '' };
+}
+
+function unseenForRow(row) {
+  const { tenantId, recordId } = journalRecordIdentity(row);
+  if (!recordId) return false;
+  return getServiceUnseenState().items.some((item) =>
+    (!tenantId || !text(item?.tenantId) || text(item.tenantId) === tenantId)
+    && recordIds(item?.recordIds).includes(recordId));
 }
 
 function markerNode(label = '🔴 Новая') {
@@ -85,17 +106,13 @@ function markerNode(label = '🔴 Новая') {
 
 function syncMarkers() {
   if (typeof document === 'undefined') return;
-  const unseen = unseenRecordIds();
-
   document.querySelectorAll('[data-service-unseen-marker]').forEach((marker) => {
     const owner = marker.closest('[data-journal-list-record],[data-user-journal-record]');
-    const id = text(owner?.dataset?.journalListRecord || owner?.dataset?.userJournalRecord);
-    if (!id || !unseen.has(id)) marker.remove();
+    if (!owner || !unseenForRow(owner)) marker.remove();
   });
 
   document.querySelectorAll('[data-journal-list-record],[data-user-journal-record]').forEach((row) => {
-    const id = text(row.dataset.journalListRecord || row.dataset.userJournalRecord);
-    if (!id || !unseen.has(id) || row.querySelector('[data-service-unseen-marker]')) return;
+    if (!unseenForRow(row) || row.querySelector('[data-service-unseen-marker]')) return;
     const target = row.querySelector('.list-entry__right') || row;
     target.prepend(markerNode());
   });
@@ -114,21 +131,28 @@ function removeSeenLocally(ids) {
 }
 
 export async function markRecordsSeen(ids, { force = false } = {}) {
-  const values = recordIds(ids);
-  if (!values.length) return true;
+  const token = getAccountToken();
+  if (!token) return false;
+  const values = recordIds(ids).filter((id) => !seenInFlight.has(JSON.stringify([token, id])));
+  if (!values.length) return true; // A previous request is already acknowledging them.
   const items = getServiceUnseenState().items.filter((item) => item.recordIds.some((id) => values.includes(id)));
   if (!items.length && !force) return true;
+  const keys = values.map((id) => JSON.stringify([token, id]));
+  keys.forEach((key) => seenInFlight.add(key));
   try {
     await accountRequest('/account/service-unseen/seen', {
       auth: true,
       method: 'POST',
       body: JSON.stringify({ recordIds: values }),
     }, 'Не удалось отметить уведомления прочитанными');
+    if (getAccountToken() !== token) return false;
     removeSeenLocally(values);
     return true;
   } catch {
     // Keep the indicator visible for a later retry.
     return false;
+  } finally {
+    keys.forEach((key) => seenInFlight.delete(key));
   }
 }
 
@@ -143,7 +167,11 @@ function publish(items) {
 }
 
 export async function refreshServiceUnseen() {
-  if (!getAccountToken()) return;
+  const token = getAccountToken();
+  if (!token) {
+    if (getServiceUnseenState().total) publish([]);
+    return;
+  }
   if (refreshBusy) {
     refreshQueued = true;
     return;
@@ -151,7 +179,7 @@ export async function refreshServiceUnseen() {
   refreshBusy = true;
   try {
     const payload = await accountRequest('/account/service-unseen', { auth: true }, 'Не удалось обновить сервисные уведомления');
-    if (payload) publish(normalizeAccountItems(payload));
+    if (payload && getAccountToken() === token) publish(normalizeAccountItems(payload));
   } catch {
     // Notifications must never block the User application.
   } finally {
@@ -179,10 +207,13 @@ export function startServiceUnseenRuntime() {
   };
   const onClick = (event) => {
     const row = event.target.closest?.('[data-journal-list-record],[data-user-journal-record]');
-    const id = text(row?.dataset?.journalListRecord || row?.dataset?.userJournalRecord);
-    if (id && unseenRecordIds().has(id)) void markRecordsSeen([id]);
+    if (!row || !unseenForRow(row)) return;
+    const { recordId } = journalRecordIdentity(row);
+    if (recordId) void markRecordsSeen([recordId]);
   };
+  const onLogout = () => publish([]);
 
+  window.addEventListener('user:auth-logout', onLogout);
   window.addEventListener('va-tools:service-unseen-refresh', onRefresh);
   window.addEventListener('focus', onFocus);
   document.addEventListener('visibilitychange', onFocus);
@@ -197,6 +228,7 @@ export function startServiceUnseenRuntime() {
     disposed = true;
     observer.disconnect();
     window.clearInterval(interval);
+    window.removeEventListener('user:auth-logout', onLogout);
     window.removeEventListener('va-tools:service-unseen-refresh', onRefresh);
     window.removeEventListener('focus', onFocus);
     document.removeEventListener('visibilitychange', onFocus);

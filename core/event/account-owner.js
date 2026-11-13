@@ -1,8 +1,14 @@
 import { accountRequest } from '../account/index.js';
+import { createAccountCacheScope } from '../account/session-cache.js';
 
 let rows = [];
 let loaded = false;
 let loading = null;
+const sessionScope = createAccountCacheScope(() => {
+  rows = [];
+  loaded = false;
+  loading = null;
+});
 
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
@@ -47,27 +53,32 @@ function replaceRow(value) {
   return clone(event);
 }
 
-export function accountEventsLoaded() { return loaded; }
-export function getAccountEvents() { return rows.map(clone); }
+export function accountEventsLoaded() { sessionScope.current(); return loaded; }
+export function getAccountEvents() { sessionScope.current(); return rows.map(clone); }
 export function getAccountEvent(id) {
+  sessionScope.current();
   const row = rows.find((item) => item.id === String(id || ''));
   return row ? clone(row) : null;
 }
 
 export async function loadAccountEvents({ force = false } = {}) {
+  const scope = sessionScope.current();
   if (loaded && !force) return getAccountEvents();
   if (loading && !force) return loading;
-  loading = accountRequest('/account/events', { auth: true }, 'Не удалось загрузить события.')
+  const pending = accountRequest('/account/events', { auth: true }, 'Не удалось загрузить события.')
     .then((payload) => {
+      if (!sessionScope.matches(scope)) return [];
       rows = (Array.isArray(payload) ? payload : []).map(normalize).filter((item) => item.id);
       loaded = true;
       return getAccountEvents();
     })
-    .finally(() => { loading = null; });
-  return loading;
+    .finally(() => { if (loading === pending) loading = null; });
+  loading = pending;
+  return pending;
 }
 
 export async function createAccountEvent(input = {}) {
+  const scope = sessionScope.current();
   const event = normalize({
     ...input,
     id: String(input?.id || eventId()),
@@ -83,6 +94,7 @@ export async function createAccountEvent(input = {}) {
     },
     'Сервер не подтвердил сохранение события.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   loaded = true;
   const result = replaceRow(saved);
   syncCalendars();
@@ -90,6 +102,7 @@ export async function createAccountEvent(input = {}) {
 }
 
 export async function updateAccountEvent(id, patch = {}) {
+  const scope = sessionScope.current();
   const current = getAccountEvent(id);
   if (!current) throw new Error('Событие не найдено.');
   const event = normalize({ ...current, ...clone(patch), id: current.id, createdAt: current.createdAt });
@@ -102,6 +115,7 @@ export async function updateAccountEvent(id, patch = {}) {
     },
     'Сервер не подтвердил сохранение события.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   loaded = true;
   const result = replaceRow(saved);
   syncCalendars();
@@ -109,6 +123,7 @@ export async function updateAccountEvent(id, patch = {}) {
 }
 
 export async function removeAccountEvent(id) {
+  const scope = sessionScope.current();
   const key = String(id || '');
   if (!key) return false;
   await accountRequest(
@@ -116,6 +131,7 @@ export async function removeAccountEvent(id) {
     { auth: true, method: 'DELETE' },
     'Не удалось удалить событие.',
   );
+  if (!sessionScope.matches(scope)) throw new Error('Сессия изменилась.');
   rows = rows.filter((item) => item.id !== key);
   loaded = true;
   syncCalendars();
