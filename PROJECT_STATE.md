@@ -185,3 +185,10 @@
 - **Deployment dependency:** User staging preview currently calls production `https://api.va-tools.ru`. Until the core backend that includes the migration and `privacyPolicy` API field is deployed, User staging must NOT be declared end-to-end verified: the privacy document may be missing there. Do not restore the copied file or substitute Professional's different policy as a workaround. Coordinate release and verify both documents after Core API deployment; keep `main` unchanged without explicit approval.
 - Professional's tenant consent templates and RKN are separate legal documents sourced from core DB. This change does not edit their contents or signing history.
 
+## Shared Z/Q Header: единый шаг 12 px (User) — 2026-11-13
+
+- Согласовано владельцем: один Header для Z и Q, ровно 12 px сверху и снизу; между 0…N элементами Header также 12 px. Середина расширяется только по высоте содержимого, стрелка центрирована по строке. Не добавлять отдельные Z 14 px, Q 18 px или Q верхние 20 px.
+- Вставляемый текстовый заголовок не является текстовым полем: существующий `v2-q-title` занимает доступную ширину и имеет высоту минимум 46 px, без границ, заливки и отдельного позиционирования; существующая типографика сохранена. Длинный заголовок может вырасти по высоте, чтобы не обрезать текст.
+- В `user/note-view.js` удалён локальный absolute-заголовок «Заметка»; используется тот же `v2-q-title`, что и в остальных Q.
+- Только `co-va/user/staging`. Не менялись main, Core, Professional, API, бизнес-логика и защитные тесты. Технические проверки и внешнюю визуальную приёмку фиксировать отдельно — запись здесь не означает подтверждения на устройстве.
+- Нормативное закрепление стандарта в единственном `co-va/core/staging/UI_ALPHABET.md` требует отдельного решения исполнителя Core и не выполнялось из User.

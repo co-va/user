@@ -1,7 +1,6 @@
-/* Root Z keeps only the compact Shared Header footprint required by its affordance. */
+/* Shared Z/Q Header owns vertical padding and row gaps; empty headers keep the arrow. */
 [data-v2-z-header]:has(> [data-v2-z-header-content]:empty){
   min-height:28px!important;
-  padding-bottom:0!important;
   background:var(--v2-white,#fff)!important;
 }
 
@@ -16,13 +15,7 @@
 /* Empty Q keeps only the same compact Shared affordance footprint. */
 [data-v2-q-header]:has(> [data-v2-q-header-content]:empty){
   min-height:28px!important;
-  padding-bottom:0!important;
   background:transparent!important;
-}
-
-[data-v2-q-header]:has(> [data-v2-q-header-content]:empty) > [data-v2-z-dismiss]{
-  margin-top:0!important;
-  margin-bottom:2px!important;
 }
 
 [data-v2-q-header]:has(> [data-v2-q-header-content]:empty) > [data-v2-q-header-content]{
