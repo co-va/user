@@ -1,5 +1,4 @@
 import { API_BASE } from '../environment.js';
-import { PLATFORM_PRIVACY_POLICY } from './platform-documents.js';
 
 const ACCOUNT_TOKEN_KEY = 'user.account.token';
 const ACCOUNT_IDENTIFIER_KEY = 'user.account.identifier';
@@ -119,7 +118,8 @@ export async function getGlobalAccountPlatformState() {
     await request('/account/platform-state', { auth: true }),
     'Не удалось проверить Условия использования учетной записи',
   );
-  return { ...state, privacyPolicy: PLATFORM_PRIVACY_POLICY };
+  // All platform legal documents are returned by core; no local text copies.
+  return state;
 }
 
 export async function acceptGlobalAccountTerms(accountTerms) {

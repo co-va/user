@@ -71,12 +71,68 @@ try{
     assert.equal(await email.isDisabled(),true,'Email check must never be editable');
     assert.equal(await q.locator('[data-account-notification-push]').count(),1,'Push still present');
     assert.equal(await q.locator('[data-account-notification-email]').count(),0,'No actionable Email toggle');
-    const title=await q.locator('.v2-q-title').evaluate(el=>({
-      scroll:el.scrollWidth,client:el.clientWidth,
-      height:el.getBoundingClientRect().height,line:getComputedStyle(el).lineHeight,
-    }));
+    const title=await q.locator('.v2-q-title').evaluate(el=>{
+      const textRange=document.createRange();
+      textRange.selectNodeContents(el);
+      const textLines=[...textRange.getClientRects()].filter(rect=>rect.width>0 && rect.height>0);
+      return {
+        scroll:el.scrollWidth,client:el.clientWidth,
+        height:el.getBoundingClientRect().height,line:getComputedStyle(el).lineHeight,
+        textLines:textLines.length,
+      };
+    });
     assert.ok(title.scroll<=title.client+1,'Q title overflows 320px: '+JSON.stringify(title));
-    assert.ok(title.height<=parseFloat(title.line)+1,'Q title must be one line: '+JSON.stringify(title));
+    assert.equal(title.textLines,1,'Q title text must stay on one line: '+JSON.stringify(title));
+    assert.ok(Math.abs(title.height-46)<0.5,'Q title row must be exactly 46px: '+JSON.stringify(title));
+
+    // Rendered shared UI baseline (not just CSS token inspection).
+    const baseline=await q.evaluate(sheet=>{
+      const header=sheet.querySelector('[data-v2-q-header]');
+      const content=sheet.querySelector('[data-v2-q-header-content]');
+      const before=header.getBoundingClientRect().height;
+      const inserted=document.createElement('div');
+      inserted.style.height='46px';
+      inserted.textContent='Вторая строка Header';
+      content.append(inserted);
+      const after=header.getBoundingClientRect().height;
+      inserted.remove();
+
+      const sample=document.createElement('div');
+      sample.style.cssText='position:absolute;top:0;left:0;width:220px;visibility:hidden;pointer-events:none';
+      sample.innerHTML='<label class="field"><input type="text" value="Текст"></label>'+
+        '<button class="ui-select__control"><span class="ui-select__selection"><span class="ui-select__text"><span class="ui-select__value">Длинное значение селектора для двух строк</span></span></span></button>'+
+        '<input class="ui-selector__search" type="search">'+
+        '<button class="ui-selector__option">Двухстрочное значение для выбора</button>'+
+        '<h2 class="v2-q-title">Тест</h2>';
+      sheet.append(sample);
+      const height=selector=>sample.querySelector(selector).getBoundingClientRect().height;
+      const originalSurface=sheet.classList.contains('modal--surface-app');
+      sheet.classList.add('modal--surface-app');
+      const whiteSurface=getComputedStyle(sheet).backgroundColor;
+      if(!originalSurface)sheet.classList.remove('modal--surface-app');
+      const result={
+        top:getComputedStyle(header).paddingTop,
+        bottom:getComputedStyle(header).paddingBottom,
+        gap:getComputedStyle(content).rowGap,
+        growth:after-before,
+        whiteSurface,
+        field:height('.field input'),
+        selector:height('.ui-select__control'),
+        search:height('.ui-selector__search'),
+        option:height('.ui-selector__option'),
+        textTitle:height('.v2-q-title'),
+      };
+      sample.remove();
+      return result;
+    });
+    assert.equal(baseline.whiteSurface,'rgb(255, 255, 255)','Z/Q surface must stay white: '+JSON.stringify(baseline));
+    assert.equal(baseline.top,'12px','Q Header top must be 12px');
+    assert.equal(baseline.bottom,'12px','Q Header bottom must be 12px');
+    assert.equal(baseline.gap,'12px','Q Header control rows must have 12px gap');
+    assert.ok(Math.abs(baseline.growth-58)<1,'A 46px inserted row must grow Header by 46+12px: '+JSON.stringify(baseline));
+    for(const key of ['field','selector','search','option','textTitle'])
+      assert.ok(Math.abs(baseline[key]-46)<1,'Shared '+key+' must be 46px: '+JSON.stringify(baseline));
+
     await email.evaluate(el=>el.click());
     assert.equal(await email.isChecked(),verified,'Disabled checkbox cannot change');
     assert.equal(verificationCalls,1,'Status fetched once from canonical account API');

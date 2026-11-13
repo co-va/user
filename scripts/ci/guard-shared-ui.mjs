@@ -1,9 +1,16 @@
+import '../check-ui-contract.mjs';
 import { assert, count, read, walk, finish } from './guard-lib.mjs';
 
 const v2 = read('ui/v2/v2.css');
 const geometry = read('ui/v2/geometry.js');
 const header = read('ui/v2/header.js');
 const zStack = read('ui/v2/z-stack.js');
+const zLayout = read('ui/v2/z-layout.js');
+const surfaceHeaderStyles = read('ui/v2/surface-header.css');
+const inputsStyles = read('ui/inputs/inputs.css');
+const selectorStyles = read('ui/selectors/selectors.css');
+const authStyles = read('ui/auth/auth.css');
+const noteView = read('user/note-view.js');
 const entity = read('ui/cards/entity-card-constructor.css');
 const mini = read('ui/cards/mini-card.css');
 const list = read('ui/lists/list-entry.css');
@@ -34,12 +41,29 @@ assert(v2.includes('--v2-z-radius:34px'), 'Shared Z radius changed');
 assert(v2.includes('--v2-z-layer-offset:12px'), 'Shared Z layer offset changed');
 assert(v2.includes('--v2-edge:16px'), 'Shared Z edge changed');
 assert(v2.includes('height:72px;') && v2.includes('flex:0 0 72px'), 'Shared H height changed');
-assert(v2.includes('padding:22px 18px calc(24px + env(safe-area-inset-bottom))'), 'Shared Z padding changed');
+assert(v2.includes('padding:0 18px calc(24px + env(safe-area-inset-bottom))'), 'Shared Z must delegate its top padding to the Header');
+assert(v2.includes('right:0;bottom:0;padding-top:0}'), 'Shared Q cannot add second top padding');
+assert(zLayout.includes("const SURFACE_HEADER_SPACING = '12px'"), 'Shared Z/Q Header must own X = 12px');
+assert(zLayout.includes('padding-top:var(--v2-surface-header-spacing)') && zLayout.includes('padding-bottom:var(--v2-surface-header-spacing)'), 'Both Header edges must retain X = 12px');
+assert(zLayout.includes('gap:var(--v2-surface-header-spacing)'), 'Z/Q Header rows must use X = 12px');
+assert(zLayout.includes('grid-template-columns:24px minmax(0,1fr)') && zLayout.includes('align-items:center'), 'Shared Header arrow must stay centered');
+assert(!/Z_HEADER_BODY_GAP|Q_HEADER_BODY_GAP/.test(zLayout), 'Legacy per-surface Header / Body gaps returned');
+assert(!surfaceHeaderStyles.includes('padding-bottom:0!important') && !surfaceHeaderStyles.includes('margin-bottom:8px'), 'Local Header spacing override returned');
+assert(v2.includes('.v2-q-title,.v2-z-title{box-sizing:border-box;display:flex;align-items:center;width:100%;min-width:0;height:46px;min-height:46px;max-height:46px;margin:0;border:0;padding:0;background:transparent;box-shadow:none;overflow:hidden;'), 'Text titles must be exactly 46px without input borders');
+assert(noteView.includes('<h2 class="v2-q-title">Заметка</h2>') && !noteView.includes('user-note-shell-title'), 'Note editor must use standard Q title');
 assert(!zStack.includes('padding-top:0'), 'Nested Z must inherit Shared Z top padding');
 assert(v2.includes('--v2-card-width:min(68vw,258px)'), 'Shared F card width changed');
 assert(v2.includes('--v2-card-height:min(47vh,344px)'), 'Shared F card height changed');
 assert(rootSelectorCount(v2, '.v2-header') === 1, 'Shared H geometry must have one owner');
 assert(rootSelectorCount(v2, '.v2-z') === 1, 'Shared Z geometry must have one owner');
+assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-white,#fff)}'), 'Z/Q app surface must be pure white');
+assert(shellStyles.includes('--ui-field-height:46px;') && shellStyles.includes('--ui-control-height:48px;'), '46px fields must be independent of unchanged buttons');
+assert(inputsStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)'), 'Form fields must stay exactly 46px');
+assert(profileStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)') && !profileStyles.includes('[data-v2-q-body]{padding-top:6px}'), 'Profile inputs must stay exactly 46px without Q gap');
+assert(selectorStyles.includes('--ui-selector-control-height:var(--ui-field-height)') && ['.ui-select__control{','.ui-selector__option{','.ui-selector__search{'].every(selector=>{const value=selectorStyles.split(selector)[1]?.split('}')[0]||'';return value.includes('height:var(--ui-selector-control-height);min-height:var(--ui-selector-control-height);max-height:var(--ui-selector-control-height)')}), 'Selector trigger, options and search must stay exactly 46px');
+assert(selectorStyles.includes('-webkit-line-clamp:2'), 'Selectors must fit two-line labels in 46px');
+assert(!authStyles.includes('min-height:52px'), 'Account form must use shared 46px fields');
+assert(read('ui/buttons/buttons.css').includes('--ui-button-height:var(--ui-control-height)'), 'Buttons must remain independent of fields');
 
 assert(geometry.includes('headerHeight = 72'), 'Q geometry must follow shared H height');
 assert(geometry.includes('base.left + safeEdge'), 'Q geometry must follow shared Z edge');
@@ -138,8 +162,8 @@ assert(detailsDeclaration.includes('border-radius:0;'),
   'Shared entity details must retain four 90-degree corners');
 
 
-/* Full-size Shared actions and form/picker controls use one geometry. Compact
-   header, icon, and editor controls intentionally keep their own sizes. */
+/* Full-size action buttons retain 48px. Form, selector and picker controls
+   use the independent owner-approved 46px field token. */
 const actionButtonCss = read('ui/buttons/buttons.css');
 const selectorCss = read('ui/selectors/selectors.css');
 assert(shellStyles.includes('--ui-control-height:48px'), 'Shared control height token missing');
@@ -155,10 +179,11 @@ assert(modalStyles.includes('[data-v2-z-body]{--ui-action-shift:') &&
   modalStyles.includes('var(--ui-action-inset)'),
   'Shared footer must keep centered token-based Z/Q alignment');
 assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
-  read('ui/time/time.css').includes('.time-picker__button{width:100%;min-height:var(--ui-control-height)') &&
-  read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;min-height:var(--ui-control-height)') &&
-  read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
-  'Full-size form and picker controls must match button height');
+  read('ui/time/time.css').includes('.time-picker__button{width:100%;height:var(--ui-field-height);min-height:var(--ui-field-height)') &&
+  read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;height:var(--ui-field-height);min-height:var(--ui-field-height)') &&
+  read('ui/inputs/inputs.css').includes('min-height:var(--ui-field-height)') &&
+  read('ui/colors/colors.css').includes('height:var(--ui-field-height);min-height:var(--ui-field-height)'),
+  'Shared form, selector, time, duration and color pickers must all be exactly 46px');
 
 assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
   read('ui/buttons/index.js').includes('export function compactAddControl('),

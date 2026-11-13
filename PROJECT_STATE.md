@@ -1,5 +1,14 @@
 # PROJECT_STATE
 
+
+## Обязательный вход для всех чатов — общий UI-контракт
+
+- **Сначала прочитать:** этот `PROJECT_STATE.md`, затем единый [UI_ALPHABET.md](https://github.com/co-va/core/blob/staging/UI_ALPHABET.md) в `co-va/core/staging` (реальные UI-владельцы, стабильные ID, межрепозиторные зависимости, критерии приёмки), затем применимые существующие карты и тесты. При отсутствии доступа к любому источнику не выдавать предположения за проверенные факты.
+- **Перед изменением UI:** назвать контрактный ID, найти его реальные реализации и потребителей в User / Professional / Admin, проверить расхождения и существующие утверждения; **не** создавать второй UI, вторую карту или новые ID для одного компонента.
+- **Границы:** `co-va/core` — API/Администратор/центральный UI-контракт; `co-va/user` — User; `co-va/professional` — Professional. Нельзя редактировать чужой репозиторий и `main` без отдельного разрешения; рабочие правки только в `staging`.
+- **Текущее исполнение:** Работать с frontend User. Считать текущий user/main заявленным дизайнерским ориентиром, но не автоматически технически проверенной версией; изменения согласовывать и фиксировать отдельно. Существующие проектные и релизные планы не заменять новыми. Любые статусы «утверждено»/«закрыто» — только по доказательствам, отдельно визуал и функциональность.
+- `AGENTS.md` — короткая входная точка для нового исполнителя. Защита GitHub и реальное совпадение UI **не** считаются обеспеченными этим текстом.
+
 ## Обязательный контракт User
 
 - Приложение конечного пользователя имеет единственного владельца: `co-va/user`.
@@ -169,3 +178,39 @@
 - The User frontend now calls `https://api.va-tools.ru` directly from the Amvera preview. The Core application (read-only inspection, **not changed**) explicitly includes this exact preview origin in production CORS allowed origins. Login/session and all writes remain Core-owned. The old local fallback remains read-only.
 - IMPORTANT: preview currently writes into the same Core backend as production; tests with real credentials persist real account changes. Do not claim isolation, invent a staging database, or relax Core auth. Keep a browser/CORS regression gate and never promote a mere static smoke PASS as proof of authenticated writes.
 - User photo delete must use canonical pink `danger` action. Protect against regression.
+
+## Единый источник юридических документов — 2026-11-11 (staging)
+- Единственный владелец юридических документов и подписанных редакций — `co-va/core` / PostgreSQL (`PlatformDocument`, `PlatformDocumentVersion`, `AccountDocumentEvent`); `co-va/user` не хранит тексты документов, не создаёт локальные редакции или дубликаты.
+- Удалён `core/account/platform-documents.js` с локальной копией `PLATFORM_PRIVACY_POLICY`. `getGlobalAccountPlatformState()` получает политику ПДН и условия аккаунта из `GET /account/platform-state`; первый API отдаёт `privacyPolicy` из core DB после миграции `20261111190000_platform_user_privacy_policy`. Исторический текст политики редакции 1 от 01.11.2026 перенесён в core без изменений.
+- **Deployment dependency:** User staging preview currently calls production `https://api.va-tools.ru`. Until the core backend that includes the migration and `privacyPolicy` API field is deployed, User staging must NOT be declared end-to-end verified: the privacy document may be missing there. Do not restore the copied file or substitute Professional's different policy as a workaround. Coordinate release and verify both documents after Core API deployment; keep `main` unchanged without explicit approval.
+- Professional's tenant consent templates and RKN are separate legal documents sourced from core DB. This change does not edit their contents or signing history.
+
+## Shared Z/Q Header: единый шаг 12 px (User) — 2026-11-13
+
+- Согласовано владельцем: один Header для Z и Q, ровно 12 px сверху и снизу; между 0…N элементами Header также 12 px. Середина расширяется только по высоте содержимого, стрелка центрирована по строке. Не добавлять отдельные Z 14 px, Q 18 px или Q верхние 20 px.
+- Вставляемый текстовый заголовок не является текстовым полем: существующий `v2-q-title` занимает доступную ширину и имеет строго фиксированную высоту 46 px (height = min-height = max-height), без границ, заливки и отдельного позиционирования. Не увеличивается и не уменьшается при переносе текста; две строки могут поместиться в 46 px, более длинный текст требует отдельного сокращения, а не растяжения ячейки.
+- В `user/note-view.js` удалён локальный absolute-заголовок «Заметка»; используется тот же `v2-q-title`, что и в остальных Q.
+- Только `co-va/user/staging`. Не менялись main, Core, Professional, API, бизнес-логика и защитные тесты. Технические проверки и внешнюю визуальную приёмку фиксировать отдельно — запись здесь не означает подтверждения на устройстве.
+- Нормативное закрепление стандарта в единственном `co-va/core/staging/UI_ALPHABET.md` требует отдельного решения исполнителя Core и не выполнялось из User.
+
+### User main: эталон четырёх правил Z/Q, Input, Selector (13.11.2026)
+
+**Решение владельца:** после переноса согласованных изменений через штатный PR эталоном общего UI является **`co-va/user/main`**. `user/staging` — рабочая ветка; изменения в ней не становятся эталоном до выпуска и успешных проверок. Четыре правила ниже утверждены по параметрам; это не утверждение полного функционального и визуального приёма всех экранов User на устройстве. Ссылки на реальные исходники:
+- `shared.modal`: `ui/modals/modal.css`, `ui/v2/v2.css` — фон Z/Q строго `#FFFFFF` (никакого `--app-bg:#F5F5F3` на поверхности). Фон H не менять.
+- `shared.input`: `css/style.css` `--ui-field-height:46px`, `ui/inputs/inputs.css`, `ui/profile/profile.css`, `ui/auth/auth.css`: однострочный ввод, включая Email, телефон и ссылки, точно `46px`. `textarea` — отдельно; кнопки остаются `48px`.
+- `shared.selector`: `ui/selectors/selectors.css`, `ui/time/time.css`, `ui/duration/duration.css`, `ui/colors/colors.css`: селектор, его поиск и строки, пикеры — `46px`, включая двухстрочный текст; отдельных вариантов 48 px нет.
+- `shared.modal` / `shared.shell`: `ui/v2/z-layout.js`, `ui/v2/surface-header.css`, `ui/v2/v2.css`, `user/note-view.js`: общий Header Z/Q `12px` верх / `12px` между элементами / `12px` низ, без дублирующих отступов у Body. Текстовый заголовок — не инпут: прозрачная ячейка **строго `46px`**, не больше и не меньше, занимает доступную ширину, стрелка центрирована. Header растёт только из-за добавления новых строк, не из-за изменения высоты самой ячейки.
+
+**История внедрения:** коммиты `46cae99857d494fdaf3c2b4f7ce9b04cb10ae34d` и `c5e94ba366bdb052d1144b58e86de3cb6c93531e` были промежуточными; следующая проверенная версия — `943a5cb93a0320e7ec7879e440ebb4380d2a6c37`. После выпуска эталон — фактический HEAD `user/main` с зелёным CI выпуска. Перед копированием в другие проекты сверять SHA выпущенного `main` и результаты CI; визуальная приёмка на устройстве остаётся отдельной. `scripts/ci/guard-shared-ui.mjs` теперь должен обнаруживать возврат старых 22 px корня Z, 18 px Body Q, 52 px аккаунта, 48 px полей/селекторов или серой Q-поверхности.
+
+**Передача другим чатам:** читать `AGENTS.md`, `CI_CONTRACT.md` и этот раздел `PROJECT_STATE.md` в выпущенном `co-va/user/main`, затем сверять SHA и CI. Нормативная карта в единственном `co-va/core/staging/UI_ALPHABET.md`, синхронизирована с четырьмя правилами 13.11.2026; Professional и мобильный Admin обновлены в своих `staging` и должны пройти собственную приёмку. Не создавать копий карты в других репозиториях.
+
+**Корректировка владельца от 13.11.2026:** 46 px означает строгое равенство, НЕ «минимум 46 px» с возможностью увеличения. У согласованных однострочных полей, селекторов, строк выбора и текстовых вставок Header используются `height`, `min-height`, `max-height` = 46 px. У Header сохраняется по 12 px сверху, между элементами и снизу. `textarea`, стандартные кнопки и другие виды интерфейса — отдельные компоненты, не меняются этим уточнением.
+
+**Браузерная регрессия:** существующий `scripts/ci/user-notification-settings-smoke.mjs` проверяет вычисленный белый фон Q, 46 px у однострочного поля, селектора, строки выбора и поиска, строго 46 px у заголовка и динамическое увеличение Header на `46+12` px; проверка однострочного длинного заголовка на ширине 320 px сохранена. Этот тест проверяет реальные DOM/CSS, но не заменяет визуальную приёмку на iPhone.
+
+### Выпуск User как эталона — 2026-11-13
+
+- Утверждение владельца: **текущий выпущенный `user/main` — единственный эталон общего UI**, не `user/staging`. Для общих компонентов переносить параметры только из проверенного `main`; `staging` служит для дальнейшей разработки. Выпускать только через PR и CI без обхода защиты. Ссылки в Core UI_ALPHABET должны указывать на main.
+- Четыре правила: белая поверхность Z/Q `#FFFFFF`; однострочные поля строго `46px`; селекторы/строки выбора строго `46px`; Z/Q Header `12px` сверху, снизу и между элементами, вставленные текстовые заголовки строго `46px`. Кнопки/textarea не менялись.
+- Релизный PR и SHA main фиксируются фактически после GitHub merge; до этого не писать, что выпуск произошёл. Core API отдаёт платформенную политику ПДН из БД в `server/src/document-registry/account-document.service.ts` на Core/main; для гарантий на работающем сервере требуется отдельная проверка ответа API.
