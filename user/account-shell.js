@@ -55,7 +55,7 @@ import {
   openSharedProfileSettingsMenu,
 } from '../ui/user-ui.js';
 import { documentTile, documentTiles, openDocumentViewer } from '../ui/documents/index.js';
-import { readOnlyReceipt } from '../ui/receipt/index.js';
+
 import { notificationSettings } from '../ui/settings/index.js';
 import { openAccountConsentSettings } from './consent-settings.js';
 import { openAccountPasswordSettings } from './password-settings.js';
@@ -966,13 +966,60 @@ function preferredHistoryIndex(records = []) {
   return records.length ? 0 : -1;
 }
 
-function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, current = false } = {}) {
+// One adapter for the shared Record MiniCard: History and Q details differ
+// only in data/actions, never in geometry or rendering.
+function contactRecordMiniCard(workplace, request, {
+  compactAction = null, interactive = false, data = '', aria = '',
+  showPaymentDetails = false,
+} = {}) {
   const pricing = requestPricing(request);
+  const payment = requestPayment(request);
+  const statuses = requestStatuses(request);
+  const services = requestProcedures(request).map((item) => {
+    const storedText = String(item?.priceText || item?.costText || item?.displayPrice || '').trim();
+    const sourcePrice = item?.cost ?? item?.price;
+    const amount = sourcePrice && typeof sourcePrice === 'object'
+      ? (sourcePrice.minimum ?? sourcePrice.amount ?? sourcePrice.from)
+      : sourcePrice;
+    const variable = item?.variable === true || (sourcePrice && typeof sourcePrice === 'object' && sourcePrice.variable === true);
+    return {
+      name: String(item?.name || item?.title || 'Услуга'),
+      durationText: String(item?.durationText || ''),
+      priceText: storedText || (amount != null && amount !== '' && Number.isFinite(Number(amount))
+        ? `${variable ? 'от ' : ''}${money(amount)}` : ''),
+    };
+  });
+  const finance = request?.finance && typeof request.finance === 'object' ? request.finance : {};
+  const total = finance.planTotal != null ? pricing.total : pricing.subtotal;
+  const duration = String(request?.durationText || '').trim()
+    || (Number(request?.durationMinutes) > 0 ? `${Number(request.durationMinutes)} мин` : '');
+  const details = showPaymentDetails ? [
+    { value: 'Оплачено', rightValue: money(payment.paid) },
+    ...((statuses.payment === 'due' || statuses.payment === 'debt') && payment.due > 0.009
+      ? [{ value: PAYMENT_STATUS_LABELS[statuses.payment] || 'К оплате', rightValue: money(payment.due) }] : []),
+  ] : [];
   return recordMiniCard({
-    date: formatDate(request.date),
-    from: request.from,
-    procedures: requestProcedures(request).slice(0, 4),
-    total: money(pricing.total || pricing.subtotal),
+    confirmation: true,
+    viewer: true,
+    workplace: String(workplace?.name || 'Рабочее пространство'),
+    status: statuses.action === 'booked' ? '' : (ACTION_STATUS_LABELS[statuses.action] || ''),
+    date: formatDate(request?.date),
+    from: String(request?.from || ''),
+    to: String(request?.to || ''),
+    procedures: services,
+    details,
+    duration,
+    discount: pricing.discountAmount > 0.009 ? money(pricing.discountAmount) : '',
+    total: money(total),
+    compactAction,
+    interactive,
+    data,
+    aria,
+  });
+}
+
+function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, current = false } = {}) {
+  return contactRecordMiniCard(workplace, request, {
     compactAction: canRepeat ? {
       label: '↻',
       data: `data-global-contact-repeat="${index}"`,
@@ -980,33 +1027,14 @@ function contactHistoryMiniCard(workplace, request, index, { canRepeat = false, 
     } : null,
     interactive: true,
     data: `data-global-contact-history="${index}"${current ? ' data-v2-rail-current' : ''}`,
-    aria: `Открыть чек ${formatDate(request.date)}`,
+    aria: `Открыть запись ${formatDate(request.date)}`,
   });
 }
 
 function contactReceiptBody(workplace, request) {
-  const pricing = requestPricing(request);
-  const payment = requestPayment(request);
-  const statuses = requestStatuses(request);
-  const totals = [
-    { label: 'Стоимость', value: money(pricing.subtotal) },
-    { label: 'Скидка', value: money(pricing.discountAmount) },
-    { label: 'Оплачено', value: money(payment.paid), strong: true },
-  ];
-  if ((statuses.payment === 'due' || statuses.payment === 'debt') && payment.due > 0.009) {
-    totals.push({ label: PAYMENT_STATUS_LABELS[statuses.payment] || 'К оплате', value: money(payment.due), strong: true });
-  }
-  return readOnlyReceipt({
-    title: String(workplace?.name || 'Пространство'),
-    status: ACTION_STATUS_LABELS[statuses.action] || '',
-    date: formatDate(request.date),
-    time: request.from || '',
-    items: requestProcedures(request).map((item) => ({
-      label: item?.name || 'Процедура',
-      value: money(item?.cost || item?.price || 0),
-    })),
-    totals,
-  });
+  return `<div class="record-confirmation-view__card">${contactRecordMiniCard(workplace, request, {
+    showPaymentDetails: true,
+  })}</div>`;
 }
 
 async function openGlobalContactRecordQ(relationship, workplace, request) {
@@ -1015,7 +1043,7 @@ async function openGlobalContactRecordQ(relationship, workplace, request) {
   if (!tenantId || !recordId) return null;
   const layer = mountModal(document.body, modal('<div data-contact-record-q><div class="muted">Загрузка…</div></div>', {
     variant: 'q',
-    title: String(workplace?.name || 'Чек'),
+    title: '',
   }));
   const host = layer?.querySelector('[data-contact-record-q]');
   try {
@@ -1066,11 +1094,23 @@ async function openGlobalContactWorkplaceQ(relationship, workplace, handlers, ac
         layer.v2Close?.();
         handlers?.onStartRecord?.(tenantId, { workplaceKey });
       });
-      host.querySelectorAll('[data-global-contact-history]').forEach((node) => node.addEventListener('click', () => {
-        const request = records[Number(node.dataset.globalContactHistory)];
-        if (request) void openGlobalContactRecordQ(relationship, workplace, request);
-      }));
-      host.querySelectorAll('[data-global-contact-repeat]').forEach((node) => node.addEventListener('click', () => {
+      host.querySelectorAll('[data-global-contact-history]').forEach((node) => {
+        const open = () => {
+          const request = records[Number(node.dataset.globalContactHistory)];
+          if (request) void openGlobalContactRecordQ(relationship, workplace, request);
+        };
+        node.addEventListener('click', (event) => {
+          if (event.target.closest?.('[data-global-contact-repeat]')) return;
+          open();
+        });
+        node.addEventListener('keydown', (event) => {
+          if (event.target !== node || (event.key !== 'Enter' && event.key !== ' ')) return;
+          event.preventDefault();
+          open();
+        });
+      });
+      host.querySelectorAll('[data-global-contact-repeat]').forEach((node) => node.addEventListener('click', (event) => {
+        event.stopPropagation();
         const request = records[Number(node.dataset.globalContactRepeat)];
         if (!request) return;
         layer.v2Close?.();

@@ -226,7 +226,7 @@ export function recordMiniCard({
       identity: viewer ? (workplace || 'Рабочее пространство') : identity,
       phone: viewer ? status : phone,
       services: serviceLines,
-      details: viewer ? [] : details,
+      details,
       duration: confirmation ? duration : 'Стоимость',
       footerLayout: viewer ? 'three-column' : '',
       discount,

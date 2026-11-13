@@ -108,6 +108,34 @@ assert(miniMarkup.includes('function cardShell('), 'One shared MiniCard shell re
 assert(count(miniMarkup, 'return cardShell({') === 2, 'Record and generic variants must delegate to one MiniCard shell');
 assert(!miniMarkup.includes('height:auto;min-height:176px'), 'MiniCard variable-height workaround cannot return');
 
+const userHistory = read('user/account-shell.js');
+const userRecordRuntime = read('ui/record/runtime.js');
+const userJournal = read('user/journal.js');
+const userConfirmation = read('user/record-create.js');
+const userIntegrations = read('user/calendar-integrations.js');
+const modalMarkup = read('ui/modals/index.js');
+assert(miniMarkup.includes('function recordMarkup(layout = {}, { className = \'\', aria = \'\', interactive = false, data = \'\' } = {})'),
+  'Record MiniCard must accept shared click/data attributes');
+assert(miniMarkup.includes('return recordMarkup(recordLayout, { className, aria, interactive, data });'),
+  'Record MiniCard must forward consumer interaction instead of dropping it');
+assert(userHistory.includes('function contactRecordMiniCard(') &&
+       userHistory.includes('showPaymentDetails: true') &&
+       userHistory.includes('event.stopPropagation()') &&
+       !userHistory.includes('readOnlyReceipt(') &&
+       !userHistory.includes('.slice(0, 4)'),
+  'Contact History and its Q details must reuse one complete Record MiniCard and preserve repeat separately');
+assert(userRecordRuntime.includes('return miniCard({') &&
+       userJournal.includes('const card = recordMiniCard({') &&
+       userConfirmation.includes('recordMiniCard({') &&
+       userIntegrations.includes('return miniCard({'),
+  'Journal, confirmation, History, and Calendar integrations must all use the one shared MiniCard renderer');
+assert(modalMarkup.includes("variant === 'technical' ? 'technical' : 's'"),
+  'Technical notices must use the technical white sheet, never the informational S surface');
+assert(!read('index.html').includes('ui/receipt/receipt.css') &&
+       !walk('ui').some(file => file.startsWith('ui/receipt/')),
+  'Retired independent receipt UI must not be shipped beside the shared Record MiniCard');
+
+
 assert(list.includes('min-height:78px'), 'List entry geometry changed');
 assert(count(list, '.list-entry{') === 1, 'List entry geometry must have one owner');
 

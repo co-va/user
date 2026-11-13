@@ -27,28 +27,47 @@ jobs:
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
 
-          for url in 'https://user.va-tools.ru/' 'https://user.va-tools.ru/user/main.js'; do
-            echo "Checking $url"
-            failed=0
-            for attempt in 1 2 3 4 5; do
-              if curl --fail --silent --show-error --location --connect-timeout 5 --max-time 12 \
-                -o "$tmp/response" -w 'HTTP %{http_code}, TLS verify %{ssl_verify_result}, time %{time_total}s\n' "$url"; then
-                if [[ "$url" == */user/main.js ]]; then
-                  grep -q 'renderUser' "$tmp/response" || failed=$((failed + 1))
-                else
-                  grep -q 'user/main.js' "$tmp/response" || failed=$((failed + 1))
-                fi
-              else
-                failed=$((failed + 1))
-              fi
-              sleep 1
-            done
-            echo "Failures: $failed/5"
-            if (( failed >= 2 )); then
-              echo "::error::User production is unstable: $failed/5 failed requests to $url"
-              exit 1
+          # Production is esbuild-bundled: main.js is served at a content-hashed URL.
+          # Read the actual deployed HTML instead of testing a removed source path.
+          entry_failed=0
+          js_path=''
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --location --connect-timeout 5 --max-time 12 \
+              -o "$tmp/index" -w 'HTML HTTP %{http_code}, TLS verify %{ssl_verify_result}, time %{time_total}s\n' 'https://user.va-tools.ru/'; then
+              candidate="$(grep -oE '/assets/[0-9a-f]{20}/user/main-[A-Za-z0-9_-]+\.js' "$tmp/index" | head -n 1 || true)"
+              if [[ -n "$candidate" ]]; then js_path="$candidate"; else entry_failed=$((entry_failed + 1)); fi
+            else
+              entry_failed=$((entry_failed + 1))
             fi
+            sleep 1
           done
+          echo "HTML failures: $entry_failed/5"
+          if (( entry_failed >= 2 )) || [[ -z "$js_path" ]]; then
+            echo "::error::User production HTML or versioned JS reference is unstable"
+            exit 1
+          fi
+
+          js_failed=0
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --location --connect-timeout 5 --max-time 12 \
+              -D "$tmp/headers" -o "$tmp/main.mjs" \
+              -w 'JS HTTP %{http_code}, TLS verify %{ssl_verify_result}, time %{time_total}s\n' \
+              "https://user.va-tools.ru${js_path}"; then
+              if ! grep -qiE '^content-type:.*(javascript|ecmascript)' "$tmp/headers" || [[ ! -s "$tmp/main.mjs" ]]; then
+                js_failed=$((js_failed + 1))
+              elif ! node --check "$tmp/main.mjs" >/dev/null 2>&1; then
+                js_failed=$((js_failed + 1))
+              fi
+            else
+              js_failed=$((js_failed + 1))
+            fi
+            sleep 1
+          done
+          echo "Versioned JS failures: $js_failed/5"
+          if (( js_failed >= 2 )); then
+            echo "::error::User production versioned JavaScript is unstable: $js_failed/5 failed"
+            exit 1
+          fi
 
           status="$(curl --silent --show-error --location --connect-timeout 5 --max-time 12 \
             -o /dev/null -w '%{http_code}' 'https://api.va-tools.ru/account/me')"
