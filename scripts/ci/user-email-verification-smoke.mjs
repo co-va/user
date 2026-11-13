@@ -1,7 +1,39 @@
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 
-const base = process.env.USER_RUNTIME_BASE || 'https://user-volokovykh.msk1.amvera.tech/';
+// Email verification is a local, mock-API browser contract for the exact
+// checked-out commit. Live Amvera HTTPS/HTML/JS/API and auth are checked by
+// staging-smoke and user-runtime-smoke separately at the PR gate.
+const root = process.cwd();
+const mime = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json',
+};
+const server = createServer(async (req, res) => {
+  const pathname = decodeURIComponent(new URL(req.url || '/', 'http://127.0.0.1').pathname);
+  const relative = pathname === '/' || pathname === '/verify-email.html'
+    ? 'index.html'
+    : pathname.replace(/^\/+/, '');
+  const target = resolve(root, relative);
+  if (target !== root && !target.startsWith(root + sep)) {
+    res.writeHead(403); res.end(); return;
+  }
+  try {
+    const bytes = await readFile(target);
+    res.setHeader('Content-Type', mime[extname(target)] || 'application/octet-stream');
+    res.end(bytes);
+  } catch {
+    res.writeHead(404); res.end();
+  }
+});
+await new Promise((done) => server.listen(0, '127.0.0.1', done));
+const base = 'http://127.0.0.1:' + server.address().port + '/';
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage({ serviceWorkers: 'block', ignoreHTTPSErrors: false });
 
@@ -22,19 +54,19 @@ function mockJson(route, payload) {
 }
 
 try {
-  // Amvera can briefly serve mismatched assets while staging is republished.
-  // Retry the complete real login bootstrap, never skip the requirement.
+  // Boot the real User source modules for this commit; verify local login before
+  // exercising the complete mocked email reminder and public token flow.
   let bootError = null;
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
       const response = await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 25_000 });
-      assert.equal(response?.status(), 200, 'Staging User login HTML must load');
+      assert.equal(response?.status(), 200, 'Local User login HTML must load');
       await page.locator('[data-global-account-entry]').waitFor({ state: 'visible', timeout: 18_000 });
       bootError = null;
       break;
     } catch (error) {
       bootError = error;
-      console.error('Email smoke login attempt ' + attempt + '/4: ' + String(error?.message || error));
+      console.error('Email smoke local login attempt ' + attempt + '/4: ' + String(error?.message || error));
       if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 3_000));
     }
   }
@@ -97,4 +129,6 @@ try {
   console.log('User email verification: no automatic send, explicit request, verified skip, public deep link: PASS');
 } finally {
   await browser.close();
+  server.closeAllConnections();
+  await new Promise((done) => server.close(done));
 }
