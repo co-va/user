@@ -162,8 +162,8 @@ assert(detailsDeclaration.includes('border-radius:0;'),
   'Shared entity details must retain four 90-degree corners');
 
 
-/* Full-size Shared actions and form/picker controls use one geometry. Compact
-   header, icon, and editor controls intentionally keep their own sizes. */
+/* Full-size action buttons retain 48px. Form, selector and picker controls
+   use the independent owner-approved 46px field token. */
 const actionButtonCss = read('ui/buttons/buttons.css');
 const selectorCss = read('ui/selectors/selectors.css');
 assert(shellStyles.includes('--ui-control-height:48px'), 'Shared control height token missing');
@@ -179,10 +179,11 @@ assert(modalStyles.includes('[data-v2-z-body]{--ui-action-shift:') &&
   modalStyles.includes('var(--ui-action-inset)'),
   'Shared footer must keep centered token-based Z/Q alignment');
 assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
-  read('ui/time/time.css').includes('.time-picker__button{width:100%;min-height:var(--ui-control-height)') &&
-  read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;min-height:var(--ui-control-height)') &&
-  read('ui/inputs/inputs.css').includes('min-height:var(--ui-control-height)'),
-  'Full-size form and picker controls must match button height');
+  read('ui/time/time.css').includes('.time-picker__button{width:100%;height:var(--ui-field-height);min-height:var(--ui-field-height)') &&
+  read('ui/duration/duration.css').includes('.duration-picker__button{width:100%;height:var(--ui-field-height);min-height:var(--ui-field-height)') &&
+  read('ui/inputs/inputs.css').includes('min-height:var(--ui-field-height)') &&
+  read('ui/colors/colors.css').includes('height:var(--ui-field-height);min-height:var(--ui-field-height)'),
+  'Shared form, selector, time, duration and color pickers must all use 46px');
 
 assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
   read('ui/buttons/index.js').includes('export function compactAddControl('),
