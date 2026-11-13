@@ -279,7 +279,7 @@ const calendarControls = read('ui/calendar/calendar.js');
 const calendarControlsCss = read('ui/calendar/calendar.css');
 assert(miniMarkup.includes("import { compactControl } from '../buttons/index.js';") &&
   count(miniMarkup, 'compactControl({') >= 2 &&
-  !miniMarkup.includes('class="mini-card__record-action') &&
+  !miniMarkup.includes('<button type="button" class="mini-card__record-action') &&
   !miniMarkup.includes('class="mini-card__compact-action') &&
   mini.includes('.mini-card__record-top{display:grid;grid-template-columns:44px') &&
   mini.includes('.mini-card__record-action-placeholder{width:44px') &&
