@@ -156,13 +156,19 @@ function openUserRecord(record) {
     name: String(item?.name || 'Процедура'),
     priceText: deleted ? '' : journalRecordPriceText(item),
   }));
+  const person = record?.person && typeof record.person === 'object' ? record.person : {};
+  const finance = record?.finance && typeof record.finance === 'object' ? record.finance : {};
+  const shownDiscount = Number(finance.serviceTotal) - Number(finance.planTotal);
   const card = recordMiniCard({
     confirmation: true,
     workplace: status || workplace || 'Запись',
     date: shortDate(record?.date, ''),
     from: String(record?.from || ''),
+    identity: [person.uei, person.name, person.surname].map((part) => String(part || '').trim()).filter(Boolean).join(' '),
+    phone: String(person.phone || ''),
     procedures,
     duration: recordDurationLabel(record),
+    discount: !deleted && Number.isFinite(shownDiscount) && shownDiscount > 0.009 ? `Скидка: ${money(shownDiscount)}` : '',
     total: deleted ? '' : money(amountDue(record)),
     compactAction: canRepeat ? {
       label: '↻',
