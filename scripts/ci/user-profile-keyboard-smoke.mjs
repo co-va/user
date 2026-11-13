@@ -655,7 +655,7 @@ try {
   }
   assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
 
-  // One shared 310 × 200 record mini-card, with fixed identity/time header and total footer:
+  // One shared 290 × 200 record mini-card, with fixed identity/time header and total footer:
   // workplace, date+time, each selected service and its prepared price,
   // duration replacing the footer label, total replacing the footer amount.
   const recordCardCheck = await page.evaluate(async () => {
@@ -728,7 +728,7 @@ try {
       outsideList: Boolean(host.querySelector('.list-entry,.read-only-sheet')),
       longScroll: longCenter.scrollHeight > longCenter.clientHeight,
       longService: longCard.textContent.includes('Процедура 11'),
-      exactSize: confirmation.getBoundingClientRect().width === 310
+      exactSize: confirmation.getBoundingClientRect().width === 290
         && confirmation.getBoundingClientRect().height === 200,
       fixedZones: ['head', 'center', 'footer'].every((zone) =>
         Boolean(longCard.querySelector('.mini-card__record-' + zone))),
@@ -741,7 +741,7 @@ try {
     return result;
   });
   assert.equal(recordCardCheck.sameGeometry, true, 'History and confirmation preserve the same mini-card UI');
-  assert.equal(recordCardCheck.exactSize, true, 'Record mini-card must be exactly 310 × 200');
+  assert.equal(recordCardCheck.exactSize, true, 'Record mini-card must be exactly 290 × 200');
   assert.equal(recordCardCheck.fixedZones && recordCardCheck.fixedFooter, true,
     'Only the centre scrolls: header and totals stay fixed');
   assert.equal(recordCardCheck.timeNoWrap, true, 'Record date and time must never wrap');
