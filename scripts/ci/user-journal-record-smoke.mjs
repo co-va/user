@@ -322,9 +322,10 @@ try {
   assert.equal(dimensions.placeholderHidden, 'none', 'One action reclaims unused left slot');
   assert.equal(dimensions.threeTotals, true);
   assert.equal(dimensions.totalColumns, 3);
-  assert.deepEqual(dimensions.footerCaptions, ['Время', '', 'Итого']);
+  assert.deepEqual(dimensions.footerCaptions, ['Время', 'Итого'],
+    'No discount label is shown when a record has no discount');
   assert.equal(dimensions.footerValues[0], '3 ч');
-  assert.match(dimensions.footerValues[2], /21\s?000\s?₽/);
+  assert.match(dimensions.footerValues[1], /21\s?000\s?₽/);
   assert.equal(dimensions.centerRows, 3, 'Only booked services belong in viewer');
   assert.equal(/К оплате|Оплачено|Программа/.test(dimensions.centerText), false,
     'Payment statuses and programs must not be duplicated inside service area');
