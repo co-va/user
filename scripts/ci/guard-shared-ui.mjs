@@ -42,7 +42,7 @@ assert(v2.includes('--v2-z-layer-offset:12px'), 'Shared Z layer offset changed')
 assert(v2.includes('--v2-edge:16px'), 'Shared Z edge changed');
 assert(v2.includes('height:72px;') && v2.includes('flex:0 0 72px'), 'Shared H height changed');
 assert(v2.includes('padding:0 18px calc(24px + env(safe-area-inset-bottom))'), 'Shared Z must delegate its top padding to the Header');
-assert(v2.includes('right:0;bottom:0;padding-top:0}'), 'Shared Q cannot add second top padding');
+assert(v2.includes('right:0;bottom:0;padding-top:0;background:var(--v2-zq-surface)}'), 'Shared Q cannot add second top padding or a white background');
 assert(zLayout.includes("const SURFACE_HEADER_SPACING = '12px'"), 'Shared Z/Q Header must own X = 12px');
 assert(zLayout.includes('padding-top:var(--v2-surface-header-spacing)') && zLayout.includes('padding-bottom:var(--v2-surface-header-spacing)'), 'Both Header edges must retain X = 12px');
 assert(zLayout.includes('gap:var(--v2-surface-header-spacing)'), 'Z/Q Header rows must use X = 12px');
