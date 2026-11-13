@@ -1,3 +1,4 @@
+import '../check-ui-contract.mjs';
 import { assert, count, read, walk, finish } from './guard-lib.mjs';
 
 const v2 = read('ui/v2/v2.css');
