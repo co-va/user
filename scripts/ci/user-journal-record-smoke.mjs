@@ -161,6 +161,13 @@ try {
   assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
   assert.equal(await page.getByText('Изменения в записях', { exact: false }).count(), 0);
   await page.locator('[data-v2-z-header-row="0"] [data-view="day"]').click();
+  await page.locator('.time-timeline').waitFor({timeout:6000});
+  const journalSurfaces=await page.evaluate(()=>({
+    z:getComputedStyle(document.querySelector('.v2-z')).backgroundColor,
+    journal:getComputedStyle(document.querySelector('.time-timeline')).backgroundColor,
+  }));
+  assert.deepEqual(journalSurfaces,{z:'rgb(245, 245, 243)',journal:'rgb(255, 255, 255)'},
+    'Z must be warm; the striped Journal time grid must remain white');
   assert.equal(await page.locator('[data-user-journal-notices-host]').count(), 0);
   assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="day"].has-notification').count(), 0);
   assert.equal(await page.locator('[data-v2-z-header-row="0"] [data-view="list"].has-notification').count(), 1);

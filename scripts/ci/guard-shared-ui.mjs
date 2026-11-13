@@ -56,7 +56,11 @@ assert(v2.includes('--v2-card-width:min(68vw,258px)'), 'Shared F card width chan
 assert(v2.includes('--v2-card-height:min(47vh,344px)'), 'Shared F card height changed');
 assert(rootSelectorCount(v2, '.v2-header') === 1, 'Shared H geometry must have one owner');
 assert(rootSelectorCount(v2, '.v2-z') === 1, 'Shared Z geometry must have one owner');
-assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-white,#fff)}'), 'Z/Q app surface must be pure white');
+assert(v2.includes('--v2-zq-surface:#F5F5F3;') && v2.includes('background:var(--v2-zq-surface);color:var(--v2-ink);box-shadow:-6px 2px 18px rgba(0,0,0,.10)') && v2.includes('padding-top:0;background:var(--v2-zq-surface)}'), 'Z/Q shell must use warm #F5F5F3 surface');
+assert(zLayout.includes("'background:var(--v2-zq-surface,#F5F5F3)'") && surfaceHeaderStyles.includes('background:var(--v2-zq-surface,#F5F5F3)!important;'), 'Z/Q Header must share warm surface without a white strip');
+assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-zq-surface,#F5F5F3)}'), 'Z/Q app surface must remain warm beige, unlike white editable fields');
+assert(inputsStyles.includes('background:var(--white)') && selectorStyles.includes('background:var(--white)'), 'Inputs and selectors must stay white on warm Z/Q');
+assert(read('ui/time/time.css').includes('.time-timeline{position:relative;display:grid;gap:0;background:var(--white)'), 'Journal striped time grid must stay white, independent of Z surface');
 assert(shellStyles.includes('--ui-field-height:46px;') && shellStyles.includes('--ui-control-height:48px;'), '46px fields must be independent of unchanged buttons');
 assert(inputsStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)'), 'Form fields must stay exactly 46px');
 assert(profileStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)') && !profileStyles.includes('[data-v2-q-body]{padding-top:6px}'), 'Profile inputs must stay exactly 46px without Q gap');

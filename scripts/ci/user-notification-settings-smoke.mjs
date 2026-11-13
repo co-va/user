@@ -108,14 +108,16 @@ try{
       const height=selector=>sample.querySelector(selector).getBoundingClientRect().height;
       const originalSurface=sheet.classList.contains('modal--surface-app');
       sheet.classList.add('modal--surface-app');
-      const whiteSurface=getComputedStyle(sheet).backgroundColor;
+      const warmSurface=getComputedStyle(sheet).backgroundColor;
       if(!originalSurface)sheet.classList.remove('modal--surface-app');
       const result={
         top:getComputedStyle(header).paddingTop,
         bottom:getComputedStyle(header).paddingBottom,
         gap:getComputedStyle(content).rowGap,
         growth:after-before,
-        whiteSurface,
+        warmSurface,
+        fieldFill:getComputedStyle(sample.querySelector('.field input')).backgroundColor,
+        selectorFill:getComputedStyle(sample.querySelector('.ui-select__control')).backgroundColor,
         field:height('.field input'),
         selector:height('.ui-select__control'),
         search:height('.ui-selector__search'),
@@ -125,7 +127,9 @@ try{
       sample.remove();
       return result;
     });
-    assert.equal(baseline.whiteSurface,'rgb(255, 255, 255)','Z/Q surface must stay white: '+JSON.stringify(baseline));
+    assert.equal(baseline.warmSurface,'rgb(245, 245, 243)','Z/Q must be warm #F5F5F3: '+JSON.stringify(baseline));
+    assert.equal(baseline.fieldFill,'rgb(255, 255, 255)','Input must remain white on warm Q');
+    assert.equal(baseline.selectorFill,'rgb(255, 255, 255)','Selector must remain white on warm Q');
     assert.equal(baseline.top,'12px','Q Header top must be 12px');
     assert.equal(baseline.bottom,'12px','Q Header bottom must be 12px');
     assert.equal(baseline.gap,'12px','Q Header control rows must have 12px gap');
