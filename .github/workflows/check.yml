@@ -38,7 +38,9 @@ jobs:
         run: node scripts/ci/guard-repository.mjs
 
       - name: Shared UI contract
-        run: node scripts/ci/guard-shared-ui.mjs
+        run: |
+          node scripts/ci/guard-shared-ui.mjs
+          node scripts/ci/user-shared-mini-card-smoke.mjs
 
       - name: Profile contract
         run: node scripts/ci/guard-profile.mjs
