@@ -13,6 +13,7 @@ const authStyles = read('ui/auth/auth.css');
 const noteView = read('user/note-view.js');
 const entity = read('ui/cards/entity-card-constructor.css');
 const mini = read('ui/cards/mini-card.css');
+const miniMarkup = read('ui/cards/mini-card.js');
 const list = read('ui/lists/list-entry.css');
 const keyboard = read('ui/inputs/keyboard-runtime.js');
 const keyboardStyles = read('ui/inputs/keyboard.css');
@@ -94,9 +95,18 @@ assert(entity.includes('aspect-ratio:338/213'), 'Entity card aspect ratio must r
 assert(entity.includes('grid-template-rows:repeat(9,minmax(0,1fr))'), 'Entity card must keep 9 rows');
 assert(rootSelectorCount(entity, '.entity-visual-card') === 1, 'Entity card geometry must have one owner');
 
-// Mini-card geometry is intentionally not frozen yet: it is pending product correction.
-// CI only protects the single-owner rule so a second mini-card implementation cannot appear.
+// Approved across the platform: a single 290×200 Shared MiniCard shell for every data variant.
 assert(rootSelectorCount(mini, '.mini-card') === 1, 'Mini card geometry must have one owner');
+assert(mini.includes('.mini-card{--mini-card-width:290px;--mini-card-height:200px;'),
+  'ALL MiniCards must use exactly the approved 290×200 geometry');
+assert(mini.includes('grid-template-rows:auto minmax(0,1fr) auto'),
+  'Shared MiniCard must keep fixed header, scrollable center and fixed footer');
+assert(mini.includes('.mini-card__record-center{min-height:0;min-width:0;overflow-y:auto'),
+  'Shared center must own all vertical scrolling');
+assert(!/238px|144px|176px/.test(mini), 'Legacy MiniCard dimensions cannot return');
+assert(miniMarkup.includes('function cardShell('), 'One shared MiniCard shell renderer is required');
+assert(count(miniMarkup, 'return cardShell({') === 2, 'Record and generic variants must delegate to one MiniCard shell');
+assert(!miniMarkup.includes('height:auto;min-height:176px'), 'MiniCard variable-height workaround cannot return');
 
 assert(list.includes('min-height:78px'), 'List entry geometry changed');
 assert(count(list, '.list-entry{') === 1, 'List entry geometry must have one owner');
