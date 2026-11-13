@@ -26,5 +26,7 @@ assert(create.includes("step: 'workplace'"), 'Workplace selection step missing')
 assert(create.includes('if (workplaces.length === 1)'), 'Single workplace must remain skippable');
 assert(create.includes('stepBack: true'), 'Record flow must preserve step-back navigation');
 assert(create.includes('createContactRecord(id,'), 'Record creation must use canonical Account Record API');
+assert(!read('user/account-shell.js').includes('readOnlyReceipt('), 'History details must not restore a second record receipt UI');
+assert(!read('user/account-shell.js').includes('.slice(0, 4)'), 'Record History must show every service in the scrolling middle');
 
 finish('Record');

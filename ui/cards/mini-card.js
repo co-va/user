@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils/escape-html.js';
+import { compactControl } from '../buttons/index.js';
 
 function attrs(data = '', aria = '') {
   return `${data ? ` ${String(data).trim()}` : ''}${aria ? ` aria-label="${escapeHtml(aria)}"` : ''}`;
@@ -40,14 +41,34 @@ function recordActionMarkup(action, side) {
   if (!action?.data || !action?.label) {
     return `<span class="mini-card__record-action-placeholder mini-card__record-action-placeholder--${side}" aria-hidden="true"></span>`;
   }
-  const variant = action.variant === 'secondary' ? ' mini-card__record-action--secondary' : '';
-  const content = action.icon === 'settings'
-    ? '<svg class="mini-card__record-action-icon" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5h3l.6 2.2 2.1.9 2-.9 2.1 2.1-.9 2 .9 2.1 2.2.6v3l-2.2.6-.9 2.1.9 2-2.1 2.1-2-.9-2.1.9-.6 2.2h-3l-.6-2.2-2.1-.9-2 .9-2.1-2.1.9-2-.9-2.1-2.2-.6v-3l2.2-.6.9-2.1-.9-2 2.1-2.1 2 .9 2.1-.9Z"/><circle cx="12" cy="12" r="3"/></svg>'
-    : escapeHtml(action.label);
-  return `<button type="button" class="mini-card__record-action mini-card__record-action--${side}${variant}"${attrs(action.data, action.aria || action.label)}>${content}</button>`;
+  // The 44px header slots stay fixed; their 28px glyph button comes from Shared Compact.
+  const icon = action.icon || (action.label === '↻' ? 'repeat' : 'add');
+  const symbol = action.icon || action.label === '↻' ? '' : action.label;
+  return compactControl({
+    icon,
+    symbol,
+    appearance: action.variant === 'secondary' ? 'secondary' : 'dark',
+    className: `mini-card__record-action mini-card__record-action--${side}`,
+    data: action.data,
+    aria: action.aria || action.label,
+  });
 }
 
-function recordMarkup(layout = {}, { className = '', aria = '' } = {}) {
+function cardShell({
+  tag = 'section', classes = '', style = '', attributes = '',
+  head = '', center = '', footer = '', footerClass = '', extra = '',
+  centerAria = 'Содержимое мини-карты', scrollFocus = true,
+} = {}) {
+  const focusAttrs = scrollFocus ? ` tabindex="0" role="region" aria-label="${escapeHtml(centerAria)}"` : '';
+  return `<${tag} class="${escapeHtml(classes)}" data-mini-card-ui="shared"${style}${attributes}>
+    <div class="mini-card__record-head">${head}</div>
+    <div class="mini-card__record-center"${focusAttrs}>${center}</div>
+    <div class="mini-card__record-footer${footerClass ? ` ${escapeHtml(footerClass)}` : ''}">${footer}</div>
+    ${extra}
+  </${tag}>`;
+}
+
+function recordMarkup(layout = {}, { className = '', aria = '', interactive = false, data = '' } = {}) {
   const entries = Array.isArray(layout.services) ? layout.services : [];
   const details = Array.isArray(layout.details) ? layout.details : [];
   const personHeader = layout.headerMode === 'person';
@@ -56,8 +77,7 @@ function recordMarkup(layout = {}, { className = '', aria = '' } = {}) {
   const topLayout = personHeader
     ? `${showLeft ? '' : ' mini-card__record-top--no-left'}${showRight ? '' : ' mini-card__record-top--no-right'}`
     : '';
-  return `<section class="mini-card mini-card--record${personHeader ? ' mini-card--record-person' : ''}${personHeader && !showLeft ? ' mini-card--record-no-left' : ''}${className ? ` ${escapeHtml(className)}` : ''}" aria-label="${escapeHtml(aria || 'Данные записи')}">
-    <div class="mini-card__record-head">
+  const headMarkup = `
       <div class="mini-card__record-top${topLayout}">
         ${recordActionMarkup(layout.leftAction, 'left')}
         <div class="mini-card__record-main">
@@ -74,12 +94,10 @@ function recordMarkup(layout = {}, { className = '', aria = '' } = {}) {
             ${layout.momentParts.end ? `<span class="mini-card__record-time-end">–${escapeHtml(layout.momentParts.end)}</span>` : ''}
           </div>`
         : personHeader ? `<div class="mini-card__record-moment">${escapeHtml(layout.moment || '')}</div>`
-        : `${layout.identity ? `<div class="mini-card__record-identity">${escapeHtml(layout.identity)}</div>` : ''}${layout.phone ? `<div class="mini-card__record-phone">${escapeHtml(layout.phone)}</div>` : ''}`}
-    </div>
-    <div class="mini-card__record-center" tabindex="0" role="region" aria-label="Услуги записи">
-      ${[...entries, ...details].map(lineMarkup).join('')}
-    </div>
-    <div class="mini-card__record-footer${layout.footerLayout === 'three-column' ? ' mini-card__record-footer--triple' : ''}">
+        : `${layout.identity ? `<div class="mini-card__record-identity">${escapeHtml(layout.identity)}</div>` : ''}${layout.phone ? `<div class="mini-card__record-phone">${escapeHtml(layout.phone)}</div>` : ''}`}`;
+  const centerMarkup = `
+      ${[...entries, ...details].map(lineMarkup).join('')}`;
+  const footerMarkup = `
       ${layout.footerLayout === 'three-column'
         ? `<div class="mini-card__record-stat mini-card__record-stat--duration">
             <span class="mini-card__record-stat-label">Время</span>
@@ -98,9 +116,19 @@ function recordMarkup(layout = {}, { className = '', aria = '' } = {}) {
             ${layout.discount ? `<span class="mini-card__record-discount">${escapeHtml(layout.discount)}</span>` : ''}
           </span>
           <strong class="mini-card__record-total">${escapeHtml(layout.total || '')}</strong>
-        </div>`}
-    </div>
-  </section>`;
+        </div>`}`;
+  return cardShell({
+    tag: 'section',
+    classes: `mini-card mini-card--record${personHeader ? ' mini-card--record-person' : ''}${personHeader && !showLeft ? ' mini-card--record-no-left' : ''}${className ? ` ${className}` : ''}`,
+    attributes: interactive && data
+      ? ` tabindex="0" role="button"${attrs(data, aria || 'Открыть запись')}`
+      : ` aria-label="${escapeHtml(aria || 'Данные записи')}"`,
+    head: headMarkup,
+    center: centerMarkup,
+    footer: footerMarkup,
+    footerClass: layout.footerLayout === 'three-column' ? 'mini-card__record-footer--triple' : '',
+    centerAria: 'Услуги записи',
+  });
 }
 
 export function miniCard({
@@ -128,7 +156,7 @@ export function miniCard({
   className = '',
 } = {}) {
   if (recordLayout && typeof recordLayout === 'object') {
-    return recordMarkup(recordLayout, { className, aria });
+    return recordMarkup(recordLayout, { className, aria, interactive, data });
   }
   const resolvedCompactAction = compactAction && typeof compactAction === 'object'
     ? compactAction
@@ -145,42 +173,49 @@ export function miniCard({
     image ? 'has-image' : '',
     className,
   ].filter(Boolean).join(' ');
-  const surfaceStyle = resolvedSurface === 'photo' && image
-    ? ` style="--mini-card-surface-image:url('${escapeHtml(image)}');--mini-card-image-position:${escapeHtml(imagePosition)}"`
-    : '';
+  const surfaceStyle = '';
   const actionAttrs = interactive && !dualAction ? ` type="button"${attrs(data, aria || title)}` : '';
   const rowItems = Array.isArray(rows) ? rows : [];
   const lineItems = Array.isArray(lines) ? lines : [];
-  const media = resolvedSurface === 'default'
-    ? (image
-      ? `<span class="mini-card__media" style="--mini-card-image:url('${escapeHtml(image)}');--mini-card-image-position:${escapeHtml(imagePosition)}" aria-hidden="true"></span>`
-      : initials
-        ? `<span class="mini-card__media mini-card__media--initials" aria-hidden="true">${escapeHtml(initials)}</span>`
-        : '')
-    : '';
+  const media = image
+    ? `<span class="mini-card__media" style="--mini-card-image:url('${escapeHtml(image)}');--mini-card-image-position:${escapeHtml(imagePosition)}" aria-hidden="true"></span>`
+    : initials
+      ? `<span class="mini-card__media mini-card__media--initials" aria-hidden="true">${escapeHtml(initials)}</span>`
+      : '';
 
   const resolvedClasses = [classes, lineItems.length ? 'mini-card--lines' : ''].filter(Boolean).join(' ');
   const surfaceAction = dualAction
     ? `<button type="button" class="mini-card__surface-action"${attrs(data, aria || title)}></button>`
     : '';
   const compactActionMarkup = hasCompactAction
-    ? `<button type="button" class="mini-card__compact-action"${attrs(resolvedCompactAction.data, resolvedCompactAction.aria || resolvedCompactAction.label)}>${escapeHtml(resolvedCompactAction.label)}</button>`
+    ? compactControl({
+        icon: resolvedCompactAction.icon || (resolvedCompactAction.label === '↻' ? 'repeat' : 'add'),
+        symbol: resolvedCompactAction.icon || resolvedCompactAction.label === '↻' ? '' : resolvedCompactAction.label,
+        appearance: 'dark',
+        className: 'mini-card__compact-action',
+        data: resolvedCompactAction.data,
+        aria: resolvedCompactAction.aria || resolvedCompactAction.label,
+      })
     : '';
 
-  return `<${tag} class="${escapeHtml(resolvedClasses)}"${surfaceStyle}${actionAttrs}>
-    ${lineItems.length ? `<div class="mini-card__lines">${lineItems.map(lineMarkup).join('')}</div>` : `<div class="mini-card__head">
+  const headerMarkup = lineItems.length ? '' : `<div class="mini-card__head">
       <span class="mini-card__copy">
         <strong class="mini-card__title"${attrs(titleData, titleAria)}>${escapeHtml(title)}</strong>
         ${value ? `<strong class="mini-card__value"${attrs(valueData, valueAria)}>${escapeHtml(value)}</strong>` : ''}
         ${subtitle ? `<span class="mini-card__subtitle"${attrs(subtitleData, subtitleAria)}>${escapeHtml(subtitle)}</span>` : ''}
       </span>
       ${media}
-    </div>`}
-    ${actionLabel ? `<span class="mini-card__context-action">${escapeHtml(actionLabel)}</span>` : ''}
-    ${rowItems.length ? `<div class="mini-card__rows">${rowItems.map(rowMarkup).join('')}</div>` : ''}
-    ${surfaceAction}
-    ${compactActionMarkup}
-  </${tag}>`;
+    </div>`;
+  const centerMarkup = `${lineItems.length ? `<div class="mini-card__lines">${lineItems.map(lineMarkup).join('')}</div>` : ''}
+    ${rowItems.length ? `<div class="mini-card__rows">${rowItems.map(rowMarkup).join('')}</div>` : ''}`;
+  const footerMarkup = actionLabel ? `<span class="mini-card__context-action">${escapeHtml(actionLabel)}</span>` : '';
+  const centerAttrs = interactive ? '' : ' tabindex="0" role="region" aria-label="Содержимое мини-карты"';
+  return cardShell({
+    tag, classes: resolvedClasses, style: surfaceStyle, attributes: actionAttrs,
+    head: headerMarkup, center: centerMarkup, footer: footerMarkup,
+    extra: `${surfaceAction}${compactActionMarkup}`,
+    scrollFocus: !interactive,
+  });
 }
 
 export function miniCardRail(cards = [], { className = '', affordanceMinItems = 2 } = {}) {

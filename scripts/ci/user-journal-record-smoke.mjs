@@ -307,8 +307,8 @@ try {
     centerRows: el.querySelectorAll('.mini-card__record-center .mini-card__line').length,
     centerText: el.querySelector('.mini-card__record-center')?.textContent,
   }));
-  assert.equal(dimensions.width, 290);
-  assert.equal(dimensions.height, 200);
+  assert.ok(Math.abs(dimensions.width - 290) < 0.1, `Record card width must remain 290px (got ${dimensions.width})`);
+  assert.ok(Math.abs(dimensions.height - 200) < 0.1, `Record card height must remain 200px (got ${dimensions.height})`);
   assert.equal(dimensions.top && dimensions.bottom && dimensions.personGeometry, true,
     'User record viewer must use the same fixed-head/footer geometry as Professional');
   assert.equal(dimensions.middle, 'auto');

@@ -13,6 +13,7 @@ const authStyles = read('ui/auth/auth.css');
 const noteView = read('user/note-view.js');
 const entity = read('ui/cards/entity-card-constructor.css');
 const mini = read('ui/cards/mini-card.css');
+const miniMarkup = read('ui/cards/mini-card.js');
 const list = read('ui/lists/list-entry.css');
 const keyboard = read('ui/inputs/keyboard-runtime.js');
 const keyboardStyles = read('ui/inputs/keyboard.css');
@@ -94,9 +95,46 @@ assert(entity.includes('aspect-ratio:338/213'), 'Entity card aspect ratio must r
 assert(entity.includes('grid-template-rows:repeat(9,minmax(0,1fr))'), 'Entity card must keep 9 rows');
 assert(rootSelectorCount(entity, '.entity-visual-card') === 1, 'Entity card geometry must have one owner');
 
-// Mini-card geometry is intentionally not frozen yet: it is pending product correction.
-// CI only protects the single-owner rule so a second mini-card implementation cannot appear.
+// Approved across the platform: a single 290×200 Shared MiniCard shell for every data variant.
 assert(rootSelectorCount(mini, '.mini-card') === 1, 'Mini card geometry must have one owner');
+assert(mini.includes('.mini-card{--mini-card-width:290px;--mini-card-height:200px;'),
+  'ALL MiniCards must use exactly the approved 290×200 geometry');
+assert(mini.includes('grid-template-rows:auto minmax(0,1fr) auto'),
+  'Shared MiniCard must keep fixed header, scrollable center and fixed footer');
+assert(mini.includes('.mini-card__record-center{min-height:0;min-width:0;overflow-y:auto'),
+  'Shared center must own all vertical scrolling');
+assert(!/238px|144px|176px/.test(mini), 'Legacy MiniCard dimensions cannot return');
+assert(miniMarkup.includes('function cardShell('), 'One shared MiniCard shell renderer is required');
+assert(count(miniMarkup, 'return cardShell({') === 2, 'Record and generic variants must delegate to one MiniCard shell');
+assert(!miniMarkup.includes('height:auto;min-height:176px'), 'MiniCard variable-height workaround cannot return');
+
+const userHistory = read('user/account-shell.js');
+const userRecordRuntime = read('ui/record/runtime.js');
+const userJournal = read('user/journal.js');
+const userConfirmation = read('user/record-create.js');
+const userIntegrations = read('user/calendar-integrations.js');
+const modalMarkup = read('ui/modals/index.js');
+assert(miniMarkup.includes('function recordMarkup(layout = {}, { className = \'\', aria = \'\', interactive = false, data = \'\' } = {})'),
+  'Record MiniCard must accept shared click/data attributes');
+assert(miniMarkup.includes('return recordMarkup(recordLayout, { className, aria, interactive, data });'),
+  'Record MiniCard must forward consumer interaction instead of dropping it');
+assert(userHistory.includes('function contactRecordMiniCard(') &&
+       userHistory.includes('showPaymentDetails: true') &&
+       userHistory.includes('event.stopPropagation()') &&
+       !userHistory.includes('readOnlyReceipt(') &&
+       !userHistory.includes('.slice(0, 4)'),
+  'Contact History and its Q details must reuse one complete Record MiniCard and preserve repeat separately');
+assert(userRecordRuntime.includes('return miniCard({') &&
+       userJournal.includes('const card = recordMiniCard({') &&
+       userConfirmation.includes('recordMiniCard({') &&
+       userIntegrations.includes('return miniCard({'),
+  'Journal, confirmation, History, and Calendar integrations must all use the one shared MiniCard renderer');
+assert(modalMarkup.includes("variant === 'technical' ? 'technical' : 's'"),
+  'Technical notices must use the technical white sheet, never the informational S surface');
+assert(!read('index.html').includes('ui/receipt/receipt.css') &&
+       !walk('ui').some(file => file.startsWith('ui/receipt/')),
+  'Retired independent receipt UI must not be shipped beside the shared Record MiniCard');
+
 
 assert(list.includes('min-height:78px'), 'List entry geometry changed');
 assert(count(list, '.list-entry{') === 1, 'List entry geometry must have one owner');
@@ -205,12 +243,58 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/colors/colors.css').includes('height:var(--ui-field-height);min-height:var(--ui-field-height)'),
   'Shared form, selector, time, duration and color pickers must all be exactly 46px');
 
-assert(actionButtonCss.includes('.ui-button,.ui-add-control{') &&
-  read('ui/buttons/index.js').includes('export function compactAddControl('),
-  'Compact + must have a separate Shared control owner, reusing canonical button geometry');
-assert(!read('ui/repeated-fields/index.js').includes("button('+',") &&
-  !read('ui/links/index.js').includes("button('+',"),
-  'Repeated fields and links must not render compact + as a full-size button');
+// All small glyph controls are literally one 28×28 button; only the icon,
+ // accessible label and event hook vary. No button-size subclasses are allowed.
+const compactButtons = read('ui/buttons/index.js');
+const repeatedControls = read('ui/repeated-fields/index.js');
+const linkControls = read('ui/links/index.js');
+const profileControlsCss = read('ui/profile/profile.css');
+const inputControlsCss = read('ui/inputs/inputs.css');
+assert(actionButtonCss.includes('.ui-button{display:block;') &&
+  !actionButtonCss.includes('.ui-button,.ui-add-control{') &&
+  rootSelectorCount(actionButtonCss, '.ui-compact-control') === 1 &&
+  actionButtonCss.includes('width:28px;min-width:28px;max-width:28px;height:28px;min-height:28px;max-height:28px;') &&
+  !/\.ui-compact-control--(?:add|info|remove|copy)/.test(actionButtonCss) &&
+  !/\.small-action-button(?:--info|--copy)?\{/.test(actionButtonCss),
+  'Compact must have one 28×28 geometry for +, ×, info and copy');
+assert(compactButtons.includes('const COMPACT_ICONS = Object.freeze({') &&
+  compactButtons.includes('export function compactControl(') &&
+  compactButtons.includes('return compactControl({ icon:') &&
+  compactButtons.includes("icon: resolved,") &&
+  !compactButtons.includes('ui-compact-control--'),
+  'Every Compact variant must delegate to one shared renderer and icon map');
+assert(repeatedControls.includes('compactRemoveControl(') &&
+  linkControls.includes('compactRemoveControl(') &&
+  repeatedControls.includes('compactAddControl(') &&
+  linkControls.includes('compactAddControl(') &&
+  !repeatedControls.includes('class="remove-button"') &&
+  !linkControls.includes('class="remove-button"'),
+  'All repeated contact/link actions must consume Shared Compact');
+assert(inputControlsCss.includes('.array-group[data-repeated-add-placement="header"] .array-row{grid-template-columns:minmax(0,1fr) 28px}') &&
+  inputControlsCss.includes('.link-row{display:grid;grid-template-columns:minmax(96px,.8fr) minmax(0,1.5fr) 28px;') &&
+  !inputControlsCss.includes('.array-row__add{width:40px') &&
+  !profileControlsCss.includes('.array-group__header .array-row__add{'),
+  'All compact action slots must be 28px with no local size overrides');
+const calendarControls = read('ui/calendar/calendar.js');
+const calendarControlsCss = read('ui/calendar/calendar.css');
+assert(miniMarkup.includes("import { compactControl } from '../buttons/index.js';") &&
+  count(miniMarkup, 'compactControl({') >= 2 &&
+  !miniMarkup.includes('<button type="button" class="mini-card__record-action') &&
+  !miniMarkup.includes('class="mini-card__compact-action') &&
+  mini.includes('.mini-card__record-top{display:grid;grid-template-columns:44px') &&
+  mini.includes('.mini-card__record-action-placeholder{width:44px') &&
+  !/\.mini-card__record-action\{[^}]*\b(?:width|height):/.test(mini) &&
+  !/\.mini-card__compact-action\{[^}]*\b(?:width|height):/.test(mini),
+  'MiniCard actions must use Compact 28px without modifying 290×200 card or 44px layout slots');
+assert(calendarControls.includes("import { button, compactControl } from '../buttons/index.js';") &&
+  calendarControls.includes("const previous = compactControl({ icon: 'previous'") &&
+  calendarControls.includes("const following = compactControl({ icon: 'next'") &&
+  !/\.calendar__month-button\{[^}]*\b(?:width|height):/.test(calendarControlsCss),
+  'Day/month navigation arrows must use the one Shared Compact button, not 36px local buttons');
+assert(actionButtonCss.includes('.ui-compact-control::before{content:"";position:absolute;inset:-8px}') &&
+  ['dark', 'secondary', 'outlined'].every(appearance => actionButtonCss.includes('data-compact-appearance="' + appearance + '"')),
+  'Compact has one 28px button, expanded 44px tap area and three appearance variants');
+
 
 assert(read('ui/profile/index.js').includes("button('Удалить фото', { variant: 'danger'"),
   'Delete-photo control must use the canonical pink danger button');

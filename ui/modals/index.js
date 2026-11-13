@@ -82,7 +82,8 @@ export function mountModal(root, html) {
   return m;
 }
 
-export function openNotice({ title = 'Внимание', message = '', surface = 'app' } = {}) {
+export function openNotice({ title = 'Внимание', message = '', surface = 'app', variant = 's' } = {}) {
   const content = `<div class="modal-title"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p></div>`;
-  return mountModal(document.body, modal(content, { variant: 's', surface, title }));
+  const resolvedVariant = variant === 'technical' ? 'technical' : 's';
+  return mountModal(document.body, modal(content, { variant: resolvedVariant, surface: resolvedVariant === 'technical' ? '' : surface, title }));
 }

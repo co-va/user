@@ -1,11 +1,11 @@
-import { compactAddControl } from '../buttons/index.js';
+import { compactAddControl, compactRemoveControl } from '../buttons/index.js';
 import { escapeHtml } from '../utils/escape-html.js';
 import { select } from '../selectors/index.js';
 
 export const LINK_TYPES = ['Instagram', 'ВКонтакте', 'YouTube', 'Facebook', 'Сайт', 'Другое'];
 
 function linkRow(link = {}) {
-  return `<div class="link-row" data-link-row>${select({ name:'linkType', value:link.type||'Instagram', options:LINK_TYPES })}<input class="link-row__url" name="linkUrl" value="${escapeHtml(link.url||'')}" placeholder="Ссылка"><button type="button" class="remove-button" data-remove-link aria-label="Удалить ссылку">×</button></div>`;
+  return `<div class="link-row" data-link-row>${select({ name:'linkType', value:link.type||'Instagram', options:LINK_TYPES })}<input class="link-row__url" name="linkUrl" value="${escapeHtml(link.url||'')}" placeholder="Ссылка">${compactRemoveControl({ data: 'data-remove-link', aria: 'Удалить ссылку' })}</div>`;
 }
 
 export function links({ links: values = [], name = 'links', label = '', addInHeader = false } = {}) {

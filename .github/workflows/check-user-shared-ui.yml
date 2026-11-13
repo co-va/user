@@ -10,6 +10,13 @@ on:
       - 'ui/**'
       - 'css/**'
       - 'scripts/ci/guard-shared-ui.mjs'
+      - 'scripts/ci/user-shared-mini-card-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-browser-smoke.mjs'
+      - 'user/account-shell.js'
+      - 'user/calendar-integrations.js'
+      - 'user/record-create.js'
+      - 'user/journal.js'
       - 'scripts/ci/guard-lib.mjs'
       - '.github/workflows/check-user-shared-ui.yml'
   pull_request:
@@ -19,6 +26,13 @@ on:
       - 'ui/**'
       - 'css/**'
       - 'scripts/ci/guard-shared-ui.mjs'
+      - 'scripts/ci/user-shared-mini-card-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-browser-smoke.mjs'
+      - 'user/account-shell.js'
+      - 'user/calendar-integrations.js'
+      - 'user/record-create.js'
+      - 'user/journal.js'
       - 'scripts/ci/guard-lib.mjs'
       - '.github/workflows/check-user-shared-ui.yml'
   workflow_dispatch:
@@ -35,4 +49,7 @@ jobs:
         with:
           node-version: '22'
       - name: Shared User + Professional UI contract
-        run: node scripts/ci/guard-shared-ui.mjs
+        run: |
+          node scripts/ci/guard-shared-ui.mjs
+          node scripts/ci/user-shared-mini-card-smoke.mjs
+          node scripts/ci/user-compact-controls-smoke.mjs
