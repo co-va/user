@@ -71,12 +71,19 @@ try{
     assert.equal(await email.isDisabled(),true,'Email check must never be editable');
     assert.equal(await q.locator('[data-account-notification-push]').count(),1,'Push still present');
     assert.equal(await q.locator('[data-account-notification-email]').count(),0,'No actionable Email toggle');
-    const title=await q.locator('.v2-q-title').evaluate(el=>({
-      scroll:el.scrollWidth,client:el.clientWidth,
-      height:el.getBoundingClientRect().height,line:getComputedStyle(el).lineHeight,
-    }));
+    const title=await q.locator('.v2-q-title').evaluate(el=>{
+      const textRange=document.createRange();
+      textRange.selectNodeContents(el);
+      const textLines=[...textRange.getClientRects()].filter(rect=>rect.width>0 && rect.height>0);
+      return {
+        scroll:el.scrollWidth,client:el.clientWidth,
+        height:el.getBoundingClientRect().height,line:getComputedStyle(el).lineHeight,
+        textLines:textLines.length,
+      };
+    });
     assert.ok(title.scroll<=title.client+1,'Q title overflows 320px: '+JSON.stringify(title));
-    assert.ok(title.height<=parseFloat(title.line)+1,'Q title must be one line: '+JSON.stringify(title));
+    assert.equal(title.textLines,1,'Q title text must stay on one line: '+JSON.stringify(title));
+    assert.ok(title.height>=46,'Q title row must remain at least 46px: '+JSON.stringify(title));
     await email.evaluate(el=>el.click());
     assert.equal(await email.isChecked(),verified,'Disabled checkbox cannot change');
     assert.equal(verificationCalls,1,'Status fetched once from canonical account API');
