@@ -14,6 +14,7 @@ const fixture = '<!doctype html><html><head><meta charset="utf-8">' +
 const types = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 const hidden = new Set();
 const seenRequests = [];
+let serverUnseen = [];
 const deleted = {
   id: 'notice-1', tenantId: 'tenant-one', recordId: 'removed-1',
   date: '2026-11-06', from: '16:00', to: '19:00',
@@ -42,6 +43,7 @@ const server = createServer(async (req, res) => {
   }
   if (path === '/account/deleted-record-history') return sendJson(res, { items: [deleted] });
   if (path === '/account/events') return sendJson(res, accountEvents);
+  if (path === '/account/service-unseen' && req.method === 'GET') return sendJson(res, { items: serverUnseen });
   if (path === '/account/service-unseen/seen' && req.method === 'POST') {
     let payload = '';
     for await (const chunk of req) payload += chunk;
@@ -367,13 +369,14 @@ try {
   await page.locator('.journal-list-record--deleted').waitFor();
   // The Journal uses [tenantId,recordId] in its DOM; notifications use
   // recordIds. Opening a record must acknowledge exactly its real record ID.
-  await page.evaluate(() => {
-    window.__VA_TOOLS_SERVICE_UNSEEN__ = {
-      total: 1,
-      items: [{ id:'fresh-1', tenantId:'tenant-one', entityType:'record',
-        type:'booking.updated', recordIds:['future-1'], date:'2026-11-07' }],
-    };
-    window.dispatchEvent(new CustomEvent('va-tools:service-unseen'));
+  serverUnseen = [{
+    id:'fresh-1', tenantId:'tenant-one', entityType:'record',
+    type:'booking.updated', recordIds:['future-1'],
+    date:'2026-11-07', createdAt:'2026-11-13T18:00:00.000Z',
+  }];
+  await page.evaluate(async () => {
+    const { refreshServiceUnseen } = await import('/core/notifications/service-unseen.js');
+    await refreshServiceUnseen();
   });
   const freshRow = page.locator('.journal-list-record--active')
     .filter({ hasText: 'Стрижка-женская' }).first();
