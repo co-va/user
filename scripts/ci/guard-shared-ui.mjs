@@ -46,7 +46,16 @@ assert(v2.includes('right:0;bottom:0;padding-top:0;background:var(--v2-inner-sur
 assert(zLayout.includes("const SURFACE_HEADER_SPACING = '12px'"), 'Shared Z/Q Header must own X = 12px');
 assert(zLayout.includes('padding-top:var(--v2-surface-header-spacing)') && zLayout.includes('padding-bottom:var(--v2-surface-header-spacing)'), 'Both Header edges must retain X = 12px');
 assert(zLayout.includes('gap:var(--v2-surface-header-spacing)'), 'Z/Q Header rows must use X = 12px');
-assert(zLayout.includes('grid-template-columns:24px minmax(0,1fr)') && zLayout.includes('align-items:center'), 'Shared Header arrow must stay centered');
+assert(zLayout.includes("'min-height:36px'") && zLayout.includes("'min-height:12px'") &&
+       zLayout.includes("'grid-column:2'") && zLayout.includes('grid-template-columns:24px minmax(0,1fr)'),
+       'Empty Z/Q must be 12 + 12 + 12; content fills only the center');
+const dismissStyle = read('ui/v2/z-affordance.js');
+assert(dismissStyle.includes("'position:absolute'") && dismissStyle.includes("'top:50%'") &&
+       dismissStyle.includes("'transform:translateY(-50%)'") &&
+       dismissStyle.includes("'height:24px'"),
+       'Arrow must stay centered without enlarging the 12px empty middle');
+assert((surfaceHeaderStyles.match(/min-height:36px!important/g)||[]).length===2,
+       'Empty Z and Q Header must both be 36px, never 28px or 48px');
 assert(!/Z_HEADER_BODY_GAP|Q_HEADER_BODY_GAP/.test(zLayout), 'Legacy per-surface Header / Body gaps returned');
 assert(!surfaceHeaderStyles.includes('padding-bottom:0!important') && !surfaceHeaderStyles.includes('margin-bottom:8px'), 'Local Header spacing override returned');
 assert(v2.includes('.v2-q-title,.v2-z-title{box-sizing:border-box;display:flex;align-items:center;width:100%;min-width:0;height:46px;min-height:46px;max-height:46px;margin:0;border:0;padding:0;background:transparent;box-shadow:none;overflow:hidden;'), 'Text titles must be exactly 46px without input borders');

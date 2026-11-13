@@ -1,6 +1,6 @@
 /* Shared Z/Q Header owns vertical padding and row gaps; empty headers keep the arrow. */
 [data-v2-z-header]:has(> [data-v2-z-header-content]:empty){
-  min-height:28px!important;
+  min-height:36px!important;
   background:var(--v2-inner-surface,#F5F5F3)!important;
 }
 
@@ -14,7 +14,7 @@
 
 /* Empty Q keeps only the same compact Shared affordance footprint. */
 [data-v2-q-header]:has(> [data-v2-q-header-content]:empty){
-  min-height:28px!important;
+  min-height:36px!important;
   background:transparent!important;
 }
 

@@ -85,6 +85,41 @@ try{
     assert.equal(title.textLines,1,'Q title text must stay on one line: '+JSON.stringify(title));
     assert.ok(Math.abs(title.height-46)<0.5,'Q title row must be exactly 46px: '+JSON.stringify(title));
 
+    // Strict 12/12/12 empty Header contract for both Z and Q.
+    // The 24px arrow is absolutely positioned; it must not set row height.
+    const headerGeometry=await page.evaluate(async()=>{
+      const {v2ZHeader,v2QHeader}=await import('/ui/v2/z-layout.js');
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;visibility:hidden;pointer-events:none;width:320px;top:0;left:0';
+      document.body.append(probe);
+      const measure=html=>{
+        const wrapper=document.createElement('div');
+        wrapper.innerHTML=html;
+        probe.append(wrapper);
+        const head=wrapper.firstElementChild;
+        const middle=head.querySelector('[data-v2-z-header-content],[data-v2-q-header-content]');
+        const arrow=head.querySelector('[data-v2-z-dismiss]');
+        const box=()=>head.getBoundingClientRect();
+        const empty=box().height;
+        const arrowCenter=(arrow.getBoundingClientRect().top+arrow.getBoundingClientRect().bottom)/2-box().top;
+        middle.innerHTML='<div style="height:46px"></div>';
+        const one=box().height;
+        middle.innerHTML='<div style="height:46px"></div><div style="height:46px"></div>';
+        const two=box().height;
+        wrapper.remove();
+        return {empty,one,two,arrowCenter};
+      };
+      const result={z:measure(v2ZHeader()),q:measure(v2QHeader())};
+      probe.remove();
+      return result;
+    });
+    for(const [kind,sizes] of Object.entries(headerGeometry)){
+      assert.ok(Math.abs(sizes.empty-36)<0.5,kind+' empty Header must be 12+12+12: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.one-70)<0.5,kind+' one 46px insertion must yield 12+46+12: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.two-128)<0.5,kind+' two 46px insertions need 12px between: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.arrowCenter-18)<0.5,kind+' arrow must be centered in the 12px empty middle: '+JSON.stringify(sizes));
+    }
+
     // Rendered shared UI baseline (not just CSS token inspection).
     const baseline=await q.evaluate(sheet=>{
       const header=sheet.querySelector('[data-v2-q-header]');
