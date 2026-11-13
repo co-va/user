@@ -379,7 +379,7 @@ try {
       if (Math.abs(h.right - c.right) > 3) {
         throw new Error('Profile compact + shifted from the right edge of its field header');
       }
-      if (!control.classList.contains('ui-add-control') || control.classList.contains('ui-button')) {
+      if (!control.classList.contains('ui-compact-control') || control.classList.contains('ui-button')) {
         throw new Error('Compact Profile + must use its own shared control class, not full-size button');
       }
       const style = getComputedStyle(control);
