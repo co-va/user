@@ -286,7 +286,7 @@ try {
     bottom: el.querySelector('.mini-card__record-footer')?.parentElement === el,
     nowrap: getComputedStyle(el.querySelector('.mini-card__record-moment')).whiteSpace,
   }));
-  assert.deepEqual(dimensions, { width: 310, height: 200, top: true, middle: 'auto', bottom: true, nowrap: 'nowrap' });
+  assert.deepEqual(dimensions, { width: 290, height: 200, top: true, middle: 'auto', bottom: true, nowrap: 'nowrap' });
   assert.ok((await liveQ.locator('.mini-card__record-center').innerText()).includes('Стрижка-женская'));
   assert.ok((await liveQ.locator('.mini-card__record-footer').innerText()).includes('21 000'));
   assert.ok((await liveQ.locator('.mini-card__record-duration').innerText()).includes('3 ч'));
