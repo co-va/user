@@ -41,6 +41,7 @@ jobs:
         run: |
           node scripts/ci/guard-shared-ui.mjs
           node scripts/ci/user-shared-mini-card-smoke.mjs
+          node scripts/ci/user-compact-controls-smoke.mjs
 
       - name: Profile contract
         run: node scripts/ci/guard-profile.mjs
@@ -80,6 +81,7 @@ jobs:
           node scripts/ci/user-built-runtime-smoke.mjs
           node scripts/ci/shared-keyboard-layout-smoke.mjs
           node scripts/ci/user-profile-keyboard-smoke.mjs
+          node scripts/ci/user-compact-controls-browser-smoke.mjs
           node scripts/ci/user-journal-record-smoke.mjs
           node scripts/ci/user-boot-performance-smoke.mjs
           node scripts/ci/user-email-verification-smoke.mjs

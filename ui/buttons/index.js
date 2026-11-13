@@ -14,11 +14,20 @@ export function button(label, { className = '', data = '', type = 'button', aria
 }
 
 
-// A compact field-header action, not a full-size form button.
-// Shared geometry comes from the same base button CSS, but this control
-// never participates in full-size action centering.
+// Compact is a separate control family, never a reduced full-size .ui-button.
+// All glyph actions (+, i, copy, ×) go through this one semantic button shell.
+export function compactControl({ kind = 'add', className = '', data = '', aria = '', content = '' } = {}) {
+  const variant = ['add', 'info', 'remove'].includes(kind) ? kind : 'add';
+  const classes = ['ui-compact-control', `ui-compact-control--${variant}`, className].filter(Boolean).join(' ');
+  return `<button type="button" class="${escapeHtml(classes)}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria || (variant === 'remove' ? 'Удалить' : 'Добавить'))}">${content}</button>`;
+}
+
 export function compactAddControl({ className = '', data = '', aria = 'Добавить' } = {}) {
-  return `<button type="button" class="ui-add-control${className ? ` ${escapeHtml(className)}` : ''}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria)}">+</button>`;
+  return compactControl({ kind: 'add', className: `ui-add-control${className ? ` ${className}` : ''}`, data, aria, content: '+' });
+}
+
+export function compactRemoveControl({ className = '', data = '', aria = 'Удалить' } = {}) {
+  return compactControl({ kind: 'remove', className: `remove-button${className ? ` ${className}` : ''}`, data, aria, content: '×' });
 }
 
 export function iconButton(label, { className = '', data = '', aria = label } = {}) {
@@ -30,7 +39,13 @@ export function smallActionButton({ icon = 'info', className = '', data = '', ar
   const content = kind === 'copy'
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1"></path></svg><span class="small-action-button__done" aria-hidden="true">✓</span>'
     : '<span class="small-action-button__info" aria-hidden="true">i</span>';
-  return `<button type="button" class="small-action-button small-action-button--${kind}${kind === 'copy' ? ' copy-icon-button' : ''}${className ? ` ${className}` : ''}" ${data} aria-label="${escapeHtml(aria || (kind === 'copy' ? 'Скопировать' : 'Информация'))}">${content}</button>`;
+  return compactControl({
+    kind: 'info',
+    className: `small-action-button small-action-button--${kind}${kind === 'copy' ? ' copy-icon-button' : ''}${className ? ` ${className}` : ''}`,
+    data,
+    aria: aria || (kind === 'copy' ? 'Скопировать' : 'Информация'),
+    content,
+  });
 }
 
 export function copyIconButton({ data = '', aria = 'Скопировать' } = {}) {

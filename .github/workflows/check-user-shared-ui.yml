@@ -11,6 +11,8 @@ on:
       - 'css/**'
       - 'scripts/ci/guard-shared-ui.mjs'
       - 'scripts/ci/user-shared-mini-card-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-browser-smoke.mjs'
       - 'user/account-shell.js'
       - 'user/calendar-integrations.js'
       - 'user/record-create.js'
@@ -25,6 +27,8 @@ on:
       - 'css/**'
       - 'scripts/ci/guard-shared-ui.mjs'
       - 'scripts/ci/user-shared-mini-card-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-smoke.mjs'
+      - 'scripts/ci/user-compact-controls-browser-smoke.mjs'
       - 'user/account-shell.js'
       - 'user/calendar-integrations.js'
       - 'user/record-create.js'
@@ -48,3 +52,4 @@ jobs:
         run: |
           node scripts/ci/guard-shared-ui.mjs
           node scripts/ci/user-shared-mini-card-smoke.mjs
+          node scripts/ci/user-compact-controls-smoke.mjs
