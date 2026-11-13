@@ -42,7 +42,7 @@ assert(v2.includes('--v2-z-layer-offset:12px'), 'Shared Z layer offset changed')
 assert(v2.includes('--v2-edge:16px'), 'Shared Z edge changed');
 assert(v2.includes('height:72px;') && v2.includes('flex:0 0 72px'), 'Shared H height changed');
 assert(v2.includes('padding:0 18px calc(24px + env(safe-area-inset-bottom))'), 'Shared Z must delegate its top padding to the Header');
-assert(v2.includes('right:0;bottom:0;padding-top:0;background:var(--v2-zq-surface)}'), 'Shared Q cannot add second top padding or a white background');
+assert(v2.includes('right:0;bottom:0;padding-top:0;background:var(--v2-inner-surface)}'), 'Shared Q cannot add second top padding or a white background');
 assert(zLayout.includes("const SURFACE_HEADER_SPACING = '12px'"), 'Shared Z/Q Header must own X = 12px');
 assert(zLayout.includes('padding-top:var(--v2-surface-header-spacing)') && zLayout.includes('padding-bottom:var(--v2-surface-header-spacing)'), 'Both Header edges must retain X = 12px');
 assert(zLayout.includes('gap:var(--v2-surface-header-spacing)'), 'Z/Q Header rows must use X = 12px');
@@ -56,10 +56,17 @@ assert(v2.includes('--v2-card-width:min(68vw,258px)'), 'Shared F card width chan
 assert(v2.includes('--v2-card-height:min(47vh,344px)'), 'Shared F card height changed');
 assert(rootSelectorCount(v2, '.v2-header') === 1, 'Shared H geometry must have one owner');
 assert(rootSelectorCount(v2, '.v2-z') === 1, 'Shared Z geometry must have one owner');
-assert(v2.includes('--v2-zq-surface:#F5F5F3;') && v2.includes('background:var(--v2-zq-surface);color:var(--v2-ink);box-shadow:-6px 2px 18px rgba(0,0,0,.10)') && v2.includes('padding-top:0;background:var(--v2-zq-surface)}'), 'Z/Q shell must use warm #F5F5F3 surface');
-assert(zLayout.includes("'background:var(--v2-zq-surface,#F5F5F3)'") && surfaceHeaderStyles.includes('background:var(--v2-zq-surface,#F5F5F3)!important;'), 'Z/Q Header must share warm surface without a white strip');
-assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-zq-surface,#F5F5F3)}'), 'Z/Q app surface must remain warm beige, unlike white editable fields');
+assert(v2.includes('--v2-inner-surface:#F5F5F3;') && v2.includes('background:var(--v2-inner-surface);color:var(--v2-ink);box-shadow:-6px 2px 18px rgba(0,0,0,.10)') && v2.includes('padding-top:0;background:var(--v2-inner-surface)}'), 'Z/Q must use the shared warm #F5F5F3 surface');
+assert(zLayout.includes("'background:var(--v2-inner-surface,#F5F5F3)'") && surfaceHeaderStyles.includes('background:var(--v2-inner-surface,#F5F5F3)!important;'), 'Z/Q Header must share the warm internal surface without a white strip');
+assert(modalStyles.includes('.modal-sheet.modal--surface-app:not(.modal--technical){background:var(--v2-inner-surface,#F5F5F3)}'), 'All internal modal app surfaces must remain warm beige, unlike white editors');
 assert(inputsStyles.includes('background:var(--white)') && selectorStyles.includes('background:var(--white)'), 'Inputs and selectors must stay white on warm Z/Q');
+assert(v2.includes('.v2-layer{position:absolute;box-sizing:border-box;overflow:auto;background:var(--v2-inner-surface)') &&
+       v2.includes('.v2-layer--technical{\n  background:var(--v2-white,#fff);'),
+       'X/S/Q common surface must be warm; technical paper must stay pure white');
+assert(modalStyles.includes('.v2-layer--bottom .modal-actions{') &&
+       modalStyles.includes('background:var(--v2-inner-surface,#F5F5F3);') &&
+       !/\.modal-sheet\.modal--bottom\.modal--[^\n]*background:var\(--white\)/.test(modalStyles),
+       'Bottom X sheets and action footer cannot insert white backgrounds');
 assert(read('ui/time/time.css').includes('.time-timeline{position:relative;display:grid;gap:0;background:var(--white)'), 'Journal striped time grid must stay white, independent of Z surface');
 assert(shellStyles.includes('--ui-field-height:46px;') && shellStyles.includes('--ui-control-height:48px;'), '46px fields must be independent of unchanged buttons');
 assert(inputsStyles.includes('height:var(--ui-field-height);min-height:var(--ui-field-height);max-height:var(--ui-field-height)'), 'Form fields must stay exactly 46px');

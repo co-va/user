@@ -127,7 +127,27 @@ try{
       sample.remove();
       return result;
     });
-    assert.equal(baseline.warmSurface,'rgb(245, 245, 243)','Z/Q must be warm #F5F5F3: '+JSON.stringify(baseline));
+    assert.equal(baseline.warmSurface,'rgb(245, 245, 243)','Q must be warm #F5F5F3: '+JSON.stringify(baseline));
+    const internalLayers=await q.evaluate(sheet=>{
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;visibility:hidden;pointer-events:none';
+      probe.innerHTML='<div class="v2-layer v2-layer--top modal-sheet modal--top"></div>'+
+        '<div class="v2-layer v2-layer--bottom modal-sheet modal--bottom modal--consent-sheet"><div class="modal-actions">Действие</div></div>'+
+        '<div class="v2-layer v2-layer--technical modal-sheet modal--technical"></div>';
+      sheet.append(probe);
+      const result={
+        s:getComputedStyle(probe.children[0]).backgroundColor,
+        x:getComputedStyle(probe.children[1]).backgroundColor,
+        xFooter:getComputedStyle(probe.children[1].firstElementChild).backgroundColor,
+        technical:getComputedStyle(probe.children[2]).backgroundColor,
+      };
+      probe.remove();
+      return result;
+    });
+    assert.deepEqual(internalLayers,{
+      s:'rgb(245, 245, 243)',x:'rgb(245, 245, 243)',
+      xFooter:'rgb(245, 245, 243)',technical:'rgb(255, 255, 255)',
+    },'X, S and Q share warm background; technical modal remains white');
     assert.equal(baseline.fieldFill,'rgb(255, 255, 255)','Input must remain white on warm Q');
     assert.equal(baseline.selectorFill,'rgb(255, 255, 255)','Selector must remain white on warm Q');
     assert.equal(baseline.top,'12px','Q Header top must be 12px');
