@@ -243,34 +243,38 @@ assert(selectorCss.includes('min-height:var(--ui-selector-control-height)') &&
   read('ui/colors/colors.css').includes('height:var(--ui-field-height);min-height:var(--ui-field-height)'),
   'Shared form, selector, time, duration and color pickers must all be exactly 46px');
 
-// A separate Compact family owns +, i, copy and × with a single renderer and
-// independent geometry. No Compact variant may inherit the large 48px button.
+// All small glyph controls are literally one 28×28 button; only the icon,
+ // accessible label and event hook vary. No button-size subclasses are allowed.
 const compactButtons = read('ui/buttons/index.js');
 const repeatedControls = read('ui/repeated-fields/index.js');
 const linkControls = read('ui/links/index.js');
 const profileControlsCss = read('ui/profile/profile.css');
+const inputControlsCss = read('ui/inputs/inputs.css');
 assert(actionButtonCss.includes('.ui-button{display:block;') &&
   !actionButtonCss.includes('.ui-button,.ui-add-control{') &&
   rootSelectorCount(actionButtonCss, '.ui-compact-control') === 1 &&
-  actionButtonCss.includes('.ui-compact-control--add{width:28px;') &&
-  actionButtonCss.includes('.ui-compact-control--info{width:24px;') &&
-  actionButtonCss.includes('.ui-compact-control--remove{width:24px;'),
-  'Compact family must have one CSS owner, independent of the large button');
-assert(compactButtons.includes('export function compactControl(') &&
-  compactButtons.includes('export function compactAddControl(') &&
-  compactButtons.includes('export function compactRemoveControl(') &&
-  compactButtons.includes("return compactControl({\n    kind: 'info',"),
-  'Compact glyphs (+, i, copy, ×) must be composed by the same Shared renderer');
+  actionButtonCss.includes('width:28px;min-width:28px;max-width:28px;height:28px;min-height:28px;max-height:28px;') &&
+  !/\.ui-compact-control--(?:add|info|remove|copy)/.test(actionButtonCss) &&
+  !/\.small-action-button(?:--info|--copy)?\{/.test(actionButtonCss),
+  'Compact must have one 28×28 geometry for +, ×, info and copy');
+assert(compactButtons.includes('const COMPACT_ICONS = Object.freeze({') &&
+  compactButtons.includes('export function compactControl(') &&
+  compactButtons.includes('return compactControl({ icon:') &&
+  compactButtons.includes("icon: resolved,") &&
+  !compactButtons.includes('ui-compact-control--'),
+  'Every Compact variant must delegate to one shared renderer and icon map');
 assert(repeatedControls.includes('compactRemoveControl(') &&
   linkControls.includes('compactRemoveControl(') &&
   repeatedControls.includes('compactAddControl(') &&
   linkControls.includes('compactAddControl(') &&
   !repeatedControls.includes('class="remove-button"') &&
   !linkControls.includes('class="remove-button"'),
-  'Email, Telegram, phone and links must use common Compact actions, never local button HTML');
-assert(!read('ui/inputs/inputs.css').includes('.array-row__add{width:40px') &&
+  'All repeated contact/link actions must consume Shared Compact');
+assert(inputControlsCss.includes('.array-group[data-repeated-add-placement="header"] .array-row{grid-template-columns:minmax(0,1fr) 28px}') &&
+  inputControlsCss.includes('.link-row{display:grid;grid-template-columns:minmax(96px,.8fr) minmax(0,1.5fr) 28px;') &&
+  !inputControlsCss.includes('.array-row__add{width:40px') &&
   !profileControlsCss.includes('.array-group__header .array-row__add{'),
-  'Compact geometry may not be overridden by input/profile-specific CSS');
+  'All compact action slots must be 28px with no local size overrides');
 
 assert(read('ui/profile/index.js').includes("button('Удалить фото', { variant: 'danger'"),
   'Delete-photo control must use the canonical pink danger button');

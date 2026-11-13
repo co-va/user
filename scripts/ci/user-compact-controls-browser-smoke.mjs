@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { resolve, sep, extname } from 'node:path';
 import { chromium } from 'playwright';
-import { button, compactAddControl, smallActionButton } from '../../ui/buttons/index.js';
+import { button, copyIconButton, smallActionButton } from '../../ui/buttons/index.js';
 import { repeatedField } from '../../ui/repeated-fields/index.js';
 import { links } from '../../ui/links/index.js';
 
@@ -18,7 +18,7 @@ const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta n
 ${repeatedField({ label:'Email', name:'extraEmail', values:[], type:'email', showEmptyRow:false, addInHeader:true })}
 ${repeatedField({ label:'Telegram', name:'extraTelegram', values:['@example'], showEmptyRow:false, addInHeader:true })}
 ${links({ label:'Ссылки', links:[{type:'Сайт', url:'https://example.org'}], name:'profileLinks', addInHeader:true })}
-<div class="extras">${smallActionButton({ aria:'Информация' })}${button('Сохранить')}</div>
+<div class="extras">${smallActionButton({ aria:'Информация' })}${copyIconButton({ data:'data-copy-test' })}${button('Сохранить')}</div>
 </div></div>
 <script type="module">
 import { initRepeatedFields } from '/ui/repeated-fields/index.js';
@@ -62,15 +62,32 @@ try {
   assert.equal(add.border, '0px', 'Compact plus must not have a large-button border');
 
   const cross = await measure('[data-repeated-remove]');
-  assert.equal(cross.width, 24, 'Compact cross width must be 24px');
-  assert.equal(cross.height, 40, 'Compact cross hit region must preserve 40px vertical space');
+  assert.equal(cross.width, 28, 'Compact cross must match the universal 28px width');
+  assert.equal(cross.height, 28, 'Compact cross must match the universal 28px height');
   assert.equal(cross.bg, 'rgba(0, 0, 0, 0)', 'Compact cross background must be invisible');
   assert.equal(cross.border, '0px', 'Compact cross must not have a large-button border');
 
-  const info = await measure('.small-action-button--info');
-  assert.equal(info.width, 24, 'Compact information width must be 24px');
-  assert.equal(info.height, 24, 'Compact information height must be 24px');
-  assert.equal(info.border, '1px', 'Existing framed information icon must not change');
+  const info = await measure('[aria-label="Информация"]');
+  assert.equal(info.width, 28, 'Compact info must have the universal 28px width');
+  assert.equal(info.height, 28, 'Compact info must have the universal 28px height');
+  assert.equal(info.border, '0px', 'Compact info must have the same invisible border as + and ×');
+  assert.equal(info.bg, 'rgba(0, 0, 0, 0)', 'Compact info background must be invisible');
+  const copy = await measure('[data-copy-test]');
+  assert.equal(copy.width, 28, 'Compact copy must have the universal 28px width');
+  assert.equal(copy.height, 28, 'Compact copy must have the universal 28px height');
+  assert.equal(copy.border, '0px', 'Compact copy must have the same invisible border');
+  assert.equal(copy.bg, 'rgba(0, 0, 0, 0)', 'Compact copy background must be invisible');
+
+  const oneCompactClass = await page.locator('.ui-compact-control').evaluateAll(nodes =>
+    nodes.every(node => [...node.classList].every(name => !name.startsWith('ui-compact-control--'))));
+  assert.ok(oneCompactClass, 'No icon may change the Compact geometry via variant CSS class');
+  const crossColor = await page.locator('[data-repeated-remove] .ui-compact-control__remove').first()
+    .evaluate(node => getComputedStyle(node).color);
+  assert.equal(crossColor, 'rgb(255, 17, 17)', 'Delete icon retains the red semantic color');
+  await page.locator('[data-copy-test]').evaluate(node => node.classList.add('is-copied'));
+  const doneOpacity = await page.locator('[data-copy-test] [data-compact-copy-done]')
+    .evaluate(node => getComputedStyle(node).opacity);
+  assert.equal(doneOpacity, '1', 'Copy completion feedback must still be visible');
 
   const full = await measure('.ui-button');
   assert.equal(full.height, 48, 'Full-size action must remain 48px');
@@ -95,7 +112,7 @@ try {
   await page.locator('[data-links="profileLinks"] [data-link-row]').last().locator('[data-remove-link]').click();
   assert.equal(await page.locator('[data-links="profileLinks"] [data-link-row]').count(), 1,
     'Compact link cross must remove the added link');
-  console.log('PASS: Chromium Compact +, i, × use independent geometry; Email/Telegram/links add/remove work');
+  console.log('PASS: Chromium Compact +, ×, i, copy share one 28×28 invisible surface; Email/Telegram/links work');
 } finally {
   await browser?.close();
   await new Promise(resolveClose => server.close(resolveClose));

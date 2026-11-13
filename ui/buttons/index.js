@@ -14,20 +14,35 @@ export function button(label, { className = '', data = '', type = 'button', aria
 }
 
 
-// Compact is a separate control family, never a reduced full-size .ui-button.
-// All glyph actions (+, i, copy, ×) go through this one semantic button shell.
-export function compactControl({ kind = 'add', className = '', data = '', aria = '', content = '' } = {}) {
-  const variant = ['add', 'info', 'remove'].includes(kind) ? kind : 'add';
-  const classes = ['ui-compact-control', `ui-compact-control--${variant}`, className].filter(Boolean).join(' ');
-  return `<button type="button" class="${escapeHtml(classes)}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria || (variant === 'remove' ? 'Удалить' : 'Добавить'))}">${content}</button>`;
+// A single Compact control: one 28×28 invisible surface, icon varies by intent.
+// Compatibility helpers below never render their own markup or geometry.
+const COMPACT_ICONS = Object.freeze({
+  add: '+',
+  remove: '<span class="ui-compact-control__remove" aria-hidden="true">×</span>',
+  info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 10.5v6"></path><circle cx="12" cy="7.2" r=".8" fill="currentColor" stroke="none"></circle></svg>',
+  copy: '<svg data-compact-copy-icon viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1"></path></svg><span class="ui-compact-control__done" data-compact-copy-done aria-hidden="true">✓</span>',
+});
+
+const COMPACT_LABELS = Object.freeze({
+  add: 'Добавить',
+  remove: 'Удалить',
+  info: 'Информация',
+  copy: 'Скопировать',
+});
+
+export function compactControl({ icon = 'add', className = '', data = '', aria = '' } = {}) {
+  const key = Object.hasOwn(COMPACT_ICONS, icon) ? icon : 'add';
+  const classes = ['ui-compact-control', className].filter(Boolean).join(' ');
+  return `<button type="button" class="${escapeHtml(classes)}"${data ? ` ${data}` : ''} aria-label="${escapeHtml(aria || COMPACT_LABELS[key])}">${COMPACT_ICONS[key]}</button>`;
 }
 
+// Existing call sites may use these names; all resolve to the same compactControl.
 export function compactAddControl({ className = '', data = '', aria = 'Добавить' } = {}) {
-  return compactControl({ kind: 'add', className: `ui-add-control${className ? ` ${className}` : ''}`, data, aria, content: '+' });
+  return compactControl({ icon: 'add', className, data, aria });
 }
 
 export function compactRemoveControl({ className = '', data = '', aria = 'Удалить' } = {}) {
-  return compactControl({ kind: 'remove', className: `remove-button${className ? ` ${className}` : ''}`, data, aria, content: '×' });
+  return compactControl({ icon: 'remove', className, data, aria });
 }
 
 export function iconButton(label, { className = '', data = '', aria = label } = {}) {
@@ -35,16 +50,12 @@ export function iconButton(label, { className = '', data = '', aria = label } = 
 }
 
 export function smallActionButton({ icon = 'info', className = '', data = '', aria = '' } = {}) {
-  const kind = icon === 'copy' ? 'copy' : 'info';
-  const content = kind === 'copy'
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h1"></path></svg><span class="small-action-button__done" aria-hidden="true">✓</span>'
-    : '<span class="small-action-button__info" aria-hidden="true">i</span>';
+  const resolved = icon === 'copy' ? 'copy' : 'info';
   return compactControl({
-    kind: 'info',
-    className: `small-action-button small-action-button--${kind}${kind === 'copy' ? ' copy-icon-button' : ''}${className ? ` ${className}` : ''}`,
+    icon: resolved,
+    className: `small-action-button${resolved === 'copy' ? ' copy-icon-button' : ''}${className ? ` ${className}` : ''}`,
     data,
-    aria: aria || (kind === 'copy' ? 'Скопировать' : 'Информация'),
-    content,
+    aria: aria || COMPACT_LABELS[resolved],
   });
 }
 
