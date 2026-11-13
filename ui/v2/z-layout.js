@@ -8,7 +8,7 @@ const SURFACE_HEADER_STYLE = [
   'position:relative',
   'z-index:20',
   'box-sizing:border-box',
-  'min-height:28px',
+  'min-height:36px',
   'margin:0 -18px',
   'padding:0 18px 0 0',
   `--v2-surface-header-spacing:${SURFACE_HEADER_SPACING}`,
@@ -18,12 +18,14 @@ const SURFACE_HEADER_STYLE = [
   'align-items:center',
   'padding-top:var(--v2-surface-header-spacing)',
   'padding-bottom:var(--v2-surface-header-spacing)',
-  'background:var(--v2-white,#fff)',
+  'background:var(--v2-inner-surface,#F5F5F3)',
 ].join(';');
 
 const SURFACE_HEADER_CONTENT_STYLE = [
   'box-sizing:border-box',
+  'grid-column:2',
   'min-width:0',
+  'min-height:12px',
   'flex:1 1 auto',
   'padding-left:18px',
   'display:flex',

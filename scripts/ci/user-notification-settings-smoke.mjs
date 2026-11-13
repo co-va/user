@@ -85,6 +85,41 @@ try{
     assert.equal(title.textLines,1,'Q title text must stay on one line: '+JSON.stringify(title));
     assert.ok(Math.abs(title.height-46)<0.5,'Q title row must be exactly 46px: '+JSON.stringify(title));
 
+    // Strict 12/12/12 empty Header contract for both Z and Q.
+    // The 24px arrow is absolutely positioned; it must not set row height.
+    const headerGeometry=await page.evaluate(async()=>{
+      const {v2ZHeader,v2QHeader}=await import('/ui/v2/z-layout.js');
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;visibility:hidden;pointer-events:none;width:320px;top:0;left:0';
+      document.body.append(probe);
+      const measure=html=>{
+        const wrapper=document.createElement('div');
+        wrapper.innerHTML=html;
+        probe.append(wrapper);
+        const head=wrapper.firstElementChild;
+        const middle=head.querySelector('[data-v2-z-header-content],[data-v2-q-header-content]');
+        const arrow=head.querySelector('[data-v2-z-dismiss]');
+        const box=()=>head.getBoundingClientRect();
+        const empty=box().height;
+        const arrowCenter=(arrow.getBoundingClientRect().top+arrow.getBoundingClientRect().bottom)/2-box().top;
+        middle.innerHTML='<div style="height:46px"></div>';
+        const one=box().height;
+        middle.innerHTML='<div style="height:46px"></div><div style="height:46px"></div>';
+        const two=box().height;
+        wrapper.remove();
+        return {empty,one,two,arrowCenter};
+      };
+      const result={z:measure(v2ZHeader()),q:measure(v2QHeader())};
+      probe.remove();
+      return result;
+    });
+    for(const [kind,sizes] of Object.entries(headerGeometry)){
+      assert.ok(Math.abs(sizes.empty-36)<0.5,kind+' empty Header must be 12+12+12: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.one-70)<0.5,kind+' one 46px insertion must yield 12+46+12: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.two-128)<0.5,kind+' two 46px insertions need 12px between: '+JSON.stringify(sizes));
+      assert.ok(Math.abs(sizes.arrowCenter-18)<0.5,kind+' arrow must be centered in the 12px empty middle: '+JSON.stringify(sizes));
+    }
+
     // Rendered shared UI baseline (not just CSS token inspection).
     const baseline=await q.evaluate(sheet=>{
       const header=sheet.querySelector('[data-v2-q-header]');
@@ -108,14 +143,16 @@ try{
       const height=selector=>sample.querySelector(selector).getBoundingClientRect().height;
       const originalSurface=sheet.classList.contains('modal--surface-app');
       sheet.classList.add('modal--surface-app');
-      const whiteSurface=getComputedStyle(sheet).backgroundColor;
+      const warmSurface=getComputedStyle(sheet).backgroundColor;
       if(!originalSurface)sheet.classList.remove('modal--surface-app');
       const result={
         top:getComputedStyle(header).paddingTop,
         bottom:getComputedStyle(header).paddingBottom,
         gap:getComputedStyle(content).rowGap,
         growth:after-before,
-        whiteSurface,
+        warmSurface,
+        fieldFill:getComputedStyle(sample.querySelector('.field input')).backgroundColor,
+        selectorFill:getComputedStyle(sample.querySelector('.ui-select__control')).backgroundColor,
         field:height('.field input'),
         selector:height('.ui-select__control'),
         search:height('.ui-selector__search'),
@@ -125,7 +162,29 @@ try{
       sample.remove();
       return result;
     });
-    assert.equal(baseline.whiteSurface,'rgb(255, 255, 255)','Z/Q surface must stay white: '+JSON.stringify(baseline));
+    assert.equal(baseline.warmSurface,'rgb(245, 245, 243)','Q must be warm #F5F5F3: '+JSON.stringify(baseline));
+    const internalLayers=await q.evaluate(sheet=>{
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;visibility:hidden;pointer-events:none';
+      probe.innerHTML='<div class="v2-layer v2-layer--top modal-sheet modal--top"></div>'+
+        '<div class="v2-layer v2-layer--bottom modal-sheet modal--bottom modal--consent-sheet"><div class="modal-actions">Действие</div></div>'+
+        '<div class="v2-layer v2-layer--technical modal-sheet modal--technical"></div>';
+      sheet.append(probe);
+      const result={
+        s:getComputedStyle(probe.children[0]).backgroundColor,
+        x:getComputedStyle(probe.children[1]).backgroundColor,
+        xFooter:getComputedStyle(probe.children[1].firstElementChild).backgroundColor,
+        technical:getComputedStyle(probe.children[2]).backgroundColor,
+      };
+      probe.remove();
+      return result;
+    });
+    assert.deepEqual(internalLayers,{
+      s:'rgb(245, 245, 243)',x:'rgb(245, 245, 243)',
+      xFooter:'rgb(245, 245, 243)',technical:'rgb(255, 255, 255)',
+    },'X, S and Q share warm background; technical modal remains white');
+    assert.equal(baseline.fieldFill,'rgb(255, 255, 255)','Input must remain white on warm Q');
+    assert.equal(baseline.selectorFill,'rgb(255, 255, 255)','Selector must remain white on warm Q');
     assert.equal(baseline.top,'12px','Q Header top must be 12px');
     assert.equal(baseline.bottom,'12px','Q Header bottom must be 12px');
     assert.equal(baseline.gap,'12px','Q Header control rows must have 12px gap');

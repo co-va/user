@@ -655,7 +655,7 @@ try {
   }
   assert.deepEqual(editorCases.map((item) => item.scrollElement), ['Q', 'Q', 'Z', 'Z', 'Q', 'X']);
 
-  // One mini-card component, with a different data set on confirmation:
+  // One shared 290 × 200 record mini-card, with fixed identity/time header and total footer:
   // workplace, date+time, each selected service and its prepared price,
   // duration replacing the footer label, total replacing the footer amount.
   const recordCardCheck = await page.evaluate(async () => {
@@ -678,7 +678,7 @@ try {
     }));
     const quote = recordSelectionQuote(selected, workplaceKey);
     const host = document.createElement('div');
-    host.style.cssText = 'position:absolute;top:110px;left:18px;width:300px;';
+    host.style.cssText = 'position:absolute;top:110px;left:18px;width:340px;';
     host.innerHTML = `
       <div id="history-example">${recordMiniCard({
         date: '07.11.26', from: '12:00',
@@ -688,13 +688,16 @@ try {
       })}</div>
       <div id="confirmation-example">${recordMiniCard({
         confirmation: true, workplace: 'Бьюти тория',
-        date: '07.11.26', from: '12:00',
+        date: '07.11.26', from: '12:00', identity: '3 Анна Униченко', phone: '+7 985 729-65-32',
         procedures: selected, duration: '1 ч 30 мин',
         total: quote.totalText,
       })}</div>
       <div id="long-confirmation-example">${recordMiniCard({
         confirmation: true, workplace: 'Бьюти тория',
-        date: '07.11.26', from: '12:00',
+        date: '14.11.26', from: '12:00–14:00',
+        identity: '123456789 Анна-Мария Константиновна Великокняжеская-Николаевская',
+        phone: '+7 985 729-65-32',
+        discount: 'Скидка: 10% · 800 ₽',
         procedures: Array.from({ length: 12 }, (_, i) => ({
           name: 'Процедура ' + i, priceText: 'от 1 500 ₽',
         })),
@@ -704,7 +707,7 @@ try {
     const history = host.querySelector('#history-example .record-summary-mini-card');
     const confirmation = host.querySelector('#confirmation-example .record-summary-mini-card');
     const longCard = host.querySelector('#long-confirmation-example .record-summary-mini-card');
-    const longLines = longCard.querySelector('.mini-card__lines');
+    const longCenter = longCard.querySelector('.mini-card__record-center');
     const pairs = [...confirmation.querySelectorAll('.mini-card__line--pair')].map((row) => ({
       name: row.querySelector('.mini-card__line-text')?.textContent,
       price: row.querySelector('.mini-card__line-right')?.textContent,
@@ -717,22 +720,51 @@ try {
       priceLabels: selected.map((item) => item.priceText),
       quote: quote.totalText,
       quoteDuration: quote.durationMinutes,
-      historyLabel: history.querySelector('.mini-card__row-label')?.textContent,
-      workplace: confirmation.querySelector('.mini-card__line--primary')?.textContent,
-      moment: confirmation.querySelector('.mini-card__line--moment')?.textContent,
+      historyLabel: history.querySelector('.mini-card__record-duration')?.textContent,
+      workplace: confirmation.querySelector('.mini-card__record-workplace')?.textContent,
+      moment: confirmation.querySelector('.mini-card__record-moment')?.textContent,
       pairs,
-      footerLabel: confirmation.querySelector('.mini-card__row-label')?.textContent,
-      footerTotal: confirmation.querySelector('.mini-card__row-value')?.textContent,
-      confirmationRepeat: Boolean(confirmation.querySelector('.mini-card__compact-action')),
-      historyRepeat: Boolean(history.querySelector('.mini-card__compact-action')),
+      footerLabel: confirmation.querySelector('.mini-card__record-duration')?.textContent,
+      footerTotal: confirmation.querySelector('.mini-card__record-total')?.textContent,
+      confirmationRepeat: Boolean(confirmation.querySelector('.mini-card__record-action--right')),
+      historyRepeat: Boolean(history.querySelector('.mini-card__record-action--right')),
       outsideList: Boolean(host.querySelector('.list-entry,.read-only-sheet')),
-      longScroll: longLines.scrollHeight > longLines.clientHeight,
+      longScroll: longCenter.scrollHeight > longCenter.clientHeight,
+      longCenterUsable: longCenter.clientHeight >= 20,
+      longIdentityFits: (() => {
+        const identity = longCard.querySelector('.mini-card__record-identity');
+        const lines = identity.getBoundingClientRect().height / 14;
+        return lines >= 2 && lines <= 4 && identity.scrollHeight <= identity.clientHeight + 1;
+      })(),
+      longTimeFits: (() => {
+        const time = longCard.querySelector('.mini-card__record-moment');
+        return time.scrollWidth <= time.clientWidth + 1
+          && getComputedStyle(time).whiteSpace === 'nowrap';
+      })(),
       longService: longCard.textContent.includes('Процедура 11'),
+      exactSize: confirmation.getBoundingClientRect().width === 290
+        && confirmation.getBoundingClientRect().height === 200,
+      fixedZones: ['head', 'center', 'footer'].every((zone) =>
+        Boolean(longCard.querySelector('.mini-card__record-' + zone))),
+      fixedFooter: longCard.querySelector('.mini-card__record-footer')?.parentElement === longCard,
+      timeNoWrap: getComputedStyle(confirmation.querySelector('.mini-card__record-moment')).whiteSpace === 'nowrap',
+      identity: confirmation.querySelector('.mini-card__record-identity')?.textContent,
+      phone: confirmation.querySelector('.mini-card__record-phone')?.textContent,
     };
     host.remove();
     return result;
   });
   assert.equal(recordCardCheck.sameGeometry, true, 'History and confirmation preserve the same mini-card UI');
+  assert.equal(recordCardCheck.exactSize, true, 'Record mini-card must be exactly 290 × 200');
+  assert.equal(recordCardCheck.fixedZones && recordCardCheck.fixedFooter, true,
+    'Only the centre scrolls: header and totals stay fixed');
+  assert.equal(recordCardCheck.timeNoWrap, true, 'Record date and time must never wrap');
+  assert.equal(recordCardCheck.longIdentityFits && recordCardCheck.longTimeFits, true,
+    'Long UEI, name and full time range must fit fixed Record header without clipping');
+  assert.equal(recordCardCheck.longCenterUsable, true,
+    'Long fixed header and discount cannot collapse the scrolling service area');
+  assert.equal(recordCardCheck.identity, '3 Анна Униченко');
+  assert.equal(recordCardCheck.phone, '+7 985 729-65-32');
   // Intl.NumberFormat uses NBSP for Russian thousands grouping.
   // Compare display text after normalizing Unicode spacing only.
   const spaces = (value) => String(value).replace(/[\u00a0\u202f]/g, ' ');

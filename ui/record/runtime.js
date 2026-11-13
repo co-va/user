@@ -190,40 +190,49 @@ export function recordTimeRows(items = [], {
 
 // One receipt-shaped mini-card for both contact history and booking confirmation.
 // No second confirmation layout, no external V2 service list and no repeated styling.
+// The shared Record mini-card owns geometry and the fixed header/body/footer.
 export function recordMiniCard({
   confirmation = false,
+  viewer = false,
   workplace = '',
+  status = '',
   date = '',
   from = '',
+  to = '',
+  identity = '',
+  phone = '',
   procedures = [],
   duration = '',
+  discount = '',
   total = '',
+  details = [],
   compactAction = null,
   interactive = false,
   data = '',
   aria = '',
 } = {}) {
-  const procedureLines = (Array.isArray(procedures) ? procedures : []).map((item) => ({
-    value: String(item?.name || item?.title || 'Процедура'),
+  const serviceLines = (Array.isArray(procedures) ? procedures : []).map((item) => ({
+    value: [String(item?.name || item?.title || 'Услуга'), String(item?.durationText || '')].filter(Boolean).join(' · '),
     ...(confirmation ? { rightValue: String(item?.priceText || '') } : {}),
   }));
-  // History retains its original four-service spacing.
-  if (!confirmation) while (procedureLines.length < 4) procedureLines.push({ value: '' });
-
   return miniCard({
     className: `record-summary-mini-card${confirmation ? ' record-summary-mini-card--confirmation' : ''}`,
-    lines: confirmation
-      ? [
-          { value: workplace, variant: 'primary' },
-          { value: [date, from].filter(Boolean).join(' · '), variant: 'moment' },
-          ...procedureLines,
-        ]
-      : [
-          { value: [date, from].filter(Boolean).join(' · '), variant: 'primary' },
-          ...procedureLines,
-        ],
-    rows: [{ label: confirmation ? duration : 'Стоимость', value: total }],
-    compactAction,
+    recordLayout: {
+      // User viewer reuses the Professional-approved person-first geometry,
+      // presenting the provider/workplace instead of duplicating the user's own name.
+      workplace: viewer ? '' : workplace,
+      headerMode: viewer ? 'person' : '',
+      moment: [date, to && from && to !== from ? `${from}–${to}` : from].filter(Boolean).join(' · '),
+      identity: viewer ? (workplace || 'Рабочее пространство') : identity,
+      phone: viewer ? status : phone,
+      services: serviceLines,
+      details: viewer ? [] : details,
+      duration: confirmation ? duration : 'Стоимость',
+      footerLayout: viewer ? 'three-column' : '',
+      discount,
+      total,
+      rightAction: compactAction,
+    },
     interactive,
     data,
     aria,
