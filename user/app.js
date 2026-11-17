@@ -179,16 +179,7 @@ function installRelationshipLoading(root, state) {
         if (current.accountTab !== 'contacts' && current.accountTab !== 'contact-detail') return;
         return renderShell(root, current, shellCallbacks(root, current));
       })
-      .catch((error) => {
-        if (root.isConnected && root.userRelationshipState === current) {
-          openNotice({
-            title: 'Контакты не загрузились',
-            message: accountErrorMessage(error, 'Не удалось загрузить контакты. Попробуйте открыть их ещё раз.'),
-            action: 'Закрыть',
-            variant: 'technical',
-          });
-        }
-      });
+      .catch(() => {});
   }, true);
 }
 
@@ -204,15 +195,7 @@ async function renderHome(root, state) {
   const callbacks = shellCallbacks(root, state);
   const tab = String(state.accountTab || 'journal');
   if (tab === 'contacts' || tab === 'contact-detail') {
-    await loadRelationships(state).catch((error) => {
-      openNotice({
-        title: 'Контакты не загрузились',
-        message: accountErrorMessage(error, 'Не удалось загрузить контакты. Попробуйте открыть их ещё раз.'),
-        action: 'Закрыть',
-        variant: 'technical',
-      });
-      return [];
-    });
+    await loadRelationships(state).catch(() => []);
   }
 
   // The Journal must be usable as soon as its shell exists; records are
@@ -230,14 +213,6 @@ async function renderHome(root, state) {
       state.accountRecords = Array.isArray(records) ? records : [];
       state.accountRecordsLoaded = loaded;
       root.querySelector('[data-account-journal-root]')?.userJournalRefresh?.();
-      if (!loaded) {
-        openNotice({
-          title: 'Записи не загрузились',
-          message: 'Не удалось получить записи. Проверьте соединение и откройте Журнал ещё раз.',
-          action: 'Закрыть',
-          variant: 'technical',
-        });
-      }
       // Delay the expensive Contacts prefetch until Journal data is present.
       // A tap on Contacts already starts/reuses loadRelationships immediately.
       const warmContacts = () => {
