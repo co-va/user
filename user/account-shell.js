@@ -1,5 +1,6 @@
 import {
   accountErrorMessage,
+  getAccountConsentState,
   getGlobalAccountContact,
   getGlobalAccountPlatformState,
   getGlobalAccountRelationships,
@@ -1404,7 +1405,12 @@ async function openGlobalContactDetailZ(root, state, handlers) {
   if (recordAllowed === true) {
     syncContactRecordAction(layer, tenantId, handlers, true);
   } else if (recordAllowed === false) {
-    await openContactConsentQ(state, handlers, relationship, layer);
+    // Lack of booking access is not proof that a previously accepted consent
+    // is missing. Do not ask for the same documents again if PDN is active.
+    const consents = await getAccountConsentState(tenantId).catch(() => null);
+    if (layer.isConnected && consents?.pdnActive === false) {
+      await openContactConsentQ(state, handlers, relationship, layer);
+    }
   }
   return layer;
 }
