@@ -220,20 +220,20 @@ async function renderHome(root, state) {
   const recordsPromise = tab === 'journal'
     ? getGlobalAccountRecords()
       .then((records) => ({ records, loaded: true }))
-      .catch((error) => ({ records: [], loaded: false, error }))
+      .catch(() => ({ records: [], loaded: false }))
     : null;
   await renderShell(root, state, callbacks);
 
   if (tab === 'journal' && recordsPromise) {
-    void recordsPromise.then(({ records, loaded, error }) => {
+    void recordsPromise.then(({ records, loaded }) => {
       if (!root.isConnected || root.userRelationshipState !== state || !state.account) return;
       state.accountRecords = Array.isArray(records) ? records : [];
       state.accountRecordsLoaded = loaded;
       root.querySelector('[data-account-journal-root]')?.userJournalRefresh?.();
-      if (error) {
+      if (!loaded) {
         openNotice({
           title: 'Записи не загрузились',
-          message: accountErrorMessage(error, 'Не удалось получить записи. Проверьте соединение и откройте Журнал ещё раз.'),
+          message: 'Не удалось получить записи. Проверьте соединение и откройте Журнал ещё раз.',
           action: 'Закрыть',
           variant: 'technical',
         });
