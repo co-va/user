@@ -69,14 +69,13 @@ async function offerPushSetupOnce() {
   if (!layer) return;
 
   layer.dataset.accountPushSetupModal = 'true';
+  // Count the automatic offer when shown, including closure via X or swipe.
+  dismissWebPushSetup();
   const enable = layer.querySelector('[data-account-push-enable]');
   const later = layer.querySelector('[data-account-push-later]');
   const status = layer.querySelector('[data-account-push-status]');
 
-  later?.addEventListener('click', () => {
-    dismissWebPushSetup();
-    layer.remove();
-  });
+  later?.addEventListener('click', () => layer.remove());
   enable?.addEventListener('click', async () => {
     enable.disabled = true;
     if (status) status.textContent = 'Включаем…';
