@@ -1,9 +1,11 @@
 import { getAccountToken } from '../core/account/index.js';
 import {
+  dismissWebPushSetup,
   enableWebPush,
   syncWebPush,
   webPushFailureMessage,
   webPushOptedOut,
+  webPushSetupDismissed,
   webPushSupported,
 } from '../core/notifications/web-push.js';
 import { button, escapeHtml, modal, mountModal } from '../ui/user-ui.js';
@@ -27,13 +29,12 @@ function deviceCanOfferPushSetup() {
   return true;
 }
 
-function shouldOfferAccountPushSetup({ optedOutAtSessionStart = false } = {}) {
+function shouldOfferAccountPushSetup() {
   if (!webPushSupported()) return false;
   if (Notification.permission === 'denied') return false;
   if (!deviceCanOfferPushSetup()) return false;
 
-  if (webPushOptedOut()) return optedOutAtSessionStart;
-  return true;
+  return !webPushOptedOut() && !webPushSetupDismissed();
 }
 
 function pushSetupModal(initialStatus = '') {
@@ -48,15 +49,15 @@ function pushSetupModal(initialStatus = '') {
   <div class="muted" data-account-push-status aria-live="polite">${escapeHtml(initialStatus)}</div>`;
 }
 
-async function offerPushSetupOnce({ optedOutAtSessionStart = false } = {}) {
+async function offerPushSetupOnce() {
   if (!webPushSupported() || !getAccountToken() || !accountAppReady()) return;
 
-  if (Notification.permission === 'granted' && !webPushOptedOut()) {
-    const state = await syncWebPush();
-    if (state?.subscribed) return;
+  if (Notification.permission === 'granted') {
+    if (!webPushOptedOut()) await syncWebPush().catch(() => null);
+    return;
   }
 
-  if (!shouldOfferAccountPushSetup({ optedOutAtSessionStart })) return;
+  if (!shouldOfferAccountPushSetup()) return;
   if (document.querySelector('[data-account-push-setup-modal]')) return;
 
   const layer = mountModal(document.body, modal(pushSetupModal(), {
@@ -68,6 +69,8 @@ async function offerPushSetupOnce({ optedOutAtSessionStart = false } = {}) {
   if (!layer) return;
 
   layer.dataset.accountPushSetupModal = 'true';
+  // Count the automatic offer when shown, including closure via X or swipe.
+  dismissWebPushSetup();
   const enable = layer.querySelector('[data-account-push-enable]');
   const later = layer.querySelector('[data-account-push-later]');
   const status = layer.querySelector('[data-account-push-status]');
@@ -106,9 +109,8 @@ export function startGlobalAccountPushRuntime() {
     if (checkedForSession || !accountAppReady()) return;
 
     checkedForSession = true;
-    const optedOutAtSessionStart = webPushOptedOut();
     try {
-      await offerPushSetupOnce({ optedOutAtSessionStart });
+      await offerPushSetupOnce();
     } catch {
       // Push setup must not block the User application.
     }

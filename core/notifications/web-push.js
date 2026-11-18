@@ -9,6 +9,7 @@ import {
 
 const WEB_PUSH_OPT_OUT_KEY = 'va-tools.account.push.opt-out';
 const WEB_PUSH_OPT_OUT_SOURCE_KEY = 'va-tools.account.push.opt-out-source';
+const WEB_PUSH_SETUP_DISMISSED_KEY = 'va-tools.account.push.setup-dismissed';
 
 function decodeBase64Url(value) {
   const padding = '='.repeat((4 - (String(value || '').length % 4)) % 4);
@@ -73,6 +74,26 @@ function setWebPushOptOutSource(source = '') {
     else localStorage.removeItem(sourceKey);
   } catch {
     // A storage failure must not block the Account application.
+  }
+}
+
+export function webPushSetupDismissed() {
+  const key = scopedWebPushStorageKey(WEB_PUSH_SETUP_DISMISSED_KEY);
+  if (!key) return false;
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissWebPushSetup() {
+  const key = scopedWebPushStorageKey(WEB_PUSH_SETUP_DISMISSED_KEY);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, '1');
+  } catch {
+    // Storage restrictions must not prevent closing the prompt.
   }
 }
 
