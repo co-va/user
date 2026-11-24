@@ -43,3 +43,7 @@ Operational-Evidence: {"kind":"implemented","files":["core/record/platform-api.j
 ```
 
 Пример иллюстративный, не утверждение о проверке этого файла. Каждый изменённый файл должен иметь запись для итоговой версии; последующее изменение файла требует новой записи. ID брать из центрального DEVELOPMENT_CATALOG. Markdown не требует записи, для технических путей допускается platform. Для неизвестных User runtime-путей требуется существующий ID, но полный автоматический маппинг User ещё не реализован. Запись не равна принятию владельцем, не увеличивает готовность без принятия; отдельный реестр не заводить. Синхронизация Git с operationalProgress — Core #942. Не отключать gate, не ослаблять CI, не использовать фиктивный PASS.
+
+## Owner approval of architectural changes — 24.11.2026
+
+`.github/CODEOWNERS` lists protected architecture, shared UI, API bridges, application entry/shell, release guards and infrastructure; `@co-tools` is the designated reviewer. The existing main ruleset requires Code Owner review and dismisses stale approvals on new commits. Ordinary changes outside protected paths do not require a Code Owner review. The rule applies only after CODEOWNERS is present in main. The executor must use `3001vaf-maker` with Write, never the owner login; an owner-authored PR is not a valid test of separate owner approval. Do not approve on behalf of the owner, bypass or modify review rules. Verify actual blocking on an executor-authored PR before describing the protection as proven. Staging remains unrestricted by this main ruleset.

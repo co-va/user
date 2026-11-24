@@ -1,0 +1,25 @@
+# Owner approval for architecture, shared UI and release safeguards.
+# Ordinary feature files outside these contours do not require a Code Owner review.
+# This file is effective only when present in the target branch (main).
+/.github/** @co-tools
+/AGENTS.md @co-tools
+/CI_CONTRACT.md @co-tools
+/PROJECT_STATE.md @co-tools
+/USER_RELEASE_READINESS_MAP.md @co-tools
+/USER_UI_AUDIT.md @co-tools
+/README.md @co-tools
+/ui/** @co-tools
+/css/** @co-tools
+/core/** @co-tools
+/user/main.js @co-tools
+/user/account-shell.js @co-tools
+/user/account-runtime.js @co-tools
+/index.html @co-tools
+/service-worker.js @co-tools
+/manifest.webmanifest @co-tools
+/scripts/** @co-tools
+/package.json @co-tools
+/Dockerfile @co-tools
+/.dockerignore @co-tools
+/nginx.conf @co-tools
+/amvera.yml @co-tools
