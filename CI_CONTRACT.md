@@ -31,3 +31,19 @@ User does not own a private alternative UI. The current approved User UI is the 
 4. **Header Z/Q:** один owner `ui/v2/z-layout.js`; пустой Header строго **12px верх + 12px середина + 12px низ = 36px**. Стрелка центрирована по средней зоне, но её невидимая область нажатия не увеличивает высоту Header. Если вставлен элемент, он заменяет средние 12px своей фактической высотой; между двумя или более отдельными элементами строго 12px. Например, одна вставка 46px даёт 70px Header, две вставки по 46px дают 128px Header. Вставленный текстовый заголовок — не input, строго `46px` (height = min-height = max-height), без рамки/заливки. Переключатели/поиск сохраняют собственные утверждённые размеры. Дополнительные 14/18/20/22px запрещены.
 
 Старые утверждения, связывавшие высоту полей с кнопками, отменены **только** для формы и выбора. Запрещено обходить защиту отключением проверки; необходимо проверять сохранность обеих независимых геометрий.
+
+## Release evidence — 24.11.2026
+
+Для PR staging → main обязательный job `check` использует центральный скрипт `co-va/core/scripts/check-release-evidence.mjs` на SHA `cc60a79f516d771e5d8d02420fb1dbd9cd5b9f60`. SHA закреплён намеренно: обновлять на проверенную версию по согласованию, не выполнять плавающий Core/staging. Push в staging не требует этого gate. Все существующие UI, API, runtime и staging-smoke проверки сохранены.
+
+После завершения работы фиксировать фактический результат в сообщении коммита или отдельном коммите с неизменённым деревом:
+
+```text
+Operational-Evidence: {"kind":"implemented","files":["core/record/platform-api.js"],"criteria":["records.user"],"result":"Фактическое изменение","remaining":"Что осталось проверить","checks":["Команда и фактический результат проверки"]}
+```
+
+Пример иллюстративный, не утверждение о проверке этого файла. Каждый изменённый файл должен иметь запись для итоговой версии; последующее изменение файла требует новой записи. ID брать из центрального DEVELOPMENT_CATALOG. Markdown не требует записи, для технических путей допускается platform. Для неизвестных User runtime-путей требуется существующий ID, но полный автоматический маппинг User ещё не реализован. Запись не равна принятию владельцем, не увеличивает готовность без принятия; отдельный реестр не заводить. Синхронизация Git с operationalProgress — Core #942. Не отключать gate, не ослаблять CI, не использовать фиктивный PASS.
+
+## Owner approval of architectural changes — 24.11.2026
+
+`.github/CODEOWNERS` lists protected architecture, shared UI, API bridges, application entry/shell, release guards and infrastructure; `@co-tools` is the designated reviewer. The existing main ruleset requires Code Owner review and dismisses stale approvals on new commits. Ordinary changes outside protected paths do not require a Code Owner review. The rule applies only after CODEOWNERS is present in main. The executor must use `3001vaf-maker` with Write, never the owner login; an owner-authored PR is not a valid test of separate owner approval. Do not approve on behalf of the owner, bypass or modify review rules. Verify actual blocking on an executor-authored PR before describing the protection as proven. Staging remains unrestricted by this main ruleset.
